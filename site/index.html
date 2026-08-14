@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hillen League Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">HL</div>
+    <div>
+      <h1>Hillen League <span>Dashboard</span></h1>
+      <p id="meta-line" class="meta-line">loading…</p>
+    </div>
+  </div>
+  <div class="controls">
+    <label>Season
+      <select id="season-select"></select>
+    </label>
+    <label>Group
+      <select id="group-select"></select>
+    </label>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-view="standings" class="active">Standings</button>
+  <button data-view="teams">Teams</button>
+  <button data-view="players">Players</button>
+  <button data-view="games">Games</button>
+</nav>
+
+<main id="view"></main>
+
+<footer class="foot">Data from hillen-sports.com · SQLite · <span id="foot-counts"></span></footer>
+
+<script src="app.js"></script>
+</body>
+</html>

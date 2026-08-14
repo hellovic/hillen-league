@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# scraped HTML cache (regenerable via scraper.py)
+cache/
+
+# dashboard server log (if any)
+*.log
