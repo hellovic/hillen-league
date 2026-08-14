@@ -45,6 +45,40 @@ The frontend talks to a read-only JSON API:
 | `/api/games?season=&group=` | all games with scores |
 | `/api/games/<event_id>` | quarters, team stats, full box scores |
 
+## Publish to GitHub Pages (free, public URL)
+
+The dashboard also runs as a **pure static site** — the same frontend falls back to
+pre-exported JSON under `site/` when no `/api` is available, so it works on any
+static host. GitHub Pages is free and gives a permanent URL.
+
+```bash
+# 1. regenerate the static site whenever the DB changes
+python3 server.py --export site
+
+# 2. commit & push (repo already initialised)
+git add site
+git commit -m "update stats"
+git push
+```
+
+Setup once:
+
+1. Create a **public** repo at https://github.com/new named `hillen-league` (no files).
+2. Push this project:
+   ```bash
+   git remote add origin https://github.com/<YOUR_USERNAME>/hillen-league.git
+   git branch -M main
+   git push -u origin main
+   ```
+3. GitHub → repo → **Settings → Pages** → *Source: Deploy from a branch*,
+   branch `main`, folder **`/site`** → Save.
+4. Done — the dashboard is live at
+   `https://<YOUR_USERNAME>.github.io/hillen-league/`
+
+Alternative static hosts (same `site/` folder, no code changes): drag `site/` into
+[Netlify Drop](https://app.netlify.com/drop) for an instant URL, or upload to
+Cloudflare Pages / Vercel.
+
 ## Schema overview
 
 Reference entities:
