@@ -21,16 +21,19 @@ async function api(path, params = {}) {
     } catch (e) { apiMode = "static"; }
   }
   if (apiMode === "static") {
+    // cache-bust: GitHub Pages caches assets ~10 min; the export stamps
+    // index.html with window.HL_BUILD so every fetch is versioned
+    const v = (typeof window.HL_BUILD !== "undefined") ? "?v=" + window.HL_BUILD : "";
     const file = path === "meta"
       ? "data/meta.json"
       : `data/${params.season ?? state.season}/${params.group ?? state.group}/${path}.json`;
-    let r = await fetch(file);
+    let r = await fetch(file + v);
     // detail pages (games/<id>, teams/<id>, players/<id>) may belong to another
     // group than the one currently selected — try every exported combo
     if (!r.ok && path !== "meta" && !params.group && state.meta) {
       for (const c of state.meta.combos) {
         const alt = `data/${c.season}/${c.group}/${path}.json`;
-        const r2 = await fetch(alt);
+        const r2 = await fetch(alt + v);
         if (r2.ok) { r = r2; break; }
       }
     }

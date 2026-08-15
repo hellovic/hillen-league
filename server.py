@@ -275,7 +275,21 @@ def export_static(out_dir, db_path=DB_PATH):
         # tell GitHub Pages not to run Jekyll over the site
         with open(os.path.join(out_dir, ".nojekyll"), "w") as f:
             f.write("")
-        print(f"exported static site to {out_dir}/")
+        # GitHub Pages caches assets for 10 min (max-age=600); version every
+        # asset URL with a build stamp so viewers get the new build instantly.
+        import time
+        stamp = time.strftime("%Y%m%d%H%M%S")
+        idx = os.path.join(out_dir, "index.html")
+        with open(idx, encoding="utf-8") as f:
+            html = f.read()
+        html = html.replace('<link rel="stylesheet" href="style.css">',
+                            f'<link rel="stylesheet" href="style.css?v={stamp}">')
+        html = html.replace('<script src="app.js"></script>',
+                            f'<script>window.HL_BUILD="{stamp}";</script>\n'
+                            f'<script src="app.js?v={stamp}"></script>')
+        with open(idx, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"exported static site to {out_dir}/ (build {stamp})")
         print(f"  combos: {combos}")
         print(f"  teams: {n_teams} · players: {n_players} · games: {n_games}")
     finally:
