@@ -388,9 +388,9 @@ def main():
     ap = argparse.ArgumentParser(description="Hillen League dashboard server / static exporter")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--db", default=DB_PATH)
-    ap.add_argument("--export", metavar="DIR", default=None,
-                    help="generate a static copy of the site into DIR and exit "
-                         "(for GitHub Pages / Netlify / Cloudflare Pages)")
+    ap.add_argument("--export", metavar="DIR", nargs="?", const="docs", default=None,
+                    help="generate a static copy of the site into DIR (default: docs/) "
+                         "and exit — for GitHub Pages (folder /docs) or other static hosts")
     args = ap.parse_args()
 
     if args.export:

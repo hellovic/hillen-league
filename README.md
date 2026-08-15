@@ -48,15 +48,15 @@ The frontend talks to a read-only JSON API:
 ## Publish to GitHub Pages (free, public URL)
 
 The dashboard also runs as a **pure static site** — the same frontend falls back to
-pre-exported JSON under `site/` when no `/api` is available, so it works on any
+pre-exported JSON under `docs/` when no `/api` is available, so it works on any
 static host. GitHub Pages is free and gives a permanent URL.
 
 ```bash
 # 1. regenerate the static site whenever the DB changes
-python3 server.py --export site
+python3 server.py --export docs
 
 # 2. commit & push (repo already initialised)
-git add site
+git add docs
 git commit -m "update stats"
 git push
 ```
@@ -71,11 +71,11 @@ Setup once:
    git push -u origin main
    ```
 3. GitHub → repo → **Settings → Pages** → *Source: Deploy from a branch*,
-   branch `main`, folder **`/site`** → Save.
+   branch `main`, folder **`/docs`** → Save (GitHub's folder list only offers `/` or `/docs`)
 4. Done — the dashboard is live at
    `https://<YOUR_USERNAME>.github.io/hillen-league/`
 
-Alternative static hosts (same `site/` folder, no code changes): drag `site/` into
+Alternative static hosts (same `docs/` folder, no code changes): drag `docs/` into
 [Netlify Drop](https://app.netlify.com/drop) for an instant URL, or upload to
 Cloudflare Pages / Vercel.
 
