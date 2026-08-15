@@ -19,13 +19,20 @@ The schema and scraper are parameterised, so other groups/seasons can be added w
 | `scraper.py` | Stdlib-only scraper (urllib + re + sqlite3) that builds the DB |
 | `server.py` | Stdlib-only dashboard server: static files + read-only JSON API |
 | `dashboard/` | The dashboard frontend (vanilla HTML/CSS/JS, no build step) |
+| `validate.py` | Data validation suite (box-score/standings reconciliation) |
 | `cache/` | Raw HTML snapshots so re-runs are fast and idempotent |
 
 ## Dashboard (web UI)
 
-A zero-dependency web dashboard over the database — standings, teams (+ rosters,
-results, leaders), players (sortable season stats, game logs) and games (full
-box scores with quarter-by-quarter and per-player stats).
+A zero-dependency web dashboard over the database:
+
+- **Standings** — official group table + points for/against bars
+- **Teams** — rosters, season leaders, results, and a points-for/against trend chart
+- **Players** — sortable/searchable season stats, per-game points chart, radar vs group average, full game logs
+- **Games** — box scores with scoring-by-quarter chart, team performance, full per-player lines
+- **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
+- **CSV export** — a ⬇ CSV button on every table (standings, teams, players, games, box scores, game logs, rosters); Excel-friendly (UTF-8 BOM)
+- Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 
 ```bash
 python3 server.py            # default port 8000
@@ -157,11 +164,37 @@ python3 scraper.py --group 30
 
 # Add another season (season id shown in team-page URLs, e.g. season_id=31)
 python3 scraper.py --season 31 --group 26
+
+# Verify the database is consistent (exit 0 = all good)
+python3 validate.py
 ```
 
 The pipeline: division page → teams & standings → statistics page → 8 leaderboards →
 season schedule → per-team pages (profile, roster, schedule) → per-game `scores.php`
 box scores. All inserts are upserts, so re-runs are safe and idempotent.
+
+## Data validation (`validate.py`)
+
+Run after any scrape to verify the database:
+
+| Check | What it verifies |
+|---|---|
+| Box-score sums | Per-team PTS totals equal official game scores (every completed game) |
+| Quarter sums | Q1–OT totals equal final scores |
+| Standings | Computed team records (`v_team_season_totals`) match the official 分組表 |
+| Forfeit games | All box rows are DNP (0:00); scores present |
+| Not-played games | No box rows; NULL scores |
+| DNP rule | Season stats count exactly the games with minutes > 0 |
+| Referential integrity | No orphan rows across games/players/teams/rosters |
+
+Exits non-zero on any failure. Full recommended refresh flow:
+
+```bash
+python3 scraper.py --group 30      # scrape new data
+python3 validate.py                # verify (must exit 0)
+python3 server.py --export docs    # regenerate static site
+git add -A && git commit -m "update stats" && git push   # auto-deploys
+```
 
 ## Notes & caveats
 

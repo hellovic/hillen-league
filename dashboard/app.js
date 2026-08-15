@@ -106,6 +106,35 @@ document.addEventListener("click", (e) => {
   if (tr) { location.hash = tr.dataset.href; }
 });
 
+/* ---------------- CSV export (client-side, Excel-friendly) ---------------- */
+
+function csvDownload(filename, headers, rows) {
+  const cell = (v) => {
+    const s = String(v ?? "");
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = "\ufeff" + [headers, ...rows].map(r => r.map(cell).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function csvButton(id) {
+  return `<button class="csv-btn" type="button" ${id ? `id="${id}" ` : ""}title="Download as CSV">⬇ CSV</button>`;
+}
+
+/* Bind a CSV button to a data builder. */
+function bindCSV(container, selector, filename, build) {
+  const btn = container.querySelector(selector);
+  if (btn) btn.addEventListener("click", () => {
+    const { headers, rows } = build();
+    csvDownload(filename, headers, rows);
+  });
+}
+
 /* ---------------- header / controls ---------------- */
 
 async function init() {
@@ -166,10 +195,231 @@ function route() {
   if (parts[0] === "teams" && parts[1]) { setView("teams"); renderTeamDetail(view, +parts[1]); }
   else if (parts[0] === "players" && parts[1]) { setView("players"); renderPlayerDetail(view, +parts[1]); }
   else if (parts[0] === "games" && parts[1]) { setView("games"); renderGameDetail(view, +parts[1]); }
+  else if (parts[0] === "compare") {
+    setView("compare");
+    renderCompare(view, parts[1] || "p",
+                  parts[2] ? +parts[2] : null, parts[3] ? +parts[3] : null);
+  }
   else if (parts[0] === "teams") { setView("teams"); renderTeams(view); }
   else if (parts[0] === "players") { setView("players"); renderPlayers(view); }
   else if (parts[0] === "games") { setView("games"); renderGames(view); }
   else { setView("standings"); renderStandings(view); }
+}
+
+/* ---------------- compare ---------------- */
+
+state.compare = { type: "p", a: null, b: null, list: [] };
+
+async function renderCompare(view, type, idA, idB) {
+  const kind = type === "t" ? "t" : "p";
+  state.compare.type = kind;
+  state.compare.a = idA;
+  state.compare.b = idB;
+  const gname = (state.meta.groups.find(g => g.group_id === state.group) || {}).name;
+  view.innerHTML = `
+    <div class="view-head"><h2>Compare</h2><div class="sub">Season ${state.season} · ${esc(gname || "")}</div></div>
+    <div class="card">
+      <div class="compare-pickers">
+        <select id="cmp-type">
+          <option value="p" ${kind === "p" ? "selected" : ""}>Players</option>
+          <option value="t" ${kind === "t" ? "selected" : ""}>Teams</option>
+        </select>
+        <select id="cmp-a"></select>
+        <span class="vs-badge">VS</span>
+        <select id="cmp-b"></select>
+      </div>
+      <div id="cmp-result"></div>
+    </div>`;
+  const idKey = kind === "p" ? "player_id" : "team_id";
+  const nameKey = kind === "p" ? "player_name" : "team_name";
+  const list = kind === "p"
+    ? await api("players", { season: state.season, group: state.group })
+    : await api("teams", { season: state.season, group: state.group });
+  state.compare.list = list;
+  const fill = (sel, current) => {
+    sel.innerHTML = '<option value="">— choose —</option>' +
+      list.map(it => `<option value="${it[idKey]}" ${current === it[idKey] ? "selected" : ""}>${esc(it[nameKey])}</option>`).join("");
+  };
+  fill(view.querySelector("#cmp-a"), idA);
+  fill(view.querySelector("#cmp-b"), idB);
+  const pick = (sel) => { state.compare[sel === "a" ? "a" : "b"] = sel === "a" ? +view.querySelector("#cmp-a").value || null : +view.querySelector("#cmp-b").value || null; };
+  const go = () => {
+    pick("a"); pick("b");
+    if (state.compare.a && state.compare.b) {
+      location.hash = `#/compare/${state.compare.type}/${state.compare.a}/${state.compare.b}`;
+    } else {
+      document.getElementById("cmp-result").innerHTML =
+        `<div class="empty">Choose two ${kind === "p" ? "players" : "teams"} to compare.</div>`;
+    }
+  };
+  view.querySelector("#cmp-a").addEventListener("change", go);
+  view.querySelector("#cmp-b").addEventListener("change", go);
+  view.querySelector("#cmp-type").addEventListener("change", () => {
+    location.hash = `#/compare/${view.querySelector("#cmp-type").value}`;
+  });
+  if (idA && idB) {
+    const el = document.getElementById("cmp-result");
+    el.innerHTML = '<div class="empty">Loading…</div>';
+    await renderCompareResult(el);
+  }
+}
+
+async function renderCompareResult(el) {
+  const { type, a, b } = state.compare;
+  if (type === "p") {
+    const [pa, pb] = await Promise.all([
+      api("players/" + a, { season: state.season }),
+      api("players/" + b, { season: state.season }),
+    ]);
+    el.innerHTML = comparePlayersHTML(pa, pb);
+  } else {
+    const [ta, tb] = await Promise.all([
+      api("teams/" + a, { season: state.season }),
+      api("teams/" + b, { season: state.season }),
+    ]);
+    el.innerHTML = compareTeamsHTML(ta, tb);
+  }
+}
+
+/* one comparison row; better value gets .hi */
+function cmpRow(label, va, vb, lowerBetter = false) {
+  const num = (v) => (v === null || v === undefined || v === "" ? "—" : v);
+  const better = (x, y) => {
+    if (x === null || y === null || x === undefined || y === undefined) return "";
+    return x === y ? "" : (x > y) !== lowerBetter ? "hi" : "lo";
+  };
+  return `<tr><td>${esc(label)}</td><td class="num ${better(va, vb)}">${num(va)}</td>` +
+         `<td class="num ${better(vb, va)}">${num(vb)}</td></tr>`;
+}
+
+function comparePlayersHTML(pa, pb) {
+  const g = (p) => Math.max(p.gp, 1);
+  const pct = (m, a) => a ? (m / a * 100).toFixed(1) + "%" : "—";
+  const rows = [
+    ["Games played", pa.gp, pb.gp, false],
+    ["Minutes / game", (pa.minutes / g(pa)).toFixed(1), (pb.minutes / g(pb)).toFixed(1), false],
+    ["Points / game", (pa.pts / g(pa)).toFixed(1), (pb.pts / g(pb)).toFixed(1), false],
+    ["Total points", pa.pts, pb.pts, false],
+    ["Rebounds / game", (pa.reb / g(pa)).toFixed(1), (pb.reb / g(pb)).toFixed(1), false],
+    ["Assists / game", (pa.ast / g(pa)).toFixed(1), (pb.ast / g(pb)).toFixed(1), false],
+    ["Steals / game", (pa.stl / g(pa)).toFixed(1), (pb.stl / g(pb)).toFixed(1), false],
+    ["Blocks / game", (pa.blk / g(pa)).toFixed(1), (pb.blk / g(pb)).toFixed(1), false],
+    ["Efficiency / game", (pa.eff / g(pa)).toFixed(1), (pb.eff / g(pb)).toFixed(1), false],
+    ["Turnovers / game", (pa.tov / g(pa)).toFixed(1), (pb.tov / g(pb)).toFixed(1), true],
+    ["Fouls / game", (pa.pf / g(pa)).toFixed(1), (pb.pf / g(pb)).toFixed(1), true],
+    ["FG%", pct(pa.fgm, pa.fga), pct(pb.fgm, pb.fga), false],
+    ["3P%", pct(pa.fg3m, pa.fg3a), pct(pb.fg3m, pb.fg3a), false],
+    ["FT%", pct(pa.ftm, pa.fta), pct(pb.ftm, pb.fta), false],
+    ["+/- (season)", pa.plus_minus, pb.plus_minus, false],
+  ];
+  const radarMax = (k) => Math.max(pa[k] / g(pa), pb[k] / g(pb), 0.1) * 1.2;
+  const radar = radarChart([
+    { label: "PTS", max: radarMax("pts") },
+    { label: "REB", max: radarMax("reb") },
+    { label: "AST", max: radarMax("ast") },
+    { label: "STL", max: radarMax("stl") },
+    { label: "BLK", max: radarMax("blk") },
+    { label: "EFF", max: radarMax("eff") },
+  ], [
+    { name: pa.player_name, color: CHART.colors[0], values: [pa.pts / g(pa), pa.reb / g(pa), pa.ast / g(pa), pa.stl / g(pa), pa.blk / g(pa), pa.eff / g(pa)] },
+    { name: pb.player_name, color: CHART.colors[1], values: [pb.pts / g(pb), pb.reb / g(pb), pb.ast / g(pb), pb.stl / g(pb), pb.blk / g(pb), pb.eff / g(pb)] },
+  ]);
+  const ptsBars = (p) => groupedBars(
+    p.games.map(x => ({ label: fmtDate(x.game_date), values: [x.pts] })),
+    [{ name: "PTS", color: CHART.colors[0] }]);
+  const h2h = (() => {
+    if (pa.team_id === pb.team_id) {
+      return `<div class="h2h-record">Same team — no head-to-head.</div>`;
+    }
+    const idsA = new Set(pa.games.map(x => x.event_id));
+    const shared = pb.games.filter(x => idsA.has(x.event_id));
+    if (!shared.length) {
+      return `<div class="h2h-record">${esc(pa.team_name)} and ${esc(pb.team_name)} never met this season.</div>`;
+    }
+    const row = (p, x) => {
+      const isHome = x.home_team_id === p.team_id;
+      const opp = isHome ? x.away_score : x.home_score;
+      const mine = isHome ? x.home_score : x.away_score;
+      return `${mine > opp ? "W" : mine < opp ? "L" : "T"} ${p.pts}pts ${p.tot_reb}reb ${p.ast}ast`;
+    };
+    return `<table class="data"><thead><tr><th>Date</th><th>${esc(pa.player_name)} (${esc(pa.team_name)})</th><th>${esc(pb.player_name)} (${esc(pb.team_name)})</th></tr></thead><tbody>` +
+      shared.map(x => `<tr data-href="#/games/${x.event_id}"><td>${esc(x.game_date)}</td>` +
+        `<td class="mono">${row(pa, x)}</td><td class="mono">${row(pb, x)}</td></tr>`).join("") + `</tbody></table>`;
+  })();
+  return `
+    <div class="grid-2">
+      <div class="card"><h3>${esc(pa.player_name)} <span class="cn">${esc(pa.team_name)}</span></h3></div>
+      <div class="card"><h3>${esc(pb.player_name)} <span class="cn">${esc(pb.team_name)}</span></h3></div>
+    </div>
+    <div class="card"><h3>Season comparison</h3>
+      <table class="data"><thead><tr><th>Stat</th><th class="num">${esc(pa.player_name)}</th><th class="num">${esc(pb.player_name)}</th></tr></thead><tbody>
+        ${rows.map(r => cmpRow(r[0], r[1], r[2], r[3])).join("")}
+      </tbody></table>
+    </div>
+    <div class="card"><h3>Per-game profile <span class="cn">vs each other</span></h3>${radar}</div>
+    <div class="grid-2">
+      <div class="card"><h3>${esc(pa.player_name)} — points per game</h3>${ptsBars(pa)}</div>
+      <div class="card"><h3>${esc(pb.player_name)} — points per game</h3>${ptsBars(pb)}</div>
+    </div>
+    <div class="card"><h3>Head-to-head <span class="cn">meetings</span></h3>${h2h}</div>`;
+}
+
+function compareTeamsHTML(ta, tb) {
+  const trend = (t) => {
+    const games = t.games.filter(x => x.status === "completed").sort((a, b) => a.game_date.localeCompare(b.game_date));
+    const pf = games.map((x, i) => ({ x: i, y: x.home_team_id === t.team_id ? x.home_score : x.away_score, label: fmtDate(x.game_date) }));
+    const pa = games.map((x, i) => ({ x: i, y: x.home_team_id === t.team_id ? x.away_score : x.home_score, label: fmtDate(x.game_date) }));
+    return lineChart([
+      { name: "PF", color: CHART.colors[2], points: pf },
+      { name: "PA", color: CHART.colors[3], points: pa },
+    ]);
+  };
+  const idsB = new Set(tb.games.map(x => x.event_id));
+  const shared = ta.games.filter(x => idsB.has(x.event_id)).sort((a, b) => a.game_date.localeCompare(b.game_date));
+  const series = shared.reduce((acc, x) => {
+    const aWin = (x.home_team_id === ta.team_id ? x.home_score > x.away_score : x.away_score > x.home_score);
+    acc[aWin ? "a" : "b"]++;
+    return acc;
+  }, { a: 0, b: 0 });
+  return `
+    <div class="grid-2">
+      <div class="card"><h3>${esc(ta.team_name)}</h3>
+        <div class="qstrip">
+          <div class="q"><b>${ta.gp}</b><span>GP</span></div>
+          <div class="q"><b>${ta.wins}-${ta.losses}</b><span>W-L</span></div>
+          <div class="q"><b>${ta.pts_for}</b><span>PF</span></div>
+          <div class="q"><b>${ta.pts_against}</b><span>PA</span></div>
+        </div>
+      </div>
+      <div class="card"><h3>${esc(tb.team_name)}</h3>
+        <div class="qstrip">
+          <div class="q"><b>${tb.gp}</b><span>GP</span></div>
+          <div class="q"><b>${tb.wins}-${tb.losses}</b><span>W-L</span></div>
+          <div class="q"><b>${tb.pts_for}</b><span>PF</span></div>
+          <div class="q"><b>${tb.pts_against}</b><span>PA</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><h3>${esc(ta.team_name)} — points trend</h3>${trend(ta)}</div>
+      <div class="card"><h3>${esc(tb.team_name)} — points trend</h3>${trend(tb)}</div>
+    </div>
+    <div class="card"><h3>Head-to-head <span class="cn">series</span></h3>
+      ${shared.length ? `
+      <table class="data"><thead><tr><th>Date</th><th>Score</th><th>Venue</th><th class="num">Winner</th></tr></thead><tbody>
+        ${shared.map(x => {
+          const aHome = x.home_team_id === ta.team_id;
+          const aScore = aHome ? x.home_score : x.away_score;
+          const bScore = aHome ? x.away_score : x.home_score;
+          const winner = aScore > bScore ? ta.team_name : bScore > aScore ? tb.team_name : "Draw";
+          return `<tr data-href="#/games/${x.event_id}"><td>${esc(x.game_date)}</td>
+            <td class="mono">${aScore}–${bScore}</td><td>${esc(x.venue || "—")}</td>
+            <td>${esc(winner)}</td></tr>`;
+        }).join("")}
+      </tbody></table>
+      <div class="h2h-record">Series: <b>${esc(ta.team_name)} ${series.a}</b> – <b>${series.b} ${esc(tb.team_name)}</b></div>` :
+      `<div class="h2h-record">These teams never met this season.</div>`}
+    </div>`;
 }
 
 /* ---------------- standings ---------------- */
@@ -205,7 +455,7 @@ async function renderStandings(view) {
       <td class="num">${s.points}</td>
     </tr>`;
   view.innerHTML = `
-    <div class="view-head"><h2>Standings</h2><div class="sub">${teams.length} teams · ${played.length} played</div></div>
+    <div class="view-head"><h2>Standings</h2><div class="toolbar"><div class="sub">${teams.length} teams · ${played.length} played</div>${csvButton()}</div></div>
     <div class="grid-2">
       <div class="card"><h3>Group Table</h3>
         <div id="st-table">${makeTable(keys, standings, rowHtml, "t-standings", 2)}</div>
@@ -227,6 +477,10 @@ async function renderStandings(view) {
         </div>
       </div>
     </div>`;
+  bindCSV(view, ".csv-btn", "standings.csv", () => ({
+    headers: ["Rank", "Team", "GP", "W", "L", "F", "+/-", "Points"],
+    rows: standings.map(s => [s.rank, s.team_name, s.gp, s.wins, s.losses, s.forfeits, s.diff, s.points]),
+  }));
   bindSort(view.querySelector("#st-table"), () => {
     document.querySelector("#st-table").innerHTML =
       makeTable(keys, sortRows(standings, state.sort.key || "rank", state.sort.dir || "asc"), rowHtml, "t-standings", 2);
@@ -261,10 +515,14 @@ async function renderTeams(view) {
       <td>${esc(t.captain_name || "—")}</td>
     </tr>`;
   view.innerHTML = `
-    <div class="view-head"><h2>Teams</h2><div class="sub">${teams.length} teams · season ${state.season}</div></div>
+    <div class="view-head"><h2>Teams</h2><div class="toolbar"><div class="sub">${teams.length} teams · season ${state.season}</div>${csvButton()}</div></div>
     <div class="card">
       <div id="teams-table">${makeTable(keys, teams, rowHtml, "t-teams", 1)}</div>
     </div>`;
+  bindCSV(view, ".csv-btn", "teams.csv", () => ({
+    headers: ["Team", "GP", "W", "L", "PF", "PA", "+/-", "Manager", "Captain"],
+    rows: teams.map(t => [t.team_name, t.gp, t.wins, t.losses, t.pts_for, t.pts_against, t.diff, t.manager, t.captain_name]),
+  }));
   bindSort(view.querySelector("#teams-table"), () => {
     document.querySelector("#teams-table").innerHTML =
       makeTable(keys, sortRows(teams, state.sort.key || "team_name", state.sort.dir || "asc"), rowHtml, "t-teams", 1);
@@ -276,9 +534,17 @@ async function renderTeamDetail(view, tid) {
   const t = await api("teams/" + tid, { season: state.season });
   if (t.error) { view.innerHTML = `<div class="empty">${esc(t.error)}</div>`; return; }
   const leaders = t.leaders.slice(0, 5);
+  const trendGames = t.games.filter(x => x.status === "completed").sort((a, b) => a.game_date.localeCompare(b.game_date));
+  const trend = lineChart([
+    { name: "Points for", color: CHART.colors[2], points: trendGames.map((x, i) => ({ x: i, y: x.home_team_id === tid ? x.home_score : x.away_score, label: fmtDate(x.game_date) })) },
+    { name: "Points against", color: CHART.colors[3], points: trendGames.map((x, i) => ({ x: i, y: x.home_team_id === tid ? x.away_score : x.home_score, label: fmtDate(x.game_date) })) },
+  ]);
   view.innerHTML = `
     <a class="back" href="#/teams">← Teams</a>
-    <div class="view-head"><h2>${esc(t.team_name)}</h2><div class="sub">${esc(t.group_name || "")} · season ${state.season}</div></div>
+    <div class="view-head"><h2>${esc(t.team_name)}</h2><div class="toolbar">
+      <div class="sub">${esc(t.group_name || "")} · season ${state.season}</div>
+      <a class="csv-btn" href="#/compare/t/${tid}">⇄ Compare</a>
+    </div></div>
     <div class="grid-2">
       <div class="card"><h3>Season record</h3>
         <div class="scoreboard" style="gap:26px">
@@ -302,8 +568,11 @@ async function renderTeamDetail(view, tid) {
         </dl>
       </div>
     </div>
+    <div class="card"><h3>Points trend <span class="cn">per game</span></h3>
+      ${trendGames.length ? trend : '<div class="chart-empty">No completed games yet.</div>'}
+    </div>
     <div class="grid-2">
-      <div class="card"><h3>Roster <span class="cn">隊員名單</span></h3>
+      <div class="card"><h3>Roster <span class="cn">隊員名單</span></h3>${csvButton("roster-csv")}
         <table class="data"><thead><tr><th class="num">#</th><th>Player</th></tr></thead><tbody>
           ${t.roster.map(p => `<tr data-href="#/players/${p.player_id}">
             <td class="num mono">${p.jersey_no ?? "—"}</td>
@@ -324,7 +593,7 @@ async function renderTeamDetail(view, tid) {
         </tbody></table>
       </div>
     </div>
-    <div class="card"><h3>Results <span class="cn">賽程</span></h3>
+    <div class="card"><h3>Results <span class="cn">賽程</span></h3>${csvButton("results-csv")}
       <table class="data pin1"><thead><tr>
         <th>Date</th><th>Opponent</th><th>Result</th><th class="num">Team</th><th class="num">Opp</th><th>Venue</th>
       </tr></thead><tbody>
@@ -344,6 +613,19 @@ async function renderTeamDetail(view, tid) {
         }).join("") || '<tr><td colspan="6" class="empty">No games</td></tr>'}
       </tbody></table>
     </div>`;
+  bindCSV(view, "#roster-csv", "roster.csv", () => ({
+    headers: ["Jersey", "Player"],
+    rows: t.roster.map(p => [p.jersey_no, p.player_name]),
+  }));
+  bindCSV(view, "#results-csv", "results.csv", () => ({
+    headers: ["Date", "Opponent", "Result", "Team", "Opp", "Venue"],
+    rows: t.games.map(g => {
+      const isHome = g.home_team_id === tid;
+      const r = resultOf(g, tid);
+      return [g.game_date, (isHome ? "vs " : "@ ") + (isHome ? g.away_name : g.home_name), r.text,
+              isHome ? g.home_score : g.away_score, isHome ? g.away_score : g.home_score, g.venue];
+    }),
+  }));
 }
 
 /* ---------------- players ---------------- */
@@ -391,6 +673,7 @@ async function renderPlayers(view) {
     if (q) rows = players.filter(p =>
       p.player_name.toLowerCase().includes(q) || p.team_name.toLowerCase().includes(q));
     rows = sortRows(rows, state.sort.key || "pts", state.sort.dir || "desc");
+    state.playersRows = rows;
     document.querySelector("#players-table").innerHTML =
       makeTable(keys, rows, rowHtml, "t-players", 1);
   };
@@ -400,9 +683,18 @@ async function renderPlayers(view) {
       <div class="toolbar">
         <input type="search" id="player-search" placeholder="Search name / team…">
         <div class="sub">${players.length} players</div>
+        ${csvButton()}
       </div>
     </div>
     <div class="card"><div id="players-table"></div></div>`;
+  bindCSV(view, ".csv-btn", "players.csv", () => ({
+    headers: ["Player", "Team", "GP", "MIN", "PPG", "PTS", "RPG", "APG", "SPG", "BPG", "EFF", "FG%", "3P%"],
+    rows: (state.playersRows || players).map(p => [
+      p.player_name, p.team_name, p.gp, p.minutes.toFixed(1), p.ppg, p.pts, p.rpg, p.apg,
+      p.spg, p.bpg, p.effpg,
+      p.fga ? (p.fgm / p.fga * 100).toFixed(1) : "", p.fg3a ? (p.fg3m / p.fg3a * 100).toFixed(1) : "",
+    ]),
+  }));
   bindSort(view.querySelector("#players-table"), draw);
   document.getElementById("player-search").addEventListener("input", draw);
   draw();
@@ -412,9 +704,32 @@ async function renderPlayerDetail(view, pid) {
   view.innerHTML = '<div class="empty">Loading…</div>';
   const p = await api("players/" + pid, { season: state.season });
   if (p.error) { view.innerHTML = `<div class="empty">${esc(p.error)}</div>`; return; }
+  const groupList = await api("players", { season: state.season, group: state.group });
+  const gN = Math.max(groupList.length, 1);
+  const avg = (k) => groupList.reduce((s, x) => s + (x[k] || 0) / Math.max(x.gp, 1), 0) / gN;
+  const g = (n) => Math.max(n, 1);
+  const pv = [p.pts / g(p.gp), p.reb / g(p.gp), p.ast / g(p.gp), p.stl / g(p.gp), p.blk / g(p.gp), p.eff / g(p.gp)];
+  const av = [avg("pts"), avg("reb"), avg("ast"), avg("stl"), avg("blk"), avg("eff")];
+  const radar = radarChart([
+    { label: "PTS", max: Math.max(pv[0], av[0], 0.1) * 1.25 },
+    { label: "REB", max: Math.max(pv[1], av[1], 0.1) * 1.25 },
+    { label: "AST", max: Math.max(pv[2], av[2], 0.1) * 1.25 },
+    { label: "STL", max: Math.max(pv[3], av[3], 0.1) * 1.25 },
+    { label: "BLK", max: Math.max(pv[4], av[4], 0.1) * 1.25 },
+    { label: "EFF", max: Math.max(pv[5], av[5], 0.1) * 1.25 },
+  ], [
+    { name: p.player_name, color: CHART.colors[0], values: pv },
+    { name: "Group avg", color: CHART.colors[4], values: av },
+  ]);
+  const ptsBars = p.games.length ? groupedBars(
+    p.games.map(x => ({ label: fmtDate(x.game_date), values: [x.pts] })),
+    [{ name: "PTS", color: CHART.colors[0] }]) : '<div class="chart-empty">No games played.</div>';
   view.innerHTML = `
     <a class="back" href="#/players">← Players</a>
-    <div class="view-head"><h2>${esc(p.player_name)}</h2><div class="sub"><a class="row-link" href="#/teams/${p.team_id}">${esc(p.team_name)}</a> · season ${state.season}</div></div>
+    <div class="view-head"><h2>${esc(p.player_name)}</h2><div class="toolbar">
+      <div class="sub"><a class="row-link" href="#/teams/${p.team_id}">${esc(p.team_name)}</a> · season ${state.season}</div>
+      <a class="csv-btn" href="#/compare/p/${pid}">⇄ Compare</a>
+    </div></div>
     <div class="grid-2">
       <div class="card"><h3>Season totals</h3>
         <div class="qstrip">
@@ -445,7 +760,11 @@ async function renderPlayerDetail(view, pid) {
         </div>
       </div>
     </div>
-    <div class="card"><h3>Game log <span class="cn">比賽表現</span></h3>
+    <div class="grid-2">
+      <div class="card"><h3>Points per game</h3>${ptsBars}</div>
+      <div class="card"><h3>vs group average <span class="cn">per game</span></h3>${radar}</div>
+    </div>
+    <div class="card"><h3>Game log <span class="cn">比賽表現</span></h3>${csvButton("gamelog-csv")}
       <table class="data pin1"><thead><tr>
         <th>Date</th><th>Opponent</th><th>Result</th>
         <th class="num">MIN</th><th class="num">PTS</th><th class="num">2PT</th><th class="num">3PT</th>
@@ -476,6 +795,16 @@ async function renderPlayerDetail(view, pid) {
         }).join("") || '<tr><td colspan="16" class="empty">No games</td></tr>'}
       </tbody></table>
     </div>`;
+  bindCSV(view, "#gamelog-csv", "player_games.csv", () => ({
+    headers: ["Date", "Opponent", "Result", "MIN", "PTS", "2PT", "3PT", "FT", "REB", "AST", "ST", "BS", "TO", "PF", "EFF", "+/-"],
+    rows: p.games.map(x => {
+      const isHome = x.home_team_id === p.team_id;
+      const r = resultOf(x, p.team_id);
+      return [x.game_date, x.opponent, r.text, x.minutes, x.pts,
+              `${x.fgm - x.fg3m}-${x.fga - x.fg3a}`, `${x.fg3m}-${x.fg3a}`, `${x.ftm}-${x.fta}`,
+              x.tot_reb, x.ast, x.stl, x.blk, x.tov, x.pf, x.eff, x.plus_minus];
+    }),
+  }));
 }
 
 /* ---------------- games ---------------- */
@@ -504,10 +833,14 @@ async function renderGames(view) {
              : '<span class="badge np">scheduled</span>'}</td>
     </tr>`;
   view.innerHTML = `
-    <div class="view-head"><h2>Games</h2><div class="sub">${games.length} scheduled · ${played.length} completed</div></div>
+    <div class="view-head"><h2>Games</h2><div class="toolbar"><div class="sub">${games.length} scheduled · ${played.length} completed</div>${csvButton()}</div></div>
     <div class="card">
       <div id="games-table">${makeTable(keys, games, rowHtml, "t-games", 1)}</div>
     </div>`;
+  bindCSV(view, ".csv-btn", "games.csv", () => ({
+    headers: ["Date", "Home", "Score", "Away", "Venue", "Status"],
+    rows: games.map(g => [g.game_date, g.home_name, g.status === "completed" ? `${g.home_score}-${g.away_score}` : "", g.away_name, g.venue, g.status]),
+  }));
   bindSort(view.querySelector("#games-table"), () => {
     document.querySelector("#games-table").innerHTML =
       makeTable(keys, sortRows(games, state.sort.key || "game_date", state.sort.dir || "asc"), rowHtml, "t-games", 1);
@@ -533,7 +866,9 @@ async function renderGameDetail(view, eid) {
     }, { plus_minus: 0 });
     return `
     <div class="card">
-      <h3>${esc(name)} ${color ? `<span class="pill">${esc(color)}</span>` : ""} <span class="cn">${win === null ? "" : win ? "WINNER" : "LOSER"}</span></h3>
+      <h3>${esc(name)} ${color ? `<span class="pill">${esc(color)}</span>` : ""} <span class="cn">${win === null ? "" : win ? "WINNER" : "LOSER"}</span>
+        <button class="csv-btn team-table-csv" type="button" title="Download as CSV">⬇ CSV</button>
+      </h3>
       <table class="data pin2">
         <thead><tr>
           <th class="num">#</th><th>Player</th><th class="num">MIN</th>
@@ -574,12 +909,18 @@ async function renderGameDetail(view, eid) {
     </div>`;
   };
 
-  const qstrip = ["Q1","Q2","Q3","Q4","OT"].map((q, i) => {
-    const k = i < 4 ? "q" + (i + 1) : "ot";
-    const hv = qOf(g.home_team_id)[k], av = qOf(g.away_team_id)[k];
-    if (hv === undefined && av === undefined) return "";
-    return `<div class="q"><b>${hv ?? "—"} : ${av ?? "—"}</b><span>${q}</span></div>`;
-  }).join("");
+  const qChart = (() => {
+    const rows = ["Q1","Q2","Q3","Q4","OT"].map((q, i) => {
+      const k = i < 4 ? "q" + (i + 1) : "ot";
+      const hv = qOf(g.home_team_id)[k], av = qOf(g.away_team_id)[k];
+      if (hv === undefined && av === undefined) return null;
+      return { label: q, values: [hv ?? 0, av ?? 0] };
+    }).filter(Boolean);
+    return rows.length ? groupedBars(rows, [
+      { name: g.home_name, color: CHART.colors[0] },
+      { name: g.away_name, color: CHART.colors[1] },
+    ]) : "";
+  })();
 
   const perfCells = (() => {
     const h = tsOf(g.home_team_id), a = tsOf(g.away_team_id);
@@ -606,14 +947,23 @@ async function renderGameDetail(view, eid) {
         </div>
       </div>
       ${g.status === "completed" ? `
-      <div class="qstrip">${qstrip}</div>
-      <div class="qstrip" style="margin-top:10px">${perfCells}</div>` :
+      <div class="qstrip">${perfCells}</div>` :
       g.status === "forfeit" ? `
       <div class="empty"><b>Forfeit</b> — ${hw ? esc(g.home_name) : esc(g.away_name)} awarded the win (${g.home_score ?? "—"}–${g.away_score ?? "—"} default).</div>` :
       `<div class="empty">${g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}</div>`}
     </div>
+    ${g.status === "completed" ? `
+    <div class="card"><h3>Scoring by quarter</h3>${qChart}</div>` : ""}
     ${g.status === "completed" ? teamTable(g.home_team_id, g.home_name, tsOf(g.home_team_id).shirt_color, hw) +
                                 teamTable(g.away_team_id, g.away_name, tsOf(g.away_team_id).shirt_color, aw) : ""}`;
+  if (g.status === "completed") {
+    bindCSV(view, ".team-table-csv", "box_score.csv", () => ({
+      headers: ["Team", "Jersey", "Player", "MIN", "2PT", "3PT", "FG", "FT", "REB", "AST", "ST", "BS", "TO", "PF", "EFF", "+/-", "PTS"],
+      rows: g.box.map(b => [b.team_id === g.home_team_id ? g.home_name : g.away_name, b.jersey_no, b.player_name,
+        b.minutes, `${b.fg2m}-${b.fg2a}`, `${b.fg3m}-${b.fg3a}`, `${b.fgm}-${b.fga}`, `${b.ftm}-${b.fta}`,
+        b.tot_reb, b.ast, b.stl, b.blk, b.tov, b.pf, b.eff, b.plus_minus, b.pts]),
+    }));
+  }
 }
 
 /* ---------------- boot ---------------- */
