@@ -333,20 +333,25 @@ function comparePlayersHTML(pa, pb) {
     if (pa.team_id === pb.team_id) {
       return `<div class="h2h-record">Same team — no head-to-head.</div>`;
     }
-    const idsA = new Set(pa.games.map(x => x.event_id));
-    const shared = pb.games.filter(x => idsA.has(x.event_id));
-    if (!shared.length) {
+    // each player's own game-log entry per shared event
+    const gamesA = new Map(pa.games.map(x => [x.event_id, x]));
+    const gamesB = new Map(pb.games.map(x => [x.event_id, x]));
+    const sharedEvents = [...gamesA.keys()].filter(id => gamesB.has(id)).sort();
+    if (!sharedEvents.length) {
       return `<div class="h2h-record">${esc(pa.team_name)} and ${esc(pb.team_name)} never met this season.</div>`;
     }
-    const row = (p, x) => {
-      const isHome = x.home_team_id === p.team_id;
-      const opp = isHome ? x.away_score : x.home_score;
-      const mine = isHome ? x.home_score : x.away_score;
-      return `${mine > opp ? "W" : mine < opp ? "L" : "T"} ${p.pts}pts ${p.tot_reb}reb ${p.ast}ast`;
+    const line = (entry) => {
+      const isHome = entry.home_team_id === entry.team_id;
+      const mine = isHome ? entry.home_score : entry.away_score;
+      const opp = isHome ? entry.away_score : entry.home_score;
+      return `${mine > opp ? "W" : mine < opp ? "L" : "T"} ${entry.pts}pts ${entry.tot_reb}reb ${entry.ast}ast`;
     };
     return `<table class="data"><thead><tr><th>Date</th><th>${esc(pa.player_name)} (${esc(pa.team_name)})</th><th>${esc(pb.player_name)} (${esc(pb.team_name)})</th></tr></thead><tbody>` +
-      shared.map(x => `<tr data-href="#/games/${x.event_id}"><td>${esc(x.game_date)}</td>` +
-        `<td class="mono">${row(pa, x)}</td><td class="mono">${row(pb, x)}</td></tr>`).join("") + `</tbody></table>`;
+      sharedEvents.map(id => {
+        const a = gamesA.get(id), b = gamesB.get(id);
+        return `<tr data-href="#/games/${id}"><td>${esc(a.game_date)}</td>` +
+          `<td class="mono">${line(a)}</td><td class="mono">${line(b)}</td></tr>`;
+      }).join("") + `</tbody></table>`;
   })();
   return `
     <div class="grid-2">
