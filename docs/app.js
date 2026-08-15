@@ -930,17 +930,19 @@ async function renderGameDetail(view, eid) {
     </div>`;
   };
 
-  const qChart = (() => {
-    const rows = ["Q1","Q2","Q3","Q4","OT"].map((q, i) => {
-      const k = i < 4 ? "q" + (i + 1) : "ot";
-      const hv = qOf(g.home_team_id)[k], av = qOf(g.away_team_id)[k];
-      if (hv === undefined && av === undefined) return null;
-      return { label: q, values: [hv ?? 0, av ?? 0] };
-    }).filter(Boolean);
-    return rows.length ? groupedBars(rows, [
-      { name: g.home_name, color: CHART.colors[0] },
-      { name: g.away_name, color: CHART.colors[1] },
-    ], { showValues: true }) : "";
+  // compact quarter-by-quarter table (a bar chart added little over plain numbers)
+  const quarterTable = (() => {
+    const h = qOf(g.home_team_id), a = qOf(g.away_team_id);
+    const qs = ["q1", "q2", "q3", "q4"];
+    if ((h.ot || 0) !== 0 || (a.ot || 0) !== 0) qs.push("ot");
+    const labels = qs.map((k, i) => (i < 4 ? "Q" + (i + 1) : "OT"));
+    const cells = (team) => qs.map(k => `<td class="num">${team[k] ?? "—"}</td>`).join("");
+    return `<table class="data quarter-table">
+      <thead><tr><th></th>${labels.map(l => `<th>${l}</th>`).join("")}<th>Total</th></tr></thead>
+      <tbody>
+        <tr><td>${esc(g.home_name)}</td>${cells(h)}<td class="num total">${g.home_score ?? "—"}</td></tr>
+        <tr><td>${esc(g.away_name)}</td>${cells(a)}<td class="num total">${g.away_score ?? "—"}</td></tr>
+      </tbody></table>`;
   })();
 
   const perfCells = (() => {
@@ -968,13 +970,12 @@ async function renderGameDetail(view, eid) {
         </div>
       </div>
       ${g.status === "completed" ? `
+      ${quarterTable}
       <div class="qstrip">${perfCells}</div>` :
       g.status === "forfeit" ? `
       <div class="empty"><b>Forfeit</b> — ${hw ? esc(g.home_name) : esc(g.away_name)} awarded the win (${g.home_score ?? "—"}–${g.away_score ?? "—"} default).</div>` :
       `<div class="empty">${g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}</div>`}
     </div>
-    ${g.status === "completed" ? `
-    <div class="card"><h3>Scoring by quarter</h3>${qChart}</div>` : ""}
     ${g.status === "completed" ? teamTable(g.home_team_id, g.home_name, tsOf(g.home_team_id).shirt_color, hw) +
                                 teamTable(g.away_team_id, g.away_name, tsOf(g.away_team_id).shirt_color, aw) : ""}`;
   if (g.status === "completed") {
