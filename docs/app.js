@@ -147,25 +147,35 @@ async function init() {
     sel.appendChild(o);
   });
   const gsel = document.getElementById("group-select");
-  // sort groups by age group: U9 < U11A < U11B < U13 < U15 (age, then suffix)
-  const ageKey = (name) => {
-    const m = name.match(/U(\d+)([A-Za-z]?)/);
-    return m ? [+m[1], m[2] || ""] : [999, name];
+  const rebuildGroups = () => {
+    // groups are season-scoped (group ids are reused with different meanings
+    // across seasons), so the dropdown lists the selected season's groups only
+    const ageKey = (name) => {
+      const m = name.match(/U(\d+)([A-Za-z]?)/);
+      return m ? [+m[1], m[2] || ""] : [999, name];
+    };
+    const groups = state.meta.groups
+      .filter(g => g.season_id === state.season)
+      .sort((a, b) => {
+        const ka = ageKey(a.name), kb = ageKey(b.name);
+        return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
+      });
+    if (!groups.some(g => g.group_id === state.group) && groups.length) {
+      state.group = groups[0].group_id;
+    }
+    gsel.innerHTML = "";
+    groups.forEach(g => {
+      const o = document.createElement("option");
+      o.value = g.group_id; o.textContent = g.name;
+      if (g.group_id === state.group) o.selected = true;
+      gsel.appendChild(o);
+    });
   };
-  const groups = [...state.meta.groups].sort((a, b) => {
-    const ka = ageKey(a.name), kb = ageKey(b.name);
-    return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
-  });
-  groups.forEach(g => {
-    const o = document.createElement("option");
-    o.value = g.group_id; o.textContent = g.name;
-    if (g.group_id === state.group) o.selected = true;
-    gsel.appendChild(o);
-  });
+  rebuildGroups();
   const c = state.meta.counts;
   document.getElementById("foot-counts").textContent =
     `${c.teams} teams · ${c.players} players · ${c.games} games · ${c.box_scores} box-score rows`;
-  sel.addEventListener("change", () => { state.season = +sel.value; route(); });
+  sel.addEventListener("change", () => { state.season = +sel.value; rebuildGroups(); route(); });
   gsel.addEventListener("change", () => { state.group = +gsel.value; route(); });
   document.querySelectorAll("#tabs button").forEach(b => {
     b.addEventListener("click", () => { location.hash = "/" + b.dataset.view; });
@@ -179,7 +189,7 @@ function setView(v) {
   document.querySelectorAll("#tabs button").forEach(b =>
     b.classList.toggle("active", state.view === b.dataset.view));
   const s = state.meta.seasons.find(x => x.season_id === state.season);
-  const g = state.meta.groups.find(x => x.group_id === state.group);
+  const g = state.meta.groups.find(x => x.season_id === state.season && x.group_id === state.group);
   document.getElementById("meta-line").textContent =
     `${s ? s.name : "Season " + state.season} · ${g ? g.name : "Group " + state.group}`;
   window.scrollTo(0, 0);
@@ -215,7 +225,7 @@ async function renderCompare(view, type, idA, idB) {
   state.compare.type = kind;
   state.compare.a = idA;
   state.compare.b = idB;
-  const gname = (state.meta.groups.find(g => g.group_id === state.group) || {}).name;
+  const gname = (state.meta.groups.find(g => g.season_id === state.season && g.group_id === state.group) || {}).name;
   view.innerHTML = `
     <div class="view-head"><h2>Compare</h2><div class="sub">Season ${state.season} · ${esc(gname || "")}</div></div>
     <div class="card">

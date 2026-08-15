@@ -93,7 +93,18 @@ def main():
                    v.gp AS vgp, v.wins AS vwins, v.losses AS vlosses, v.forfeits AS vforfeits
             FROM standings stn
             LEFT JOIN v_team_season_totals v
-              ON v.team_id = stn.team_id AND v.season_id = stn.season_id""").fetchall()
+              ON v.team_id = stn.team_id AND v.season_id = stn.season_id AND v.group_id = stn.group_id
+            ORDER BY stn.season_id, stn.group_id""").fetchall()
+        # The site's season-31 standings are frozen first-leg snapshots, so they
+        # only reconcile with the games table when the standings volume (sum of GP)
+        # equals the volume of recorded games for that group. Strict-compare those
+        # groups; warn on groups whose official table is a partial snapshot.
+        from collections import defaultdict
+        vol = defaultdict(lambda: [0, 0])
+        for r in rows:
+            vol[(r["season_id"], r["group_id"])][0] += r["gp"] or 0
+            vol[(r["season_id"], r["group_id"])][1] += r["vgp"] or 0
+        strict = {k for k, (s, v) in vol.items() if s == v}
         for r in rows:
             st = (r["gp"], r["wins"], r["losses"], r["forfeits"])
             cmp_ = (r["vgp"], r["vwins"], r["vlosses"], r["vforfeits"])
@@ -101,10 +112,15 @@ def main():
             if st == (0, 0, 0, 0) and cmp_ == (None, None, None, None):
                 continue
             if st != cmp_:
-                bad += 1
-                fail(f"g{r['group_id']} team {r['team_id']}: standings "
-                     f"{r['gp']}-{r['wins']}-{r['losses']}-{r['forfeits']} vs computed "
-                     f"{r['vgp']}-{r['vwins']}-{r['vlosses']}-{r['vforfeits']}")
+                key = (r["season_id"], r["group_id"])
+                msg = (f"g{r['group_id']} team {r['team_id']} (s{r['season_id']}): standings "
+                       f"{r['gp']}-{r['wins']}-{r['losses']}-{r['forfeits']} vs computed "
+                       f"{r['vgp']}-{r['vwins']}-{r['vlosses']}-{r['vforfeits']}")
+                if key in strict:
+                    bad += 1
+                    fail(msg)
+                else:
+                    warn(msg + " [official table is a partial/frozen snapshot]")
         # teams with games but missing from standings
         for r in c.execute("""
                 SELECT v.team_id, v.season_id FROM v_team_season_totals v
@@ -132,18 +148,21 @@ def main():
         return bad
 
     # ---- 5. not-played games ----
-    @check("not-played games have no box rows and NULL scores")
+    @check("not-played games have no played minutes and NULL scores")
     def _(c):
         bad = 0
         for g in c.execute("SELECT * FROM games WHERE status='not_played'"):
             if g["home_score"] is not None or g["away_score"] is not None:
                 bad += 1
                 fail(f"not_played event {g['event_id']} has non-NULL scores")
-            n = c.execute("SELECT COUNT(*) FROM player_game_stats WHERE event_id=?",
-                          (g["event_id"],)).fetchone()[0]
-            if n:
-                bad += 1
-                fail(f"not_played event {g['event_id']} has {n} box rows")
+            # the site may still list the bench with 0:00 DNP rows, but nobody
+            # may have logged any real minutes
+            for r in c.execute("SELECT * FROM player_game_stats WHERE event_id=?",
+                               (g["event_id"],)):
+                if r["minutes"] not in ("0:00", None, ""):
+                    bad += 1
+                    fail(f"not_played event {g['event_id']}: player {r['player_id']} "
+                         f"has minutes {r['minutes']!r}")
         return bad
 
     # ---- 6. DNP rule: view counts exactly played games ----

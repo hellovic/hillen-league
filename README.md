@@ -3,10 +3,14 @@
 SQLite database of Hillen Youth League (驍籃青少年籃球聯賽) data, scraped from
 https://www.hillen-sports.com/hillenyouth/ for analysis.
 
-**Current contents:** Season 32 (第三十二屆驍籃青少年籃球聯賽), all five Youth
-Girls groups — **U9** (27), **U11A** (28), **U11B** (31), **U13** (26), **U15** (30):
-27 teams, 40 scheduled games (36 completed, 1 forfeit, 2 not played, 1 upcoming),
-326 players, 915 player-game box-score rows.
+**Current contents:** Two seasons of **Youth Girls** data.
+
+* **Season 32** (第三十二屆驍籃青少年籃球聯賽): U9 (27), U11A (28), U11B (31),
+  U13 (26), U15 (30) — 27 teams, 40 games.
+* **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
+  U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
+
+Combined: 45 teams, 615 players, 111 games, 2,831 player-game box-score rows.
 
 The schema and scraper are parameterised, so other groups/seasons can be added with one command.
 
@@ -102,8 +106,8 @@ Reference entities:
 | Table | Key | Notes |
 |---|---|---|
 | `seasons` | `season_id` | e.g. 32 = 第三十二屆驍籃青少年籃球聯賽 |
-| `groups` | `group_id` | e.g. 26 = YOUTH GIRLS U13 |
-| `teams` | `team_id` | Team (name = latest known) |
+| `groups` | `(season_id, group_id)` | **Season-scoped**: the site reuses group ids across seasons with different meanings (26 = YOUTH GIRLS U13 in s32, but YOUTH GIRL U11 GROUP A in s31) |
+| `teams` | `team_id` | Team (name = latest known; ids are stable across seasons) |
 | `players` | `player_id` | Player (global id, name) |
 
 Season-scoped data:
@@ -234,14 +238,23 @@ fresh draw each run.
 
 ## Notes & caveats
 
-- **Not-played games**: a scheduled game with no box score (e.g. event 19126, GTG
-  walkover) is stored with `status = 'not_played'` and `NULL` scores, so it is
-  excluded from standings/statistics views. GTG therefore shows 0 GP.
+- **Not-played games**: a game recorded with a 0-0 result (e.g. event 19126, GTG
+  walkover; several s31 voids) is stored with `status = 'not_played'` and `NULL`
+  scores — the site's standings don't count these at all, and they are excluded
+  from all stats views. GTG therefore shows 0 GP.
 - **Forfeit games**: a default-score result where nobody logged minutes (e.g.
   event 19954, Dreams Team 20-0 Blaze Phoenix) is stored with `status = 'forfeit'`.
   The official 分組表 counts it as a win for the higher-scoring team and 棄
   (forfeit) for the loser (Blaze: 0W 2L 1棄), and `v_team_season_totals` reproduces
   that: `GP = wins + losses + forfeits`.
+- **Season-31 standings are frozen first-leg snapshots**: the site's s31 分組表
+  pages were never updated after the first round of fixtures, even though most
+  groups played second-leg (home/away) games afterwards. The `games` table
+  contains the full schedule (e.g. s31 U9: 15 games), while `standings` records
+  the official first-leg table (GP=4 per team) — so `v_team_season_totals`
+  (recomputed from all games) will differ from the s31 `standings` for those
+  groups. Cross-group U11 playoff games ("YOUTH GIRL U11 DIVISION 1/2") are
+  recorded on the site but belong to no group; they are intentionally not scraped.
 - **Did-not-play (DNP) rows**: box scores list bench players with `0:00` minutes.
   These rows are kept in `player_game_stats` (so game box scores stay complete,
   and are shown as "DNP" on the game page) but are **excluded from all player

@@ -3,6 +3,23 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v5.0] — Unreleased — Multi-season support (Season 31)
+- **Season 31** (第三十一屆驍籃青少年籃球聯賽) added for all five Youth Girls
+  groups: YOUTH GIRL U9 (25), U11 GROUP A (26), U11 GROUP B (27), U13 (28),
+  U15 (29) — 25 teams, 71 games. Combined with season 32: 45 teams, 111 games,
+  615 players, 2,831 box-score rows.
+- **Groups are now season-scoped**: the site reuses group ids with different
+  meanings across seasons (e.g. id 26 = U13 in s32 but U11 GROUP A in s31), so
+  `groups` is keyed by `(season_id, group_id)` and the dashboard's Group
+  dropdown lists only the selected season's groups (age-sorted), resetting when
+  the season changes.
+- Validation: season-31 official standings are partial/frozen snapshots on the
+  site, so `validate.py` compares them strictly only when the standings volume
+  matches the recorded games, otherwise warns.
+- Dashboard: missing game/team/player ids now show a friendly "Not found"
+  message instead of hanging on "Loading…" (no console errors).
+- Commits: local only — deployed when requested.
+
 ## [v4.3] — 2026-08-16 — Deployed-vs-source validator
 - New **`crosscheck.py`**: samples 10 random box-score stats per game per player
   from the deployed dashboard (hellovic.github.io/hillen-league) and compares

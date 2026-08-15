@@ -71,7 +71,7 @@ QUERIES = {
                COALESCE(v.pts_for, 0) AS pts_for, COALESCE(v.pts_against, 0) AS pts_against
         FROM season_teams st
         JOIN teams t ON t.team_id = st.team_id
-        JOIN groups gr ON gr.group_id = st.group_id
+        JOIN groups gr ON gr.group_id = st.group_id AND gr.season_id = st.season_id
         LEFT JOIN players cp ON cp.player_id = st.captain_player_id
         LEFT JOIN v_team_season_totals v
                ON v.team_id = st.team_id AND v.season_id = st.season_id
@@ -145,7 +145,7 @@ QUERIES = {
         FROM games g
         JOIN teams ht ON ht.team_id = g.home_team_id
         JOIN teams at ON at.team_id = g.away_team_id
-        JOIN groups gr ON gr.group_id = g.group_id
+        JOIN groups gr ON gr.group_id = g.group_id AND gr.season_id = g.season_id
         WHERE g.event_id = ?""",
     "game_quarters": """
         SELECT q.* FROM game_quarters q WHERE q.event_id = ?""",
@@ -157,7 +157,7 @@ QUERIES = {
         WHERE pgs.event_id = ?
         ORDER BY pgs.team_id, COALESCE(pgs.jersey_no, 999), pgs.player_id""",
     "seasons": "SELECT season_id, name FROM seasons ORDER BY season_id",
-    "groups": "SELECT group_id, name FROM groups ORDER BY group_id",
+    "groups": "SELECT season_id, group_id, name FROM groups ORDER BY season_id, group_id",
 }
 
 
@@ -337,6 +337,20 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not os.path.isfile(fp):
             self._send(404, b"not found", "text/plain; charset=utf-8")
+            return
+        # version asset URLs by file mtime so browsers never cache stale JS/CSS
+        if os.path.basename(fp) == "index.html":
+            with open(fp, encoding="utf-8") as f:
+                html = f.read()
+            def _v(m):
+                asset = m.group(2)
+                try:
+                    ver = int(os.path.getmtime(os.path.join(STATIC_DIR, asset)))
+                except OSError:
+                    ver = 1
+                return f'{m.group(1)}="{asset}?v={ver}"'
+            html = re.sub(r'(src|href)="(app\.js|charts\.js|style\.css)"', _v, html)
+            self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
             return
         ctype = {
             ".html": "text/html; charset=utf-8",

@@ -317,11 +317,13 @@ def parse_team_page(html, season_id, team_id):
             if not ev:
                 continue
             dt = re.search(r"<p>(\d{4}-\d{2}-\d{2}) ([^<]+?) - ([^<]+?)</p>", b)
+            sp = re.search(r"<span>([^<]+)</span>", b)
             left = re.search(r'r-side left" href="[^"]*team_id=(\d+)"', b)
             right = re.search(r'r-side right" href="[^"]*team_id=(\d+)"', b)
             nums = re.findall(r'<span class="[^"]*">(\d+)</span>\s*<span>-</span>\s*<span class="[^"]*">(\d+)</span>', b)
             schedule.append({
                 "event_id": int(ev.group(1)),
+                "group": sp.group(1).strip() if sp else None,
                 "date": dt.group(1) if dt else None,
                 "start": dt.group(2) if dt else None,
                 "end": dt.group(3) if dt else None,
@@ -442,8 +444,9 @@ def parse_scores_page(html, season_id, event_id):
                 elif col in STAT_COLS:
                     rec[STAT_COLS[col]] = to_int(v) if v not in ("", "-") else None
             out["box"].append(rec)
-    # a 0-0 game with no quarter data / box scores was never played (e.g. walkover)
-    if out["status"] == "completed" and not out["box"] and not out["quarters"]:
+    # a 0-0 result means the game was never played (walkover / void): the site's
+    # standings do not count it at all, so drop the scores and exclude it
+    if out["status"] == "completed" and out["home_score"] == 0 and out["away_score"] == 0:
         out["status"] = "not_played"
         out["home_score"] = out["away_score"] = None
     # a default-score game (e.g. 20-0) where nobody logged any minutes is a
@@ -474,9 +477,10 @@ class Store:
         self.conn.execute("INSERT INTO seasons(season_id, name) VALUES(?,?) "
                           "ON CONFLICT(season_id) DO UPDATE SET name=excluded.name", (season_id, name))
 
-    def upsert_group(self, group_id, name):
-        self.conn.execute("INSERT INTO groups(group_id, name) VALUES(?,?) "
-                          "ON CONFLICT(group_id) DO UPDATE SET name=excluded.name", (group_id, name))
+    def upsert_group(self, season_id, group_id, name):
+        self.conn.execute("INSERT INTO groups(season_id, group_id, name) VALUES(?,?,?) "
+                          "ON CONFLICT(season_id, group_id) DO UPDATE SET name=excluded.name",
+                          (season_id, group_id, name))
 
     def upsert_team(self, team_id, name):
         self.conn.execute("INSERT INTO teams(team_id, name) VALUES(?,?) "
@@ -594,12 +598,12 @@ def main():
     store = Store(args.db)
     log = print
 
-    div = cache.get(f"{BASE}division.php?group_id={group_id}")
+    div = cache.get(f"{BASE}division.php?season_id={season_id}&group_id={group_id}")
     m = re.search(r'<h3 class="widget-title style12"><span class="myfont"[^>]*>([^<]+)</span>', div)
     group_name = m.group(1).strip() if m else f"group {group_id}"
     season_name = f"第{season_id}屆驍籃青少年籃球聯賽"
     store.upsert_season(season_id, season_name)
-    store.upsert_group(group_id, group_name)
+    store.upsert_group(season_id, group_id, group_name)
     log(f"group: {group_name} (id={group_id}), season: {season_name} (id={season_id})")
 
     # 1. teams
@@ -610,13 +614,13 @@ def main():
         store.upsert_season_team({"season_id": season_id, "team_id": tid, "group_id": group_id})
 
     # 2. standings
-    standings = parse_standings(cache.get(f"{BASE}division.php"), group_name)
+    standings = parse_standings(cache.get(f"{BASE}division.php?season_id={season_id}"), group_name)
     log(f"standings: {len(standings)}")
     for s in standings:
         store.upsert_standings({**s, "season_id": season_id, "group_id": group_id})
 
     # 3. leaderboards
-    boards = parse_leaderboards(cache.get(f"{BASE}statistics.php?group_id={group_id}"))
+    boards = parse_leaderboards(cache.get(f"{BASE}statistics.php?season_id={season_id}&group_id={group_id}"))
     log(f"leaderboard rows: {len(boards)}")
     for b in boards:
         store.upsert_player(b["player_id"], b["player_name"])
@@ -643,6 +647,10 @@ def main():
             store.upsert_player(r["player_id"], r["name"])
             store.upsert_roster({**r, "season_id": season_id, "team_id": tid})
         for si in sched:
+            # only games belonging to this group (excludes other groups' games
+            # and cross-group playoff "DIVISION" games on the team page)
+            if si.get("group") != group_name:
+                continue
             team_events.add(si["event_id"])
             if (si["home_team_id"] in group_team_ids and si["away_team_id"] in group_team_ids):
                 store.upsert_game({**si, "season_id": season_id, "group_id": group_id,

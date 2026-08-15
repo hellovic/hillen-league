@@ -15,9 +15,13 @@ CREATE TABLE IF NOT EXISTS seasons (
     name        TEXT NOT NULL
 );
 
+-- Groups are season-scoped: the site reuses group ids across seasons with
+-- different meanings (e.g. 26 = YOUTH GIRLS U13 in s32, YOUTH GIRL U11 GROUP A in s31)
 CREATE TABLE IF NOT EXISTS groups (
-    group_id    INTEGER PRIMARY KEY,          -- e.g. 26 = YOUTH GIRLS U13
-    name        TEXT NOT NULL
+    season_id   INTEGER NOT NULL REFERENCES seasons(season_id),
+    group_id    INTEGER NOT NULL,              -- site group id (season-scoped)
+    name        TEXT NOT NULL,
+    PRIMARY KEY (season_id, group_id)
 );
 
 CREATE TABLE IF NOT EXISTS teams (
@@ -38,20 +42,21 @@ CREATE TABLE IF NOT EXISTS players (
 CREATE TABLE IF NOT EXISTS season_teams (
     season_id        INTEGER NOT NULL REFERENCES seasons(season_id),
     team_id          INTEGER NOT NULL REFERENCES teams(team_id),
-    group_id         INTEGER NOT NULL REFERENCES groups(group_id),
+    group_id         INTEGER NOT NULL,
     manager          TEXT,
     captain_player_id INTEGER REFERENCES players(player_id),
     home_color       TEXT,
     away_color       TEXT,
     season_pts_for   INTEGER,                 -- 本季總得分
     season_pts_against INTEGER,               -- 本季總失分
-    PRIMARY KEY (season_id, team_id)
+    PRIMARY KEY (season_id, team_id),
+    FOREIGN KEY (season_id, group_id) REFERENCES groups(season_id, group_id)
 );
 
 -- Official group standings snapshot (from division.php 分組表)
 CREATE TABLE IF NOT EXISTS standings (
     season_id   INTEGER NOT NULL REFERENCES seasons(season_id),
-    group_id    INTEGER NOT NULL REFERENCES groups(group_id),
+    group_id    INTEGER NOT NULL,
     team_id     INTEGER NOT NULL REFERENCES teams(team_id),
     rank        INTEGER,                      -- 1-based position in the table
     gp          INTEGER,                      -- games played
@@ -60,7 +65,8 @@ CREATE TABLE IF NOT EXISTS standings (
     forfeits    INTEGER,                      -- 棄
     diff        INTEGER,                      -- +/- point differential
     points      INTEGER,                      -- 分數 (ranking points)
-    PRIMARY KEY (season_id, group_id, team_id)
+    PRIMARY KEY (season_id, group_id, team_id),
+    FOREIGN KEY (season_id, group_id) REFERENCES groups(season_id, group_id)
 );
 
 -- Player roster per season/team (from team page 隊員名單)
@@ -79,7 +85,7 @@ CREATE TABLE IF NOT EXISTS rosters (
 CREATE TABLE IF NOT EXISTS games (
     event_id     INTEGER PRIMARY KEY,         -- site event id
     season_id    INTEGER NOT NULL REFERENCES seasons(season_id),
-    group_id     INTEGER NOT NULL REFERENCES groups(group_id),
+    group_id     INTEGER NOT NULL,
     game_date    TEXT,                        -- YYYY-MM-DD
     start_time   TEXT,                        -- e.g. "09:00 PM"
     end_time     TEXT,                        -- e.g. "10:00 PM"
@@ -88,7 +94,8 @@ CREATE TABLE IF NOT EXISTS games (
     away_team_id INTEGER NOT NULL REFERENCES teams(team_id),
     home_score   INTEGER,
     away_score   INTEGER,
-    status       TEXT NOT NULL DEFAULT 'completed'  -- completed | scheduled
+    status       TEXT NOT NULL DEFAULT 'completed',  -- completed | forfeit | not_played | scheduled
+    FOREIGN KEY (season_id, group_id) REFERENCES groups(season_id, group_id)
 );
 
 -- Quarter-by-quarter scores per team
@@ -133,7 +140,7 @@ CREATE TABLE IF NOT EXISTS player_game_stats (
 -- Season leaderboards (from statistics.php top-N per category)
 CREATE TABLE IF NOT EXISTS stat_leaderboards (
     season_id    INTEGER NOT NULL REFERENCES seasons(season_id),
-    group_id     INTEGER NOT NULL REFERENCES groups(group_id),
+    group_id     INTEGER NOT NULL,
     category     TEXT NOT NULL,               -- mvp | pts | fg3 | ast | stl | ft | reb | blk
     category_cn  TEXT NOT NULL,               -- 得分王 etc.
     rank         INTEGER,
@@ -142,7 +149,8 @@ CREATE TABLE IF NOT EXISTS stat_leaderboards (
     games_played INTEGER,
     total        REAL,
     avg          REAL,
-    PRIMARY KEY (season_id, group_id, category, rank)
+    PRIMARY KEY (season_id, group_id, category, rank),
+    FOREIGN KEY (season_id, group_id) REFERENCES groups(season_id, group_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_pgs_player ON player_game_stats(player_id);
@@ -203,7 +211,7 @@ FROM v_played_games pgs
 JOIN players p  ON p.player_id  = pgs.player_id
 JOIN games   g  ON g.event_id   = pgs.event_id
 JOIN teams   t  ON t.team_id    = pgs.team_id
-JOIN groups  gr ON gr.group_id  = g.group_id
+JOIN groups  gr ON gr.season_id = g.season_id AND gr.group_id = g.group_id
 GROUP BY pgs.player_id, g.season_id, pgs.team_id, g.group_id;
 
 -- Per-player season averages
