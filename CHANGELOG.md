@@ -3,6 +3,14 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v4.3] — 2026-08-16 — Deployed-vs-source validator
+- New **`crosscheck.py`**: samples 10 random box-score stats per game per player
+  from the deployed dashboard (hellovic.github.io/hillen-league) and compares
+  them against the live source (hillen-sports.com/hillenyouth). Reports
+  per-group + overall summary and a detail line per discrepancy (stat value,
+  score, status, missing player, unparseable page). Seeded sampling for
+  reproducible runs; exit 0 = clean, 1 = discrepancies, 2 = operational failure.
+
 ## [v4.2] — 2026-08-16 — Scoring by quarter → compact table
 - Game page: replaced the scoring-by-quarter **bar chart** with a compact
   quarter-by-quarter **table** (OT column only shown when OT was played).

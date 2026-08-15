@@ -20,6 +20,7 @@ The schema and scraper are parameterised, so other groups/seasons can be added w
 | `server.py` | Stdlib-only dashboard server: static files + read-only JSON API |
 | `dashboard/` | The dashboard frontend (vanilla HTML/CSS/JS, no build step) |
 | `validate.py` | Data validation suite (box-score/standings reconciliation) |
+| `crosscheck.py` | **Deployed-vs-source validator**: samples 10 random stats per game per player from the deployed site and compares them against hillen-sports.com |
 | `cache/` | Raw HTML snapshots so re-runs are fast and idempotent |
 
 ## Dashboard (web UI)
@@ -201,6 +202,35 @@ python3 validate.py                # verify (must exit 0)
 python3 server.py --export docs    # regenerate static site
 git add -A && git commit -m "update stats" && git push   # auto-deploys
 ```
+
+## Cross-checking the deployed site against the source (`crosscheck.py`)
+
+Verifies the **published dashboard** (https://hellovic.github.io/hillen-league/)
+against the **source of truth** (https://www.hillen-sports.com/hillenyouth/).
+For **every game, every player**, it randomly samples 10 per-player box-score
+stats from the deployed JSON and compares each value with the same stat parsed
+live from the source `scores.php` page.
+
+```bash
+python3 crosscheck.py                   # deployed site vs LIVE source pages
+python3 crosscheck.py --use-cache       # vs cached source snapshots (offline/fast)
+python3 crosscheck.py --local-docs      # read deployed JSON from ./docs instead
+python3 crosscheck.py --sample 10 --seed 42   # tune sample size / RNG seed
+python3 crosscheck.py --group 26        # restrict to one group
+```
+
+What it reports:
+
+- Per group: player-rows compared, stats compared, stat + game mismatches
+- Overall summary: games, rows, stats sampled, mismatches, presence issues
+- A detail line for **every discrepancy**: event, group, player, field, and the
+  deployed vs source values — including players missing on either side, final
+  score differences, and source pages that failed to parse
+
+Exit codes: `0` = all compared stats match, `1` = discrepancies found,
+`2` = operational failure (network/parse) so the comparison is incomplete.
+Sampling is seeded (default `42`) for reproducible runs; `--seed random` for a
+fresh draw each run.
 
 ## Notes & caveats
 
