@@ -118,8 +118,15 @@ async function init() {
     sel.appendChild(o);
   });
   const gsel = document.getElementById("group-select");
-  // sort groups by name, ascending (A–Z) — the raw list follows group_id order
-  const groups = [...state.meta.groups].sort((a, b) => a.name.localeCompare(b.name, "en"));
+  // sort groups by age group: U9 < U11A < U11B < U13 < U15 (age, then suffix)
+  const ageKey = (name) => {
+    const m = name.match(/U(\d+)([A-Za-z]?)/);
+    return m ? [+m[1], m[2] || ""] : [999, name];
+  };
+  const groups = [...state.meta.groups].sort((a, b) => {
+    const ka = ageKey(a.name), kb = ageKey(b.name);
+    return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
+  });
   groups.forEach(g => {
     const o = document.createElement("option");
     o.value = g.group_id; o.textContent = g.name;
