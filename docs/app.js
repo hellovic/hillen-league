@@ -61,8 +61,9 @@ function sortRows(rows, key, dir) {
   });
 }
 
-/* Generic sortable table: builds thead (with sort arrows) + tbody. */
-function makeTable(keys, rows, rowHtml, tableId) {
+/* Generic sortable table: builds thead (with sort arrows) + tbody.
+ * pin: 0 = none, 1 = pin first column, 2 = pin second column (mobile only). */
+function makeTable(keys, rows, rowHtml, tableId, pin = 0) {
   const s = state.sort;
   const ths = keys.map(k => {
     const arrow = s.key === k.key ? (s.dir === "asc" ? " ▲" : " ▼") : "";
@@ -70,7 +71,7 @@ function makeTable(keys, rows, rowHtml, tableId) {
   }).join("");
   const body = rows.map(rowHtml).join("") ||
     `<tr><td colspan="${keys.length}" class="empty">No data</td></tr>`;
-  return `<table class="data" ${tableId ? `id="${tableId}"` : ""}>
+  return `<table class="data${pin ? " pin" + pin : ""}" ${tableId ? `id="${tableId}"` : ""}>
     <thead><tr>${ths}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
@@ -186,7 +187,7 @@ async function renderStandings(view) {
     <div class="view-head"><h2>Standings</h2><div class="sub">${teams.length} teams · ${played.length} played</div></div>
     <div class="grid-2">
       <div class="card"><h3>Group Table</h3>
-        <div id="st-table">${makeTable(keys, standings, rowHtml, "t-standings")}</div>
+        <div id="st-table">${makeTable(keys, standings, rowHtml, "t-standings", 2)}</div>
       </div>
       <div>
         <div class="card"><h3>Points for / against</h3>
@@ -207,7 +208,7 @@ async function renderStandings(view) {
     </div>`;
   bindSort(view.querySelector("#st-table"), () => {
     document.querySelector("#st-table").innerHTML =
-      makeTable(keys, sortRows(standings, state.sort.key || "rank", state.sort.dir || "asc"), rowHtml, "t-standings");
+      makeTable(keys, sortRows(standings, state.sort.key || "rank", state.sort.dir || "asc"), rowHtml, "t-standings", 2);
   });
 }
 
@@ -241,11 +242,11 @@ async function renderTeams(view) {
   view.innerHTML = `
     <div class="view-head"><h2>Teams</h2><div class="sub">${teams.length} teams · season ${state.season}</div></div>
     <div class="card">
-      <div id="teams-table">${makeTable(keys, teams, rowHtml, "t-teams")}</div>
+      <div id="teams-table">${makeTable(keys, teams, rowHtml, "t-teams", 1)}</div>
     </div>`;
   bindSort(view.querySelector("#teams-table"), () => {
     document.querySelector("#teams-table").innerHTML =
-      makeTable(keys, sortRows(teams, state.sort.key || "team_name", state.sort.dir || "asc"), rowHtml, "t-teams");
+      makeTable(keys, sortRows(teams, state.sort.key || "team_name", state.sort.dir || "asc"), rowHtml, "t-teams", 1);
   });
 }
 
@@ -303,7 +304,7 @@ async function renderTeamDetail(view, tid) {
       </div>
     </div>
     <div class="card"><h3>Results <span class="cn">賽程</span></h3>
-      <table class="data"><thead><tr>
+      <table class="data pin1"><thead><tr>
         <th>Date</th><th>Opponent</th><th>Result</th><th class="num">Team</th><th class="num">Opp</th><th>Venue</th>
       </tr></thead><tbody>
         ${t.games.map(g => {
@@ -370,7 +371,7 @@ async function renderPlayers(view) {
       p.player_name.toLowerCase().includes(q) || p.team_name.toLowerCase().includes(q));
     rows = sortRows(rows, state.sort.key || "pts", state.sort.dir || "desc");
     document.querySelector("#players-table").innerHTML =
-      makeTable(keys, rows, rowHtml, "t-players");
+      makeTable(keys, rows, rowHtml, "t-players", 1);
   };
   view.innerHTML = `
     <div class="view-head">
@@ -424,7 +425,7 @@ async function renderPlayerDetail(view, pid) {
       </div>
     </div>
     <div class="card"><h3>Game log <span class="cn">比賽表現</span></h3>
-      <table class="data"><thead><tr>
+      <table class="data pin1"><thead><tr>
         <th>Date</th><th>Opponent</th><th>Result</th>
         <th class="num">MIN</th><th class="num">PTS</th><th class="num">2PT</th><th class="num">3PT</th>
         <th class="num">FT</th><th class="num">REB</th><th class="num">AST</th><th class="num">ST</th>
@@ -483,11 +484,11 @@ async function renderGames(view) {
   view.innerHTML = `
     <div class="view-head"><h2>Games</h2><div class="sub">${games.length} scheduled · ${played.length} completed</div></div>
     <div class="card">
-      <div id="games-table">${makeTable(keys, games, rowHtml, "t-games")}</div>
+      <div id="games-table">${makeTable(keys, games, rowHtml, "t-games", 1)}</div>
     </div>`;
   bindSort(view.querySelector("#games-table"), () => {
     document.querySelector("#games-table").innerHTML =
-      makeTable(keys, sortRows(games, state.sort.key || "game_date", state.sort.dir || "asc"), rowHtml, "t-games");
+      makeTable(keys, sortRows(games, state.sort.key || "game_date", state.sort.dir || "asc"), rowHtml, "t-games", 1);
   });
 }
 
@@ -511,7 +512,7 @@ async function renderGameDetail(view, eid) {
     return `
     <div class="card">
       <h3>${esc(name)} ${color ? `<span class="pill">${esc(color)}</span>` : ""} <span class="cn">${win === null ? "" : win ? "WINNER" : "LOSER"}</span></h3>
-      <table class="data">
+      <table class="data pin2">
         <thead><tr>
           <th class="num">#</th><th>Player</th><th class="num">MIN</th>
           <th class="num">2PT</th><th class="num">3PT</th><th class="num">FG</th><th class="num">FT</th>
