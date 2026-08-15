@@ -56,7 +56,10 @@ function groupedBars(rows, series, opts = {}) {
         out += `<text x="${(bx + barW / 2).toFixed(1)}" y="${(y(v) - 3).toFixed(1)}" text-anchor="middle" class="chart-val">${v}</text>`;
       }
     });
-    const cx = gx + groupW / 2;
+    // label is centered on the *group*, i.e. under the bar cluster (gx is the
+    // cluster start, not the group start — centering on gx would shift labels
+    // right by (groupW - barW*n)/2, which is large for few bars)
+    const cx = pad.l + ri * groupW + groupW / 2;
     out += `<text x="${cx.toFixed(1)}" y="${h - 6}" text-anchor="middle" class="chart-label">${escAttr(r.label)}</text>`;
   });
   return chartSvg(out + chartLegend(series));
