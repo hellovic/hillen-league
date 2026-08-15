@@ -118,7 +118,9 @@ async function init() {
     sel.appendChild(o);
   });
   const gsel = document.getElementById("group-select");
-  state.meta.groups.forEach(g => {
+  // sort groups by name, ascending (A–Z) — the raw list follows group_id order
+  const groups = [...state.meta.groups].sort((a, b) => a.name.localeCompare(b.name, "en"));
+  groups.forEach(g => {
     const o = document.createElement("option");
     o.value = g.group_id; o.textContent = g.name;
     if (g.group_id === state.group) o.selected = true;
