@@ -60,14 +60,20 @@ The dashboard also runs as a **pure static site** — the same frontend falls ba
 pre-exported JSON under `docs/` when no `/api` is available, so it works on any
 static host. GitHub Pages is free and gives a permanent URL.
 
-```bash
-# 1. regenerate the static site whenever the DB changes
-python3 server.py --export docs
+**Deploy only when asked**: normal work (edits, fixes, new features) is committed
+locally with descriptive notes; the static export (`docs/`) and the push to
+GitHub happen only when a deployment is requested.
 
-# 2. commit & push (repo already initialised)
+```bash
+# ---- normal development: commit locally, do NOT push ----
+git add -A
+git commit -m "describe the change"
+
+# ---- deploy (only when requested): regenerate, commit, push ----
+python3 server.py --export docs     # rebuild static site into docs/
 git add docs
-git commit -m "update stats"
-git push
+git commit -m "deploy: <what changed>"
+git push                            # GitHub Pages auto-rebuilds (~1 min)
 ```
 
 Setup once:
