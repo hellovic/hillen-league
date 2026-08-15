@@ -446,6 +446,11 @@ def parse_scores_page(html, season_id, event_id):
     if out["status"] == "completed" and not out["box"] and not out["quarters"]:
         out["status"] = "not_played"
         out["home_score"] = out["away_score"] = None
+    # a default-score game (e.g. 20-0) where nobody logged any minutes is a
+    # forfeit: the site records a win for the higher-scoring team and 棄 for the
+    # loser (Blaze Phoenix vs Dreams Team, event 19954)
+    elif out["box"] and all((r.get("minutes") or "0:00") == "0:00" for r in out["box"]):
+        out["status"] = "forfeit"
     return out
 
 

@@ -3,8 +3,10 @@
 SQLite database of Hillen Youth League (驍籃青少年籃球聯賽) data, scraped from
 https://www.hillen-sports.com/hillenyouth/ for analysis.
 
-**Current contents:** Season 32 (第三十二屆驍籃青少年籃球聯賽), group 26 — **YOUTH GIRLS U13**
-(7 teams, 8 scheduled games of which 7 played, 89 players, 170 player-game box-score rows).
+**Current contents:** Season 32 (第三十二屆驍籃青少年籃球聯賽), three groups —
+**YOUTH GIRLS U13** (group 26), **YOUTH GIRLS U11A** (group 28), **YOUTH GIRLS U11B**
+(group 31): 18 teams, 28 scheduled games (25 played, 1 forfeit, 2 not played),
+227 players, 612 player-game box-score rows.
 
 The schema and scraper are parameterised, so other groups/seasons can be added with one command.
 
@@ -97,7 +99,7 @@ Season-scoped data:
 | `season_teams` | `(season_id, team_id)` | Group enrollment + manager, captain, home/away colours, season pts for/against |
 | `rosters` | `(season_id, team_id, player_id)` | Jersey numbers |
 | `standings` | `(season_id, group_id, team_id)` | Official 分組表: rank, GP, W/L, forfeits, +/- , points |
-| `games` | `event_id` | Date/time, venue, home/away teams, final score, status (`completed` / `not_played` / `scheduled`) |
+| `games` | `event_id` | Date/time, venue, home/away teams, final score, status (`completed` / `forfeit` / `not_played` / `scheduled`) |
 | `game_quarters` | `(event_id, team_id)` | Q1–Q4 + OT per team |
 | `game_team_stats` | `(event_id, team_id)` | Team turnovers, rebounds, fast-break points, shirt colour |
 | `player_game_stats` | `(event_id, player_id)` | Full per-player box score (see below) |
@@ -112,10 +114,10 @@ Season-scoped data:
 
 | View | Contents |
 |---|---|
-| `v_player_season_totals` | Per-player season totals (GP, minutes, all box-score sums) |
+| `v_played_games` | Box-score rows with minutes > 0 (excludes DNP bench entries) |
+| `v_player_season_totals` | Per-player season totals (GP, minutes, all box-score sums) — only games actually played |
 | `v_player_season_averages` | Same + per-game averages (pts/g, ast/g, reb/g, stl/g, blk/g, eff/g) |
-| `v_team_season_totals` | Per-team season record + pts for/against (recomputes the standings from games) |
-| `v_minutes` | Helper: parses `MM:SS` minutes to decimal |
+| `v_team_season_totals` | Per-team season record incl. forfeits + pts for/against (recomputes the official 分組表 from games) |
 
 ## Example queries
 
@@ -166,6 +168,11 @@ box scores. All inserts are upserts, so re-runs are safe and idempotent.
 - **Not-played games**: a scheduled game with no box score (e.g. event 19126, GTG
   walkover) is stored with `status = 'not_played'` and `NULL` scores, so it is
   excluded from standings/statistics views. GTG therefore shows 0 GP.
+- **Forfeit games**: a default-score result where nobody logged minutes (e.g.
+  event 19954, Dreams Team 20-0 Blaze Phoenix) is stored with `status = 'forfeit'`.
+  The official 分組表 counts it as a win for the higher-scoring team and 棄
+  (forfeit) for the loser (Blaze: 0W 2L 1棄), and `v_team_season_totals` reproduces
+  that: `GP = wins + losses + forfeits`.
 - **Did-not-play (DNP) rows**: box scores list bench players with `0:00` minutes.
   These rows are kept in `player_game_stats` (so game box scores stay complete,
   and are shown as "DNP" on the game page) but are **excluded from all player

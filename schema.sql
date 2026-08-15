@@ -217,7 +217,10 @@ SELECT *,
        ROUND(eff / gp, 2)  AS eff_per_game
 FROM v_player_season_totals;
 
--- Per-team season totals (from completed games)
+-- Per-team season totals (from completed + forfeit games; 'not_played' and
+-- 'scheduled' games are excluded). Matches the site's official 分組表, where a
+-- forfeit counts as a win for the higher-scoring team and 棄 (forfeit) for the
+-- loser: GP = wins + losses + forfeits.
 CREATE VIEW IF NOT EXISTS v_team_season_totals AS
 SELECT
     team_id,
@@ -226,19 +229,22 @@ SELECT
     COUNT(*)                                     AS gp,
     SUM(is_win)                                  AS wins,
     SUM(is_loss)                                 AS losses,
+    SUM(is_forfeit)                              AS forfeits,
     SUM(pts_for)                                 AS pts_for,
     SUM(pts_against)                             AS pts_against
 FROM (
     SELECT home_team_id AS team_id, season_id, group_id,
            CASE WHEN home_score > away_score THEN 1 ELSE 0 END AS is_win,
-           CASE WHEN home_score < away_score THEN 1 ELSE 0 END AS is_loss,
+           CASE WHEN status = 'completed' AND home_score < away_score THEN 1 ELSE 0 END AS is_loss,
+           CASE WHEN status = 'forfeit'    AND home_score < away_score THEN 1 ELSE 0 END AS is_forfeit,
            home_score AS pts_for, away_score AS pts_against
-    FROM games WHERE status = 'completed'
+    FROM games WHERE status IN ('completed', 'forfeit')
     UNION ALL
     SELECT away_team_id AS team_id, season_id, group_id,
            CASE WHEN away_score > home_score THEN 1 ELSE 0 END AS is_win,
-           CASE WHEN away_score < home_score THEN 1 ELSE 0 END AS is_loss,
+           CASE WHEN status = 'completed' AND away_score < home_score THEN 1 ELSE 0 END AS is_loss,
+           CASE WHEN status = 'forfeit'    AND away_score < home_score THEN 1 ELSE 0 END AS is_forfeit,
            away_score AS pts_for, home_score AS pts_against
-    FROM games WHERE status = 'completed'
+    FROM games WHERE status IN ('completed', 'forfeit')
 )
 GROUP BY team_id, season_id, group_id;

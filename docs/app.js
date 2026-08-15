@@ -24,7 +24,16 @@ async function api(path, params = {}) {
     const file = path === "meta"
       ? "data/meta.json"
       : `data/${params.season ?? state.season}/${params.group ?? state.group}/${path}.json`;
-    const r = await fetch(file);
+    let r = await fetch(file);
+    // detail pages (games/<id>, teams/<id>, players/<id>) may belong to another
+    // group than the one currently selected — try every exported combo
+    if (!r.ok && path !== "meta" && !params.group && state.meta) {
+      for (const c of state.meta.combos) {
+        const alt = `data/${c.season}/${c.group}/${path}.json`;
+        const r2 = await fetch(alt);
+        if (r2.ok) { r = r2; break; }
+      }
+    }
     if (!r.ok) throw new Error(`${file} -> ${r.status}`);
     return r.json();
   }
@@ -478,6 +487,7 @@ async function renderGames(view) {
       <td><a class="row-link" href="#/teams/${g.away_team_id}">${esc(g.away_name)}</a></td>
       <td>${esc(g.venue || "—")}</td>
       <td>${g.status === "completed" ? '<span class="badge w">played</span>'
+             : g.status === "forfeit" ? '<span class="badge l">forfeit</span>'
              : g.status === "not_played" ? '<span class="badge np">not played</span>'
              : '<span class="badge np">scheduled</span>'}</td>
     </tr>`;
@@ -586,6 +596,8 @@ async function renderGameDetail(view, eid) {
       ${g.status === "completed" ? `
       <div class="qstrip">${qstrip}</div>
       <div class="qstrip" style="margin-top:10px">${perfCells}</div>` :
+      g.status === "forfeit" ? `
+      <div class="empty"><b>Forfeit</b> — ${hw ? esc(g.home_name) : esc(g.away_name)} awarded the win (${g.home_score ?? "—"}–${g.away_score ?? "—"} default).</div>` :
       `<div class="empty">${g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}</div>`}
     </div>
     ${g.status === "completed" ? teamTable(g.home_team_id, g.home_name, tsOf(g.home_team_id).shirt_color, hw) +
