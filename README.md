@@ -3,10 +3,10 @@
 SQLite database of Hillen Youth League (驍籃青少年籃球聯賽) data, scraped from
 https://www.hillen-sports.com/hillenyouth/ for analysis.
 
-**Current contents:** Season 32 (第三十二屆驍籃青少年籃球聯賽), three groups —
-**YOUTH GIRLS U13** (group 26), **YOUTH GIRLS U11A** (group 28), **YOUTH GIRLS U11B**
-(group 31): 18 teams, 28 scheduled games (25 played, 1 forfeit, 2 not played),
-227 players, 612 player-game box-score rows.
+**Current contents:** Season 32 (第三十二屆驍籃青少年籃球聯賽), all five Youth
+Girls groups — **U9** (27), **U11A** (28), **U11B** (31), **U13** (26), **U15** (30):
+27 teams, 40 scheduled games (36 completed, 1 forfeit, 2 not played, 1 upcoming),
+326 players, 915 player-game box-score rows.
 
 The schema and scraper are parameterised, so other groups/seasons can be added with one command.
 
