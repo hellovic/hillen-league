@@ -281,12 +281,14 @@ async function renderCompareResult(el) {
   }
 }
 
-/* one comparison row; better value gets .hi */
+/* one comparison row; better value gets .hi (numeric comparison!) */
 function cmpRow(label, va, vb, lowerBetter = false) {
   const num = (v) => (v === null || v === undefined || v === "" ? "—" : v);
+  const numv = (v) => (typeof v === "number" ? v : parseFloat(v)); // strings like "2.0" or "40.7%"
   const better = (x, y) => {
-    if (x === null || y === null || x === undefined || y === undefined) return "";
-    return x === y ? "" : (x > y) !== lowerBetter ? "hi" : "lo";
+    const nx = numv(x), ny = numv(y);
+    if (isNaN(nx) || isNaN(ny) || nx === ny) return "";
+    return (nx > ny) !== lowerBetter ? "hi" : "lo";
   };
   return `<tr><td>${esc(label)}</td><td class="num ${better(va, vb)}">${num(va)}</td>` +
          `<td class="num ${better(vb, va)}">${num(vb)}</td></tr>`;
@@ -367,12 +369,17 @@ function comparePlayersHTML(pa, pb) {
 function compareTeamsHTML(ta, tb) {
   const trend = (t) => {
     const games = t.games.filter(x => x.status === "completed").sort((a, b) => a.game_date.localeCompare(b.game_date));
-    const pf = games.map((x, i) => ({ x: i, y: x.home_team_id === t.team_id ? x.home_score : x.away_score, label: fmtDate(x.game_date) }));
-    const pa = games.map((x, i) => ({ x: i, y: x.home_team_id === t.team_id ? x.away_score : x.home_score, label: fmtDate(x.game_date) }));
-    return lineChart([
-      { name: "PF", color: CHART.colors[2], points: pf },
-      { name: "PA", color: CHART.colors[3], points: pa },
-    ]);
+    return games.length ? groupedBars(
+      games.map(x => {
+        const pf = x.home_team_id === t.team_id ? x.home_score : x.away_score;
+        const pa = x.home_team_id === t.team_id ? x.away_score : x.home_score;
+        const r = pf > pa ? "W" : pf < pa ? "L" : "T";
+        return { label: `${fmtDate(x.game_date)} ${r}`, values: [pf, pa] };
+      }),
+      [{ name: "Scored (PF)", color: CHART.colors[2] },
+       { name: "Conceded (PA)", color: CHART.colors[3] }],
+      { showValues: true },
+    ) : '<div class="chart-empty">No completed games.</div>';
   };
   const idsB = new Set(tb.games.map(x => x.event_id));
   const shared = ta.games.filter(x => idsB.has(x.event_id)).sort((a, b) => a.game_date.localeCompare(b.game_date));
@@ -401,8 +408,8 @@ function compareTeamsHTML(ta, tb) {
       </div>
     </div>
     <div class="grid-2">
-      <div class="card"><h3>${esc(ta.team_name)} — points trend</h3>${trend(ta)}</div>
-      <div class="card"><h3>${esc(tb.team_name)} — points trend</h3>${trend(tb)}</div>
+      <div class="card"><h3>${esc(ta.team_name)} — scoring by game</h3>${trend(ta)}</div>
+      <div class="card"><h3>${esc(tb.team_name)} — scoring by game</h3>${trend(tb)}</div>
     </div>
     <div class="card"><h3>Head-to-head <span class="cn">series</span></h3>
       ${shared.length ? `
@@ -535,10 +542,19 @@ async function renderTeamDetail(view, tid) {
   if (t.error) { view.innerHTML = `<div class="empty">${esc(t.error)}</div>`; return; }
   const leaders = t.leaders.slice(0, 5);
   const trendGames = t.games.filter(x => x.status === "completed").sort((a, b) => a.game_date.localeCompare(b.game_date));
-  const trend = lineChart([
-    { name: "Points for", color: CHART.colors[2], points: trendGames.map((x, i) => ({ x: i, y: x.home_team_id === tid ? x.home_score : x.away_score, label: fmtDate(x.game_date) })) },
-    { name: "Points against", color: CHART.colors[3], points: trendGames.map((x, i) => ({ x: i, y: x.home_team_id === tid ? x.away_score : x.home_score, label: fmtDate(x.game_date) })) },
-  ]);
+  // one green/red bar pair per game, labelled with date + result — easier to
+  // read than a line: green = points scored, red = points conceded
+  const trend = trendGames.length ? groupedBars(
+    trendGames.map(x => {
+      const pf = x.home_team_id === tid ? x.home_score : x.away_score;
+      const pa = x.home_team_id === tid ? x.away_score : x.home_score;
+      const r = pf > pa ? "W" : pf < pa ? "L" : "T";
+      return { label: `${fmtDate(x.game_date)} ${r}`, values: [pf, pa] };
+    }),
+    [{ name: "Scored (PF)", color: CHART.colors[2] },
+     { name: "Conceded (PA)", color: CHART.colors[3] }],
+    { showValues: true },
+  ) : "";
   view.innerHTML = `
     <a class="back" href="#/teams">← Teams</a>
     <div class="view-head"><h2>${esc(t.team_name)}</h2><div class="toolbar">
@@ -568,7 +584,7 @@ async function renderTeamDetail(view, tid) {
         </dl>
       </div>
     </div>
-    <div class="card"><h3>Points trend <span class="cn">per game</span></h3>
+    <div class="card"><h3>Scoring by game <span class="cn">green = scored · red = conceded · W/L in label</span></h3>
       ${trendGames.length ? trend : '<div class="chart-empty">No completed games yet.</div>'}
     </div>
     <div class="grid-2">
@@ -919,7 +935,7 @@ async function renderGameDetail(view, eid) {
     return rows.length ? groupedBars(rows, [
       { name: g.home_name, color: CHART.colors[0] },
       { name: g.away_name, color: CHART.colors[1] },
-    ]) : "";
+    ], { showValues: true }) : "";
   })();
 
   const perfCells = (() => {

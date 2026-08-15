@@ -34,7 +34,8 @@ function chartGrid(pad, w, h, maxY) {
 }
 
 /* Grouped vertical bars.
- * rows: [{label, values:[v1, v2, ...]}], series: [{name, color}] (aligned by index). */
+ * rows: [{label, values:[v1, v2, ...]}], series: [{name, color}] (aligned by index).
+ * opts.showValues: render the value above each bar. */
 function groupedBars(rows, series, opts = {}) {
   const w = CHART.W, h = CHART.H, pad = { ...CHART.pad, ...(opts.pad || {}) };
   const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
@@ -47,9 +48,13 @@ function groupedBars(rows, series, opts = {}) {
     const gx = pad.l + ri * groupW + (groupW - barW * series.length) / 2;
     r.values.forEach((v, si) => {
       const bh = Math.max((v / max) * ih, v > 0 ? 1 : 0);
-      out += `<rect x="${(gx + si * barW).toFixed(1)}" y="${(y(v)).toFixed(1)}" width="${barW.toFixed(1)}" ` +
+      const bx = gx + si * barW;
+      out += `<rect x="${bx.toFixed(1)}" y="${(y(v)).toFixed(1)}" width="${barW.toFixed(1)}" ` +
              `height="${bh.toFixed(1)}" fill="${series[si].color}" rx="2">` +
              `<title>${escAttr(r.label)} · ${escAttr(series[si].name)}: ${v}</title></rect>`;
+      if (opts.showValues && v > 0) {
+        out += `<text x="${(bx + barW / 2).toFixed(1)}" y="${(y(v) - 3).toFixed(1)}" text-anchor="middle" class="chart-val">${v}</text>`;
+      }
     });
     const cx = gx + groupW / 2;
     out += `<text x="${cx.toFixed(1)}" y="${h - 6}" text-anchor="middle" class="chart-label">${escAttr(r.label)}</text>`;

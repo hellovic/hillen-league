@@ -218,6 +218,7 @@ footer.foot { padding: 14px 22px; color: var(--muted); font-size: 12px; border-t
 .chart-tick { fill: var(--muted); font-size: 9px; font-family: var(--mono); }
 .chart-label { fill: var(--muted); font-size: 9.5px; }
 .chart-legend { fill: var(--text); font-size: 10px; }
+.chart-val { fill: var(--text); font-size: 9px; font-family: var(--mono); font-weight: 600; }
 .chart-empty { color: var(--muted); text-align: center; padding: 24px; font-size: 13px; }
 
 /* ---------- compare ---------- */
