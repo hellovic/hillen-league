@@ -197,14 +197,24 @@ function setView(v) {
 
 /* ---------------- routing ---------------- */
 
+/* Detail views render "Loading…" then fetch; a missing id (404) rejects the
+ * fetch, so catch it and show a friendly message instead of hanging. */
+async function withNotFound(view, fn) {
+  try {
+    await fn();
+  } catch (e) {
+    view.innerHTML = `<div class="empty">Not found — this ${/teams/.test(location.hash) ? "team" : /players/.test(location.hash) ? "player" : "game"} doesn't exist in the current data.</div>`;
+  }
+}
+
 function route() {
   const h = location.hash.replace(/^#\/?/, "");
   const parts = h.split("/").filter(Boolean);
   const view = document.getElementById("view");
   state.sort = {};
-  if (parts[0] === "teams" && parts[1]) { setView("teams"); renderTeamDetail(view, +parts[1]); }
-  else if (parts[0] === "players" && parts[1]) { setView("players"); renderPlayerDetail(view, +parts[1]); }
-  else if (parts[0] === "games" && parts[1]) { setView("games"); renderGameDetail(view, +parts[1]); }
+  if (parts[0] === "teams" && parts[1]) { setView("teams"); withNotFound(view, () => renderTeamDetail(view, +parts[1])); }
+  else if (parts[0] === "players" && parts[1]) { setView("players"); withNotFound(view, () => renderPlayerDetail(view, +parts[1])); }
+  else if (parts[0] === "games" && parts[1]) { setView("games"); withNotFound(view, () => renderGameDetail(view, +parts[1])); }
   else if (parts[0] === "compare") {
     setView("compare");
     renderCompare(view, parts[1] || "p",

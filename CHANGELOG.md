@@ -6,8 +6,14 @@ Format follows deployed versions; each entry lists the user-visible changes.
 ## [v5.0] — Unreleased — Multi-season support (Season 31)
 - **Season 31** (第三十一屆驍籃青少年籃球聯賽) added for all five Youth Girls
   groups: YOUTH GIRL U9 (25), U11 GROUP A (26), U11 GROUP B (27), U13 (28),
-  U15 (29) — 25 teams, 71 games. Combined with season 32: 45 teams, 111 games,
+  U15 (29) — 25 teams, 71 games. Combined with season 32: 45 teams, 112 games,
   615 players, 2,831 box-score rows.
+- Data refreshed from the live site (2026-08-22): season-32 gains the played
+  U11A game 20600 (聖博德(G) u11(A) 19-26 Blaze Phoenix) and a newly scheduled
+  U11B game 20652 (2026-08-23); the 2026-08-16 U11B game 20624 (可立U11 vs
+  青出於籃U11) is recorded as a 0-0 not-played void.
+- Dashboard API: index.html asset URLs are versioned by file mtime so browsers
+  never cache stale JS/CSS after updates.
 - **Groups are now season-scoped**: the site reuses group ids with different
   meanings across seasons (e.g. id 26 = U13 in s32 but U11 GROUP A in s31), so
   `groups` is keyed by `(season_id, group_id)` and the dashboard's Group
