@@ -8,5 +8,8 @@ __pycache__/
 # scraped HTML cache (regenerable via scraper.py)
 cache/
 
+# refresh diff snapshot (regenerable via refresh_diff.py)
+.refresh_snapshot.json
+
 # dashboard server log (if any)
 *.log

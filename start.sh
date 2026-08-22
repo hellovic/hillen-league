@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 #
-# refresh_and_push.sh — ONE command to refresh all Hillen League data from the
-# live site, validate it, rebuild the static site export, and push to GitHub.
+# start.sh — ONE command to refresh all Hillen League data from the live site,
+# validate it, rebuild the static site export, and push to GitHub.
+#
+# It also prints a "what changed" summary (new / updated / removed games) by
+# snapshotting the database before the refresh and diffing it afterwards.
 #
 # Usage:
-#   ./refresh_and_push.sh              # full refresh + validate + export + commit + push
-#   ./refresh_and_push.sh --no-refresh # skip the site scrape (re-export + commit only)
-#   ./refresh_and_push.sh --no-push    # refresh + validate + export + commit (no push)
+#   ./start.sh                       # full refresh + validate + export + commit + push
+#   ./start.sh --no-refresh          # skip the site scrape (re-export + commit only)
+#   ./start.sh --no-push             # refresh + validate + export + commit (no push)
 #
 # What it does:
-#   1. Re-scrapes every configured (season, group) with --refresh (bypasses cache)
-#   2. Runs validate.py — aborts WITHOUT committing if any check fails
-#   3. Rebuilds the static docs/ export for GitHub Pages
-#   4. Appends a dated line to CHANGELOG.md (one per day), so runs are traceable
-#   5. Commits everything and pushes to origin/main
+#   1. snapshots the current games state (refresh_diff.py snapshot)
+#   2. re-scrapes every configured (season, group) with --refresh (bypasses cache)
+#   3. runs validate.py — aborts WITHOUT committing if any check fails
+#   4. prints the diff (new / updated / removed games) vs the snapshot
+#   5. rebuilds the static docs/ export for GitHub Pages
+#   6. appends a dated line (+ change summary) to CHANGELOG.md
+#   7. commits everything and pushes to origin/main
 #
 # Safe to run repeatedly: skips the commit when nothing changed (e.g. a second
 # run on the same day with no new site data).
@@ -22,6 +27,7 @@ cd "$(dirname "$0")"
 
 PUSH=1
 REFRESH=1
+SNAPSHOT=".refresh_snapshot.json"
 for arg in "$@"; do
   case "$arg" in
     --no-push)    PUSH=0 ;;
@@ -36,6 +42,12 @@ for arg in "$@"; do
 done
 
 echo "==> Hillen League refresh $(date '+%Y-%m-%d %H:%M')"
+
+# snapshot the current state so we can report what changed
+if [ "$REFRESH" = "1" ]; then
+  echo "==> snapshotting current games state"
+  python3 refresh_diff.py snapshot "$SNAPSHOT" || echo "!! could not snapshot — continuing"
+fi
 
 # 1. refresh every girls group in both seasons from the live site
 if [ "$REFRESH" = "1" ]; then
@@ -62,26 +74,40 @@ python3 validate.py || { echo "!! validation failed — not committing"; exit 1;
 echo "==> exporting static site to docs/"
 python3 server.py --export docs
 
-# 4. append a dated CHANGELOG line (run log; one per day)
+# 4. print what changed + build a one-line summary for the CHANGELOG
+REFRESH_SUMMARY=""
+if [ "$REFRESH" = "1" ]; then
+  echo ""
+  echo "==> What changed in this refresh"
+  python3 refresh_diff.py diff "$SNAPSHOT" \
+    || echo "  (no previous snapshot to diff against)"
+  REFRESH_SUMMARY="$(python3 refresh_diff.py diff "$SNAPSHOT" --summary 2>/dev/null || true)"
+fi
+export REFRESH_SUMMARY
+
+# 5. append a dated CHANGELOG line (run log; one per day) with the change summary
 python3 - <<'PYEOF'
-import re, sqlite3, datetime
+import os, re, sqlite3, datetime
 db = sqlite3.connect("hillen_league.db")
 games = db.execute("SELECT COUNT(*) FROM games").fetchone()[0]
 box = db.execute("SELECT COUNT(*) FROM player_game_stats").fetchone()[0]
 seasons = [str(r[0]) for r in db.execute("SELECT season_id FROM seasons ORDER BY season_id")]
-line = ("- Data refresh %s: %s games, %s box-score rows (seasons %s)."
-        % (datetime.date.today().isoformat(), games, box, ", ".join(seasons)))
+summary = os.environ.get("REFRESH_SUMMARY", "").strip()
+tail = (" " + summary + ".") if summary and not str(summary).endswith(".") else ((" " + summary) if summary else "")
+line = ("- Data refresh %s: %s games, %s box-score rows (seasons %s).%s"
+        % (datetime.date.today().isoformat(), games, box, ", ".join(seasons), tail))
+today = datetime.date.today().isoformat()
 with open("CHANGELOG.md", encoding="utf-8") as f:
     text = f.read()
 m = re.search(r"^(## \[[^\]]+\][^\n]*\n)", text, re.M)
-if m and line not in text:
+if m and f"- Data refresh {today}" not in text:
     text = text[:m.end()] + line + "\n" + text[m.end():]
     with open("CHANGELOG.md", "w", encoding="utf-8") as f:
         f.write(text)
     print("CHANGELOG updated")
 PYEOF
 
-# 5. commit & push
+# 6. commit & push
 if git diff --quiet && git diff --cached --quiet; then
   echo "No changes to commit."
   exit 0
