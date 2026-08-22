@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.0] — Unreleased — Multi-season support (Season 31)
+- Data refresh 2026-08-23: 112 games, 2831 box-score rows (seasons 31, 32).
 - **Season 31** (第三十一屆驍籃青少年籃球聯賽) added for all five Youth Girls
   groups: YOUTH GIRL U9 (25), U11 GROUP A (26), U11 GROUP B (27), U13 (28),
   U15 (29) — 25 teams, 71 games. Combined with season 32: 45 teams, 112 games,
