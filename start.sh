@@ -78,7 +78,6 @@ python3 server.py --export docs
 REFRESH_SUMMARY=""
 if [ "$REFRESH" = "1" ]; then
   echo ""
-  echo "==> What changed in this refresh"
   python3 refresh_diff.py diff "$SNAPSHOT" \
     || echo "  (no previous snapshot to diff against)"
   REFRESH_SUMMARY="$(python3 refresh_diff.py diff "$SNAPSHOT" --summary 2>/dev/null || true)"
