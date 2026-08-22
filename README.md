@@ -21,6 +21,7 @@ The schema and scraper are parameterised, so other groups/seasons can be added w
 | `hillen_league.db` | The SQLite database (this is what you query) |
 | `schema.sql` | Full schema: tables, indexes, analysis views |
 | `scraper.py` | Stdlib-only scraper (urllib + re + sqlite3) that builds the DB |
+| `refresh_and_push.sh` | **One command** to refresh all data from the live site, validate, rebuild the static export, and push to GitHub — run regularly / manually |
 | `server.py` | Stdlib-only dashboard server: static files + read-only JSON API |
 | `dashboard/` | The dashboard frontend (vanilla HTML/CSS/JS, no build step) |
 | `validate.py` | Data validation suite (box-score/standings reconciliation) |
