@@ -2,8 +2,8 @@
 """
 refresh_diff.py — show what a refresh changed in hillen_league.db.
 
-Used by refresh_and_push.sh: snapshot the games state before re-scraping,
-then diff afterwards to highlight new / updated / removed games.
+Used by refresh_and_push.sh / start.sh: snapshot the games state before
+re-scraping, then diff afterwards to highlight new / updated / removed games.
 
 Usage:
     python3 refresh_diff.py snapshot FILE [--db hillen_league.db]
@@ -15,6 +15,29 @@ import json
 import sqlite3
 import sys
 
+# colour the console output only when it goes to a real terminal (not a pipe/log)
+COLOR = sys.stdout.isatty()
+
+
+def c(code, s):
+    return f"\033[{code}m{s}\033[0m" if COLOR else s
+
+
+def green(s):
+    return c("32", s)
+
+
+def yellow(s):
+    return c("33", s)
+
+
+def red(s):
+    return c("31", s)
+
+
+def bold(s):
+    return c("1", s)
+
 
 def load_state(conn):
     return [dict(r) for r in conn.execute("""
@@ -25,14 +48,16 @@ def load_state(conn):
         FROM games g""").fetchall()]
 
 
-def fmt_game(conn, g, names):
-    home = names.get(g["home_team_id"], str(g["home_team_id"]))
-    away = names.get(g["away_team_id"], str(g["away_team_id"]))
-    grp = conn.execute("SELECT name FROM groups WHERE season_id=? AND group_id=?",
-                       (g["season_id"], g["group_id"])).fetchone()
-    grp = grp[0] if grp else f"g{g['group_id']}"
-    score = f"{g['home_score']}-{g['away_score']}" if g["home_score"] is not None else "—"
-    return f"event {g['event_id']} (s{g['season_id']} {grp}) {g['game_date']} {home} {score} {away}"
+def group_name(conn, season_id, group_id):
+    row = conn.execute("SELECT name FROM groups WHERE season_id=? AND group_id=?",
+                       (season_id, group_id)).fetchone()
+    return row[0] if row else f"group {group_id}"
+
+
+def score(g):
+    if g["home_score"] is None or g["away_score"] is None:
+        return None
+    return f"{g['home_score']}-{g['away_score']}"
 
 
 def snapshot(conn, path):
@@ -54,7 +79,7 @@ def diff(conn, path, summary_only=False):
     after_map = {g["event_id"]: g for g in after}
     names = dict(conn.execute("SELECT team_id, name FROM teams"))
 
-    new_events = [e for e in after_map if e not in before_map]
+    new = [e for e in after_map if e not in before_map]
     removed = [e for e in before_map if e not in after_map]
     updated = []
     for eid in set(before_map) & set(after_map):
@@ -63,29 +88,52 @@ def diff(conn, path, summary_only=False):
            (b["status"], b["home_score"], b["away_score"], b["box_rows"]):
             updated.append(eid)
 
+    unchanged = len(after) - len(new) - len(updated) - len(removed)
+
     if summary_only:
-        print(f"{len(new_events)} new, {len(updated)} updated, {len(removed)} removed, "
-              f"{len(after) - len(new_events) - len(updated) - len(removed)} unchanged")
+        print(f"{len(new)} new, {len(updated)} updated, {len(removed)} removed, "
+              f"{unchanged} unchanged")
         return 0
 
-    print("==> What changed in this refresh")
-    for eid in sorted(new_events):
-        g = after_map[eid]
-        print(f"  NEW    {fmt_game(conn, g, names)} — {g['status']}")
-    for eid in sorted(updated):
-        a, b = before_map[eid], after_map[eid]
-        bits = []
-        if a["status"] != b["status"]:
-            bits.append(f"status {a['status']} → {b['status']}")
-        if (a["home_score"], a["away_score"]) != (b["home_score"], b["away_score"]):
-            bits.append(f"score {a['home_score']}-{a['away_score']} → {b['home_score']}-{b['away_score']}")
-        if a["box_rows"] != b["box_rows"]:
-            bits.append(f"box rows {a['box_rows']} → {b['box_rows']}")
-        print(f"  UPDATE {fmt_game(conn, b, names)}: {', '.join(bits)}")
-    for eid in sorted(removed):
-        print(f"  REMOVED event {eid}")
-    print(f"  {len(after)} games total · {len(new_events)} new · {len(updated)} updated · "
-          f"{len(removed)} removed")
+    def game_line(g):
+        home = names.get(g["home_team_id"], str(g["home_team_id"]))
+        away = names.get(g["away_team_id"], str(g["away_team_id"]))
+        return (f"{g['game_date']}  {home} vs {away}  "
+                f"[event {g['event_id']}]  ·  {group_name(conn, g['season_id'], g['group_id'])} (s{g['season_id']})")
+
+    print(bold("==> What changed in this refresh"))
+    print()
+    if new:
+        print(bold(f"  NEW games ({len(new)}):"))
+        for eid in sorted(new):
+            g = after_map[eid]
+            sc = score(g)
+            tail = f" · {g['status']}" + (f" ({sc})" if sc else "")
+            print(green(f"    +") + "  " + game_line(g) + tail)
+        print()
+    if updated:
+        print(bold(f"  UPDATED games ({len(updated)}):"))
+        for eid in sorted(updated):
+            a, b = before_map[eid], after_map[eid]
+            parts = []
+            if a["status"] != b["status"]:
+                parts.append(f"status {a['status']} → {b['status']}")
+            sa, sb = score(a), score(b)
+            if sa != sb:
+                parts.append("result → " + sb if sa is None else f"score {sa} → {sb}")
+            if a["box_rows"] != b["box_rows"]:
+                parts.append(f"box rows {a['box_rows']} → {b['box_rows']}")
+            print(yellow("    ~") + "  " + game_line(b))
+            print("       ↳ " + yellow(", ".join(parts)))
+        print()
+    if removed:
+        print(bold(f"  REMOVED games ({len(removed)}):"))
+        for eid in sorted(removed):
+            print(red("    -") + "  " + f"event {eid}  {before_map[eid]['game_date']}")
+        print()
+    if not (new or updated or removed):
+        print("  " + c("90", "no changes — the site hasn't published anything new."))
+    print(bold(f"  {len(after)} games total · {len(new)} new · {len(updated)} updated · {len(removed)} removed"))
     return 0
 
 
