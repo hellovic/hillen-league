@@ -74,24 +74,30 @@ python3 validate.py || { echo "!! validation failed — not committing"; exit 1;
 echo "==> exporting static site to docs/"
 python3 server.py --export docs
 
-# 4. print what changed + build a one-line summary for the CHANGELOG
+# 4. compute the change summary (used both to decide whether to log/commit and
+#    printed again at the very end so it's the last thing you see)
 REFRESH_SUMMARY=""
 if [ "$REFRESH" = "1" ]; then
-  echo ""
-  python3 refresh_diff.py diff "$SNAPSHOT" \
-    || echo "  (no previous snapshot to diff against)"
   REFRESH_SUMMARY="$(python3 refresh_diff.py diff "$SNAPSHOT" --summary 2>/dev/null || true)"
 fi
 export REFRESH_SUMMARY
 
-# 5. append a dated CHANGELOG line (run log; one per day) with the change summary
+# 5. append a dated CHANGELOG line ONLY when the refresh actually changed data
 python3 - <<'PYEOF'
 import os, re, sqlite3, datetime
+summary = os.environ.get("REFRESH_SUMMARY", "").strip()
+# "X new, Y updated, Z removed, W unchanged" -> log only if something changed
+changed = False
+for m in re.finditer(r"(\d+) (new|updated|removed)", summary):
+    if int(m.group(1)) > 0:
+        changed = True
+if not changed:
+    print("no data changes — skipping CHANGELOG")
+    raise SystemExit(0)
 db = sqlite3.connect("hillen_league.db")
 games = db.execute("SELECT COUNT(*) FROM games").fetchone()[0]
 box = db.execute("SELECT COUNT(*) FROM player_game_stats").fetchone()[0]
 seasons = [str(r[0]) for r in db.execute("SELECT season_id FROM seasons ORDER BY season_id")]
-summary = os.environ.get("REFRESH_SUMMARY", "").strip()
 tail = (" " + summary + ".") if summary and not str(summary).endswith(".") else ((" " + summary) if summary else "")
 line = ("- Data refresh %s: %s games, %s box-score rows (seasons %s).%s"
         % (datetime.date.today().isoformat(), games, box, ", ".join(seasons), tail))
@@ -108,7 +114,12 @@ PYEOF
 
 # 6. commit & push
 if git diff --quiet && git diff --cached --quiet; then
-  echo "No changes to commit."
+  echo ""
+  echo "No new data — nothing to commit."
+  if [ "$REFRESH" = "1" ]; then
+    echo ""
+    python3 refresh_diff.py diff "$SNAPSHOT" || true
+  fi
   exit 0
 fi
 git add -A
@@ -118,5 +129,12 @@ if [ "$PUSH" = "1" ]; then
   echo "Pushed to origin/main."
 else
   echo "Committed locally (--no-push); push when ready."
+fi
+echo ""
+echo "=== What changed in this refresh ==="
+if [ "$REFRESH" = "1" ]; then
+  python3 refresh_diff.py diff "$SNAPSHOT" || true
+else
+  echo "  (--no-refresh: no scrape, nothing new expected)"
 fi
 echo "Done."

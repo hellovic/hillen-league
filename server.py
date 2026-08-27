@@ -277,8 +277,15 @@ def export_static(out_dir, db_path=DB_PATH):
             f.write("")
         # GitHub Pages caches assets for 10 min (max-age=600); version every
         # asset URL with a build stamp so viewers get the new build instantly.
-        import time
-        stamp = time.strftime("%Y%m%d%H%M%S")
+        # The stamp is derived from the actual game data (not the clock), so a
+        # re-export with no new data produces an identical index.html instead of
+        # a spurious diff/commit.
+        import hashlib
+        sig_parts = [tuple(r) for r in conn.execute("""
+            SELECT g.event_id, g.status, g.home_score, g.away_score,
+                   (SELECT COUNT(*) FROM player_game_stats p WHERE p.event_id = g.event_id)
+            FROM games g ORDER BY g.event_id""")]
+        stamp = hashlib.md5(str(sig_parts).encode()).hexdigest()[:12]
         idx = os.path.join(out_dir, "index.html")
         with open(idx, encoding="utf-8") as f:
             html = f.read()
