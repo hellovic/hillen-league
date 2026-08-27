@@ -600,11 +600,18 @@ def main():
 
     div = cache.get(f"{BASE}division.php?season_id={season_id}&group_id={group_id}")
     m = re.search(r'<h3 class="widget-title style12"><span class="myfont"[^>]*>([^<]+)</span>', div)
-    group_name = m.group(1).strip() if m else f"group {group_id}"
     season_name = f"第{season_id}屆驍籃青少年籃球聯賽"
     store.upsert_season(season_id, season_name)
-    store.upsert_group(season_id, group_id, group_name)
-    log(f"group: {group_name} (id={group_id}), season: {season_name} (id={season_id})")
+    # Only register the group when the group page actually has a title. This stops
+    # a bogus/unknown group id (e.g. a stale link) from creating phantom group
+    # rows like "group 1001" that would otherwise show up in the dashboard.
+    if m and m.group(1).strip():
+        group_name = m.group(1).strip()
+        store.upsert_group(season_id, group_id, group_name)
+        log(f"group: {group_name} (id={group_id}), season: {season_name} (id={season_id})")
+    else:
+        group_name = f"group {group_id}"
+        log(f"!! division page for group {group_id} has no title — skipping group registration")
 
     # 1. teams
     teams = parse_division_teams(div)

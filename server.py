@@ -157,7 +157,10 @@ QUERIES = {
         WHERE pgs.event_id = ?
         ORDER BY pgs.team_id, COALESCE(pgs.jersey_no, 999), pgs.player_id""",
     "seasons": "SELECT season_id, name FROM seasons ORDER BY season_id",
-    "groups": "SELECT season_id, group_id, name FROM groups ORDER BY season_id, group_id",
+    "groups": """SELECT g.season_id, g.group_id, g.name FROM groups g
+                 WHERE EXISTS (SELECT 1 FROM season_teams st
+                               WHERE st.season_id = g.season_id AND st.group_id = g.group_id)
+                 ORDER BY g.season_id, g.group_id""",
 }
 
 
