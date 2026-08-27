@@ -27,6 +27,7 @@ The schema and scraper are parameterised, so other groups/seasons can be added w
 | `dashboard/` | The dashboard frontend (vanilla HTML/CSS/JS, no build step) |
 | `validate.py` | Data validation suite (box-score/standings reconciliation) |
 | `crosscheck.py` | **Deployed-vs-source validator**: samples 10 random stats per game per player from the deployed site and compares them against hillen-sports.com |
+| `.github/workflows/refresh.yml` | GitHub Actions **scheduled refresh**: runs `./start.sh` in the cloud on a cron and pushes the result (auto rebuilds Pages) |
 | `cache/` | Raw HTML snapshots so re-runs are fast and idempotent |
 
 ## Dashboard (web UI)
@@ -185,6 +186,26 @@ python3 validate.py
 The pipeline: division page → teams & standings → statistics page → 8 leaderboards →
 season schedule → per-team pages (profile, roster, schedule) → per-game `scores.php`
 box scores. All inserts are upserts, so re-runs are safe and idempotent.
+
+## Scheduled refresh (GitHub Actions)
+
+A **GitHub Actions workflow** (`.github/workflows/refresh.yml`) runs the same
+`./start.sh` in GitHub's cloud on a schedule, so your Mac doesn't need to be on.
+It refreshes the data, validates it, rebuilds `docs/`, commits the result, and
+pushes back to `main` (which auto-rebuilds GitHub Pages).
+
+* Default: **daily at 01:00 UTC = 09:00 Hong Kong** — edit the `cron` in the file
+  (must be pushed to `main` to take effect).
+* Also triggerable **manually** from the repo's **Actions** tab → *Daily data
+  refresh* → *Run workflow*.
+* The commit is authored by "Hillen League Bot" (`actions@users.noreply.github.com`).
+* If validation fails, the workflow aborts before committing — it will not push
+  broken data.
+* Free-tier note: cloud runners use GitHub Actions minutes (public repos = free;
+  private repos = a 2,000 min/month allowance). One run is a few minutes.
+
+Prefer to keep it on your own machine instead? Run `./start.sh` via cron/launchd
+(needs your Mac to be awake at the scheduled time).
 
 ## Data validation (`validate.py`)
 

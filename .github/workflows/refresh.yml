@@ -1,0 +1,43 @@
+name: Daily data refresh
+
+# Refresh Hillen League data from the live site, validate it, rebuild the
+# static docs/ export, and push the new data back to main (which auto-rebuilds
+# GitHub Pages). Runs in GitHub's cloud, so your Mac doesn't need to be on.
+#
+# Triggers:
+#   - on a schedule (edit the cron below; it is UTC — 01:00 UTC = 09:00 HKT)
+#   - manually from the Actions tab ("Run workflow")
+#
+# Because the scheduled workflow lives in the default branch (main), any change
+# to this file must be pushed to main to take effect.
+
+on:
+  schedule:
+    - cron: '0 1 * * *'        # daily at 01:00 UTC = 09:00 Hong Kong
+  workflow_dispatch:
+
+permissions:
+  contents: write              # allow committing + pushing the refreshed data
+
+concurrency:
+  group: hillen-refresh
+  cancel-in-progress: false    # don't cancel a run that's mid-push
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up git identity and branch
+        run: |
+          git config user.name  "Hillen League Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout main 2>/dev/null || git switch main 2>/dev/null || true
+
+      - name: Refresh, validate, export, commit & push
+        run: ./start.sh

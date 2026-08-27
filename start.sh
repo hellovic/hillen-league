@@ -125,7 +125,8 @@ fi
 git add -A
 git commit -m "Refresh data from live site ($(date +%Y-%m-%d))"
 if [ "$PUSH" = "1" ]; then
-  git push origin main
+  # HEAD:main works both locally (on main) and on GitHub Actions (detached HEAD)
+  git push origin HEAD:main
   echo "Pushed to origin/main."
 else
   echo "Committed locally (--no-push); push when ready."
