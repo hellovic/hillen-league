@@ -14,6 +14,30 @@
   --mono: "SF Mono", "Menlo", "Consolas", monospace;
 }
 
+/* Light theme (opt-in via the 🌙/☀️ toggle, persisted). The app is designed
+ * dark by default; the toggle just swaps these variables. */
+[data-theme="light"] {
+  --bg: #f4f6fb;
+  --bg2: #e9edf6;
+  --card: #ffffff;
+  --card2: #eef1f8;
+  --line: #d7dce8;
+  --text: #1b2436;
+  --muted: #5b6579;
+  --accent: #fc6306;
+  --accent2: #d9510a;
+  --good: #1f9d5f;
+  --bad: #c53030;
+  --cyan: #0a7f9b;
+}
+[data-theme="light"] .topbar { background: linear-gradient(180deg, #eef2fa, #e5eaf5); }
+[data-theme="light"] table.data td { border-bottom-color: rgba(27, 36, 54, .12); }
+[data-theme="light"] .global-results { box-shadow: 0 8px 24px rgba(20, 30, 60, .18); }
+[data-theme="light"] table.data.pin1 th:first-child, [data-theme="light"] table.data.pin1 td:first-child,
+[data-theme="light"] table.data.pin2 th:nth-child(2), [data-theme="light"] table.data.pin2 td:nth-child(2) {
+  box-shadow: 4px 0 6px -6px rgba(20, 30, 60, .18);
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -252,6 +276,65 @@ table.data td.lo { color: var(--muted); }
 }
 .csv-btn:hover { border-color: var(--cyan); }
 
+/* ---------- theme toggle ---------- */
+.theme-toggle {
+  background: var(--card2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+
+/* ---------- global search ---------- */
+.gsearch { position: relative; }
+.gsearch input[type="search"] {
+  background: var(--card2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  width: 220px;
+  outline: none;
+}
+.gsearch input:focus { border-color: var(--accent); }
+.global-results {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 340px;
+  max-height: 340px;
+  overflow: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  z-index: 40;
+  display: none;
+}
+.global-results.open { display: block; }
+.gs-item { display: flex; align-items: center; gap: 8px; padding: 9px 12px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); font-size: 13px; }
+.gs-item:hover { background: rgba(252, 99, 6, .08); }
+.gs-k { flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.gs-sub { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-empty { padding: 14px; color: var(--muted); font-size: 13px; text-align: center; }
+
+/* ---------- games schedule (date-grouped) ---------- */
+.game-group { margin-bottom: 12px; }
+.game-date { font-size: 13px; font-weight: 600; color: var(--accent2); margin: 4px 0 4px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.game-date .cn { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
+.game-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 8px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.game-row:hover { background: rgba(252, 99, 6, .06); }
+.game-row:last-child { border-bottom: none; }
+.gr-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.gr-score { min-width: 64px; text-align: center; font-weight: 600; color: var(--text); }
+.gr-side { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; color: var(--muted); }
+.gr-time { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+
 /* ==========================================================================
    Mobile (≤768px): readable, tappable, scrollable tables with a pinned
    identity column so names stay visible while the wide tables pan sideways.
@@ -314,4 +397,15 @@ table.data td.lo { color: var(--muted); }
   .compare-pickers select { flex: 1; min-width: 0; }
   .compare-pickers .vs-badge { align-self: center; }
   .csv-btn { flex-shrink: 0; }
+
+  /* global search takes its own full-width row, then season/group/toggle below */
+  .controls { flex-wrap: wrap; }
+  .gsearch { order: -1; flex: 1 1 100%; width: 100%; }
+  .gsearch input[type="search"] { width: 100%; font-size: 16px; }
+  .global-results { left: 0; right: 0; width: 100%; }
+  .theme-toggle { flex-shrink: 0; }
+
+  .gr-main { gap: 6px; }
+  .gr-time { max-width: 110px; }
+  .game-row { padding: 10px 4px; }
 }

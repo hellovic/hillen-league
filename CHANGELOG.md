@@ -3,6 +3,30 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v5.1] — Unreleased — Dashboard feature bundle
+- **Shooting efficiency** (A1): eFG% and True-Shooting % for every player — added
+  as sortable columns on the Players table, plus eFG%/FT%/TS% on the player
+  page's season stats and new eFG%/TS% rows in Compare.
+- **+/- and fast-break surfacing** (A2): a sortable **+/- (season)** column on the
+  Players table, and Fast-break / Blk-against on the player page + Compare.
+- **Leaders tab** (A4): a new category-based view of the league's own leaderboards
+  (MVP, 得分王, 三分王, 助攻王, 偷截王, 罰球王, 籃板王, 封阻王) with CSV export and
+  click-through to players/teams. Backed by a new `/api/leaders?season=&group=`
+  endpoint and `leaders.json` in every static export.
+- **Global search** (A5): a header search box that matches **across all
+  seasons/groups** (players, teams, and games by team or venue) and jumps to the
+  matching page.
+- **Schedule view** (A6): the Games list is now grouped by date, with a status
+  filter (Played / Not played) and a **venue filter**.
+- **Light/dark theme toggle** (A1/D1): a 🌙/☀️ button in the header, persisted to
+  `localStorage` and defaulting to the system light preference on first visit.
+- **Data-freshness pill** (A4/D4): the footer now shows **data through
+  `<latest game date>`** (from `meta.max_game_date`, available in both live and
+  static modes).
+- New API/payload fields: `plus_minus`, `fb`, `ba` in `/api/players`; `min/max_game_date`
+  in `/api/meta`.
+- Commits: local — deployed when requested.
+
 ## [v5.0] — Unreleased — Multi-season support (Season 31)
 - Data refresh 2026-08-27: 112 games, 2831 box-score rows (seasons 31, 32). 0 new, 0 updated, 0 removed, 112 unchanged.
 - Data refresh 2026-08-23: 112 games, 2831 box-score rows (seasons 31, 32).

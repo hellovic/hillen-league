@@ -18,6 +18,7 @@ API:
     GET /api/players/<player_id>?season=
     GET /api/games?season=&group=
     GET /api/games/<event_id>
+    GET /api/leaders?season=&group=
 """
 
 import argparse
@@ -99,6 +100,7 @@ QUERIES = {
         SELECT v.player_id, v.player_name, v.team_id, v.team_name, v.gp, v.minutes,
                v.pts, v.tot_reb AS reb, v.ast, v.stl, v.blk, v.eff,
                v.fgm, v.fga, v.fg3m, v.fg3a, v.ftm, v.fta, v.tov, v.pf,
+               v.fb, v.ba, v.plus_minus,
                ROUND(v.pts * 1.0 / v.gp, 1) AS ppg,
                ROUND(v.tot_reb * 1.0 / v.gp, 1) AS rpg,
                ROUND(v.ast * 1.0 / v.gp, 1) AS apg,
@@ -156,6 +158,16 @@ QUERIES = {
         FROM player_game_stats pgs JOIN players p ON p.player_id = pgs.player_id
         WHERE pgs.event_id = ?
         ORDER BY pgs.team_id, COALESCE(pgs.jersey_no, 999), pgs.player_id""",
+    "leaders": """
+        SELECT l.category, l.category_cn, l.rank,
+               l.player_id, p.name AS player_name,
+               l.team_id, t.name AS team_name,
+               l.games_played, l.total, l.avg
+        FROM stat_leaderboards l
+        JOIN players p ON p.player_id = l.player_id
+        JOIN teams   t ON t.team_id = l.team_id
+        WHERE l.season_id = ? AND l.group_id = ?
+        ORDER BY l.category, l.rank""",
     "seasons": "SELECT season_id, name FROM seasons ORDER BY season_id",
     "groups": """SELECT g.season_id, g.group_id, g.name FROM groups g
                  WHERE EXISTS (SELECT 1 FROM season_teams st
@@ -178,11 +190,15 @@ def meta_payload(conn):
     counts = {r["k"]: r["v"] for r in query(conn, "meta")}
     combos = [{"season": s, "group": g} for s, g in
               conn.execute("SELECT DISTINCT season_id, group_id FROM season_teams ORDER BY 1, 2")]
+    row = conn.execute(
+        "SELECT MIN(game_date), MAX(game_date) FROM games WHERE game_date IS NOT NULL").fetchone()
     return {
         "seasons": query(conn, "seasons"),
         "groups": query(conn, "groups"),
         "combos": combos,
         "counts": counts,
+        "min_game_date": row[0],
+        "max_game_date": row[1],
         "default_season": 32,
         "default_group": 26,
     }
@@ -248,7 +264,8 @@ def export_static(out_dir, db_path=DB_PATH):
             for name, payload in (("standings.json", query(conn, "standings", (season, group))),
                                   ("teams.json", teams),
                                   ("players.json", players),
-                                  ("games.json", games)):
+                                  ("games.json", games),
+                                  ("leaders.json", query(conn, "leaders", (season, group)))):
                 os.makedirs(d, exist_ok=True)
                 with open(os.path.join(d, name), "w", encoding="utf-8") as f:
                     json.dump(payload, f, ensure_ascii=False)
@@ -404,6 +421,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(payload)
                 elif path == "/api/games":
                     self._json(query(conn, "games", (int(season), int(group))))
+                elif path == "/api/leaders":
+                    self._json(query(conn, "leaders", (int(season), int(group))))
                 elif re.fullmatch(r"/api/games/\d+", path):
                     eid = int(path.rsplit("/", 1)[1])
                     payload = game_payload(conn, eid)

@@ -36,10 +36,13 @@ A zero-dependency web dashboard over the database:
 
 - **Standings** — official group table + points for/against bars
 - **Teams** — rosters, season leaders, results, and a points-for/against trend chart
-- **Players** — sortable/searchable season stats, per-game points chart, radar vs group average, full game logs
-- **Games** — box scores with scoring-by-quarter chart, team performance, full per-player lines
+- **Players** — sortable/searchable season stats (incl. +/-), **shooting efficiency (eFG%, TS%)**, per-game points chart, radar vs group average, full game logs
+- **Games** — grouped by date (a schedule), with a **status + venue filter**, box scores, scoring-by-quarter table, team performance, full per-player lines
+- **Leaders** — the league's own top-5 leaderboards per category (MVP, 得分王, 三分王, 助攻王, 偷截王, 罰球王, 籃板王, 封阻王), with CSV
 - **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
-- **CSV export** — a ⬇ CSV button on every table (standings, teams, players, games, box scores, game logs, rosters); Excel-friendly (UTF-8 BOM)
+- **Global search** — header box that matches players, teams, and games **across all seasons/groups** and jumps to the page
+- **Light/dark theme toggle** (persisted), and a footer **data-through** date
+- **CSV export** — a ⬇ CSV button on every table (standings, teams, players, games, box scores, game logs, rosters, leaders); Excel-friendly (UTF-8 BOM)
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 
 ```bash
@@ -61,6 +64,7 @@ The frontend talks to a read-only JSON API:
 | `/api/players/<player_id>?season=` | totals + per-game log |
 | `/api/games?season=&group=` | all games with scores |
 | `/api/games/<event_id>` | quarters, team stats, full box scores |
+| `/api/leaders?season=&group=` | league top-5 per category (MVP, pts, 3p, ast, stl, ft, reb, blk) |
 
 ## Publish to GitHub Pages (free, public URL)
 
