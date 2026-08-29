@@ -31,6 +31,10 @@ Format follows deployed versions; each entry lists the user-visible changes.
 - Reverted the Games-list redesign (A6) back to the previous flat, sortable table
   per feedback; the `+/-` column is also hardened to show "—" instead of
   "undefined" when a backend/build lacks the field.
+- **Daily refresh now covers season 32 only** — season 31 is finished (its results
+  are frozen), so it is no longer re-scraped; its data stays in the DB and
+  dashboard for reference. Also fixed the refresh loop scraping the phantom
+  group `1001` (a `GROUPS` variable-name collision with an environment variable).
 - New API/payload fields: `plus_minus`, `fb`, `ba` in `/api/players`; `min/max_game_date`
   in `/api/meta`.
 - Commits: local — deployed when requested.
