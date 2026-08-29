@@ -50,17 +50,27 @@ if [ "$REFRESH" = "1" ]; then
 fi
 
 # 1. refresh every girls group in both seasons from the live site
+# NOTE: use explicit per-season group lists (not a GROUPS variable) — `GROUPS`
+# is an environment/array variable on some hosts (it was `1001` on the GitHub
+# runner), so `GROUPS="..."` silently does NOT override it and the loop would
+# scrape the wrong (phantom) group.
 if [ "$REFRESH" = "1" ]; then
   for s in 32 31; do
-    case "$s" in
-      32) GROUPS="26 27 28 30 31" ;;
-      31) GROUPS="25 26 27 28 29" ;;
-    esac
-    for g in $GROUPS; do
-      echo "==> scraping season $s group $g (--refresh)"
-      python3 scraper.py --season "$s" --group "$g" --refresh \
-        || { echo "!! scrape failed for s${s} g${g} — aborting"; exit 1; }
-    done
+    if [ "$s" = "32" ]; then
+      for g in 26 27 28 30 31; do
+        echo "==> scraping season $s group $g (--refresh)"
+        python3 scraper.py --season "$s" --group "$g" --refresh \
+          || { echo "!! scrape failed for s${s} g${g} — aborting"; exit 1; }
+      done
+    elif [ "$s" = "31" ]; then
+      for g in 25 26 27 28 29; do
+        echo "==> scraping season $s group $g (--refresh)"
+        python3 scraper.py --season "$s" --group "$g" --refresh \
+          || { echo "!! scrape failed for s${s} g${g} — aborting"; exit 1; }
+      done
+    else
+      echo "!! unknown season $s — aborting"; exit 1
+    fi
   done
   # record the data-refresh time (HK) so the dashboard footer can show when the
   # data was last refreshed; stored in the DB so it survives git checkouts and
