@@ -403,7 +403,7 @@ function compareTeamsHTML(ta, tb) {
       }),
       [{ name: "Scored (PF)", color: CHART.colors[2] },
        { name: "Conceded (PA)", color: CHART.colors[3] }],
-      { showValues: true },
+      { showValues: true, h: 170 },
     ) : '<div class="chart-empty">No completed games.</div>';
   };
   const idsB = new Set(tb.games.map(x => x.event_id));
@@ -578,7 +578,7 @@ async function renderTeamDetail(view, tid) {
     }),
     [{ name: "Scored (PF)", color: CHART.colors[2] },
      { name: "Conceded (PA)", color: CHART.colors[3] }],
-    { showValues: true },
+    { showValues: true, h: 170 },
   ) : "";
   view.innerHTML = `
     <a class="back" href="#/teams">← Teams</a>
@@ -610,7 +610,7 @@ async function renderTeamDetail(view, tid) {
       </div>
     </div>
     <div class="card"><h3>Scoring by game <span class="cn">green = scored · red = conceded · W/L in label</span></h3>
-      ${trendGames.length ? trend : '<div class="chart-empty">No completed games yet.</div>'}
+      <div class="chart-box">${trendGames.length ? trend : '<div class="chart-empty">No completed games yet.</div>'}</div>
     </div>
     <div class="grid-2">
       <div class="card"><h3>Roster <span class="cn">隊員名單</span></h3>${csvButton("roster-csv")}

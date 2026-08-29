@@ -26,6 +26,9 @@ Format follows deployed versions; each entry lists the user-visible changes.
   matches the recorded games, otherwise warns.
 - Dashboard: missing game/team/player ids now show a friendly "Not found"
   message instead of hanging on "Loading…" (no console errors).
+- Dashboard: team "Scoring by game" chart is now **compact** — capped width
+  (≤640px, centered) and a lower height (170 viewBox) so it no longer dominates
+  the page. Also fixed the bar-chart SVG height so per-chart heights actually apply.
 - Commits: local only — deployed when requested.
 
 ## [v4.3] — 2026-08-16 — Deployed-vs-source validator

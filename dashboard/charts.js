@@ -35,9 +35,9 @@ function chartGrid(pad, w, h, maxY) {
 
 /* Grouped vertical bars.
  * rows: [{label, values:[v1, v2, ...]}], series: [{name, color}] (aligned by index).
- * opts.showValues: render the value above each bar. */
+ * opts.showValues: render the value above each bar. opts.h: SVG height. */
 function groupedBars(rows, series, opts = {}) {
-  const w = CHART.W, h = CHART.H, pad = { ...CHART.pad, ...(opts.pad || {}) };
+  const w = CHART.W, h = opts.h || CHART.H, pad = { ...CHART.pad, ...(opts.pad || {}) };
   const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
   const max = Math.max(1, ...rows.flatMap(r => r.values));
   const groupW = iw / Math.max(1, rows.length);
@@ -62,7 +62,7 @@ function groupedBars(rows, series, opts = {}) {
     const cx = pad.l + ri * groupW + groupW / 2;
     out += `<text x="${cx.toFixed(1)}" y="${h - 6}" text-anchor="middle" class="chart-label">${escAttr(r.label)}</text>`;
   });
-  return chartSvg(out + chartLegend(series));
+  return chartSvg(out + chartLegend(series), w, h);
 }
 
 /* Multi-series line chart over game index.

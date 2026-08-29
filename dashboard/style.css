@@ -221,6 +221,8 @@ footer.foot { padding: 14px 22px; color: var(--muted); font-size: 12px; border-t
 
 /* ---------- charts ---------- */
 .chart { width: 100%; height: auto; display: block; }
+/* keep wide charts from dominating the page: cap width + centre + smaller height */
+.chart-box { max-width: 640px; margin: 0 auto; }
 .chart-grid { stroke: rgba(139, 150, 181, .28); stroke-width: 1; }
 .chart-tick { fill: var(--muted); font-size: 9px; font-family: var(--mono); }
 .chart-label { fill: var(--muted); font-size: 9.5px; }
