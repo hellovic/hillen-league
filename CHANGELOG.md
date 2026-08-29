@@ -16,13 +16,14 @@ Format follows deployed versions; each entry lists the user-visible changes.
 - **Global search** (A5): a header search box that matches **across all
   seasons/groups** (players, teams, and games by team or venue) and jumps to the
   matching page.
-- **Schedule view** (A6): the Games list is now grouped by date, with a status
-  filter (Played / Not played) and a **venue filter**.
 - **Light/dark theme toggle** (A1/D1): a 🌙/☀️ button in the header, persisted to
   `localStorage` and defaulting to the system light preference on first visit.
 - **Data-freshness pill** (A4/D4): the footer now shows **data through
   `<latest game date>`** (from `meta.max_game_date`, available in both live and
   static modes).
+- Reverted the Games-list redesign (A6) back to the previous flat, sortable table
+  per feedback; the `+/-` column is also hardened to show "—" instead of
+  "undefined" when a backend/build lacks the field.
 - New API/payload fields: `plus_minus`, `fb`, `ba` in `/api/players`; `min/max_game_date`
   in `/api/meta`.
 - Commits: local — deployed when requested.

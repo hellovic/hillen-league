@@ -813,6 +813,7 @@ async function renderPlayers(view) {
   const rowHtml = (p) => {
     const fgp = p.fga ? (p.fgm / p.fga * 100).toFixed(1) : "—";
     const t3p = p.fg3a ? (p.fg3m / p.fg3a * 100).toFixed(1) : "—";
+    const pm = (p.plus_minus === undefined || p.plus_minus === null) ? null : p.plus_minus;
     return `<tr data-href="#/players/${p.player_id}">
       <td><a class="row-link" href="#/players/${p.player_id}">${esc(p.player_name)}</a></td>
       <td><a class="row-link" style="color:var(--muted)" href="#/teams/${p.team_id}">${esc(p.team_name)}</a></td>
@@ -825,7 +826,7 @@ async function renderPlayers(view) {
       <td class="num">${p.spg}</td>
       <td class="num">${p.bpg}</td>
       <td class="num">${p.effpg}</td>
-      <td class="num ${p.plus_minus >= 0 ? "winner" : "loser"}">${p.plus_minus > 0 ? "+" : ""}${p.plus_minus}</td>
+      <td class="num ${pm === null ? "" : (pm >= 0 ? "winner" : "loser")}">${pm === null ? "—" : (pm > 0 ? "+" : "") + pm}</td>
       <td class="num">${fgp}</td>
       <td class="num">${t3p}</td>
       <td class="num">${p.efg === null ? "—" : p.efg.toFixed(1) + "%"}</td>
@@ -856,7 +857,8 @@ async function renderPlayers(view) {
     headers: ["Player", "Team", "GP", "MIN", "PPG", "PTS", "RPG", "APG", "SPG", "BPG", "EFF", "+/-", "FG%", "3P%", "eFG%", "TS%"],
     rows: (state.playersRows || players).map(p => [
       p.player_name, p.team_name, p.gp, p.minutes.toFixed(1), p.ppg, p.pts, p.rpg, p.apg,
-      p.spg, p.bpg, p.effpg, p.plus_minus,
+      p.spg, p.bpg, p.effpg,
+      (p.plus_minus === undefined || p.plus_minus === null ? "" : p.plus_minus),
       p.fga ? (p.fgm / p.fga * 100).toFixed(1) : "", p.fg3a ? (p.fg3m / p.fg3a * 100).toFixed(1) : "",
       p.efg === null ? "" : p.efg.toFixed(1), p.ts === null ? "" : p.ts.toFixed(1),
     ]),
@@ -981,74 +983,38 @@ async function renderGames(view) {
   view.innerHTML = '<div class="empty">Loading…</div>';
   const games = await api("games", { season: state.season, group: state.group });
   const played = games.filter(g => g.status === "completed");
-  const venues = [...new Set(games.map(g => g.venue).filter(Boolean))].sort();
-  const city = (d) => d ? d.slice(5).replace("-", "/") : "";
-  const rowHtml = (g) => {
-    const glyph = g.status === "completed" ? `${g.home_score}–${g.away_score}`
-      : g.status === "forfeit" ? "forfeit"
-      : g.status === "not_played" ? "not played" : "vs";
-    const badge = g.status === "completed" ? '<span class="badge w">played</span>'
-      : g.status === "forfeit" ? '<span class="badge l">forfeit</span>'
-      : g.status === "not_played" ? '<span class="badge np">not played</span>'
-      : '<span class="badge np">scheduled</span>';
-    return `<div class="game-row" data-href="#/games/${g.event_id}">
-      <div class="gr-main">
-        <a class="row-link" href="#/teams/${g.home_team_id}">${esc(g.home_name)}</a>
-        <span class="gr-score mono">${glyph}</span>
-        <a class="row-link" href="#/teams/${g.away_team_id}">${esc(g.away_name)}</a>
-      </div>
-      <div class="gr-side">${badge}<span class="gr-time">${esc(g.start_time || "")}${g.venue ? " · " + esc(g.venue) : ""}</span></div>
-    </div>`;
-  };
-  const draw = () => {
-    const sf = document.getElementById("gs-status").value;
-    const vf = document.getElementById("gs-venue").value;
-    const f = [...games]
-      .sort((a, b) => (a.game_date || "").localeCompare(b.game_date || "") || (a.start_time || "").localeCompare(b.start_time || ""))
-      .filter(g => (sf === "all" || (sf === "played" ? g.status === "completed" : g.status !== "completed")) &&
-                   (vf === "all" || g.venue === vf));
-    state.gamesRows = f;
-    const groups = [];
-    let cur = null;
-    for (const g of f) {
-      const key = g.game_date || "No date";
-      if (!cur || cur.key !== key) { cur = { key, items: [] }; groups.push(cur); }
-      cur.items.push(g);
-    }
-    const list = document.getElementById("games-list");
-    list.innerHTML = groups.map(gr => `
-      <div class="game-group">
-        <div class="game-date">${gr.key === "No date" ? "No date" : city(gr.key)} <span class="cn">${gr.items.length} game${gr.items.length > 1 ? "s" : ""}</span></div>
-        ${gr.items.map(rowHtml).join("")}
-      </div>`).join("") || '<div class="empty">No games for this filter.</div>';
-  };
+  const keys = [
+    { key: "game_date", label: "Date" },
+    { key: "home_name", label: "Home" },
+    { key: "home_score", label: "Score", num: true },
+    { key: "away_name", label: "Away" },
+    { key: "venue", label: "Venue" },
+    { key: "status", label: "Status" },
+  ];
+  const rowHtml = (g) => `<tr data-href="#/games/${g.event_id}">
+      <td>${esc(g.game_date)} ${esc(g.start_time || "")}</td>
+      <td><a class="row-link" href="#/teams/${g.home_team_id}">${esc(g.home_name)}</a></td>
+      <td class="num mono">${g.status === "completed" ? `${g.home_score}–${g.away_score}` : "—"}</td>
+      <td><a class="row-link" href="#/teams/${g.away_team_id}">${esc(g.away_name)}</a></td>
+      <td>${esc(g.venue || "—")}</td>
+      <td>${g.status === "completed" ? '<span class="badge w">played</span>'
+             : g.status === "forfeit" ? '<span class="badge l">forfeit</span>'
+             : g.status === "not_played" ? '<span class="badge np">not played</span>'
+             : '<span class="badge np">scheduled</span>'}</td>
+    </tr>`;
   view.innerHTML = `
-    <div class="view-head"><h2>Games</h2><div class="toolbar">
-      <select id="gs-status" aria-label="Filter by status">
-        <option value="all">All games</option>
-        <option value="played">Played</option>
-        <option value="upcoming">Not played / upcoming</option>
-      </select>
-      <select id="gs-venue" aria-label="Filter by venue">
-        <option value="all">All venues</option>
-        ${venues.map(v => `<option value="${escAttr(v)}">${esc(v)}</option>`).join("")}
-      </select>
-      ${csvButton()}
-      <div class="sub">${games.length} games · ${played.length} played</div>
-    </div></div>
-    <div class="card"><div id="games-list"></div></div>`;
-  const list = view.querySelector("#games-list");
-  list.addEventListener("click", (e) => {
-    const el = e.target.closest("[data-href]");
-    if (el) location.hash = el.dataset.href;
-  });
-  view.querySelector("#gs-status").addEventListener("change", draw);
-  view.querySelector("#gs-venue").addEventListener("change", draw);
+    <div class="view-head"><h2>Games</h2><div class="toolbar"><div class="sub">${games.length} scheduled · ${played.length} completed</div>${csvButton()}</div></div>
+    <div class="card">
+      <div id="games-table">${makeTable(keys, games, rowHtml, "t-games", 1)}</div>
+    </div>`;
   bindCSV(view, ".csv-btn", "games.csv", () => ({
     headers: ["Date", "Home", "Score", "Away", "Venue", "Status"],
-    rows: (state.gamesRows || games).map(g => [g.game_date, g.home_name, g.status === "completed" ? `${g.home_score}-${g.away_score}` : "", g.away_name, g.venue, g.status]),
+    rows: games.map(g => [g.game_date, g.home_name, g.status === "completed" ? `${g.home_score}-${g.away_score}` : "", g.away_name, g.venue, g.status]),
   }));
-  draw();
+  bindSort(view.querySelector("#games-table"), () => {
+    document.querySelector("#games-table").innerHTML =
+      makeTable(keys, sortRows(games, state.sort.key || "game_date", state.sort.dir || "asc"), rowHtml, "t-games", 1);
+  });
 }
 
 /* ---------------- leaders ---------------- */

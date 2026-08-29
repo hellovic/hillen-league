@@ -37,7 +37,7 @@ A zero-dependency web dashboard over the database:
 - **Standings** — official group table + points for/against bars
 - **Teams** — rosters, season leaders, results, and a points-for/against trend chart
 - **Players** — sortable/searchable season stats (incl. +/-), **shooting efficiency (eFG%, TS%)**, per-game points chart, radar vs group average, full game logs
-- **Games** — grouped by date (a schedule), with a **status + venue filter**, box scores, scoring-by-quarter table, team performance, full per-player lines
+- **Games** — box scores, scoring-by-quarter table, team performance, full per-player lines
 - **Leaders** — the league's own top-5 leaderboards per category (MVP, 得分王, 三分王, 助攻王, 偷截王, 罰球王, 籃板王, 封阻王), with CSV
 - **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
 - **Global search** — header box that matches players, teams, and games **across all seasons/groups** and jumps to the page

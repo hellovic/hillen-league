@@ -323,18 +323,6 @@ table.data td.lo { color: var(--muted); }
 .gs-sub { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gs-empty { padding: 14px; color: var(--muted); font-size: 13px; text-align: center; }
 
-/* ---------- games schedule (date-grouped) ---------- */
-.game-group { margin-bottom: 12px; }
-.game-date { font-size: 13px; font-weight: 600; color: var(--accent2); margin: 4px 0 4px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-.game-date .cn { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
-.game-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 8px; border-bottom: 1px solid var(--line); cursor: pointer; }
-.game-row:hover { background: rgba(252, 99, 6, .06); }
-.game-row:last-child { border-bottom: none; }
-.gr-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-.gr-score { min-width: 64px; text-align: center; font-weight: 600; color: var(--text); }
-.gr-side { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; color: var(--muted); }
-.gr-time { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
-
 /* ==========================================================================
    Mobile (≤768px): readable, tappable, scrollable tables with a pinned
    identity column so names stay visible while the wide tables pan sideways.
@@ -404,8 +392,4 @@ table.data td.lo { color: var(--muted); }
   .gsearch input[type="search"] { width: 100%; font-size: 16px; }
   .global-results { left: 0; right: 0; width: 100%; }
   .theme-toggle { flex-shrink: 0; }
-
-  .gr-main { gap: 6px; }
-  .gr-time { max-width: 110px; }
-  .game-row { padding: 10px 4px; }
 }
