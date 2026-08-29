@@ -18,9 +18,11 @@ Format follows deployed versions; each entry lists the user-visible changes.
   matching page.
 - **Light/dark theme toggle** (A1/D1): a 🌙/☀️ button in the header, persisted to
   `localStorage` and defaulting to the system light preference on first visit.
-- **Data-freshness pill** (A4/D4): the footer now shows **data through
-  `<latest game date>`** (from `meta.max_game_date`, available in both live and
-  static modes).
+- **Data-refresh timestamp** (D4): the footer now shows **data refresh
+  `YYYY-mm-dd HH:mm:ss`** — the last time the database was written by a scrape,
+  in Hong Kong time (consistent whether it ran locally or on GitHub Actions).
+  Replaces the previous "data through `<game date>`" label (a game date can be a
+  future scheduled fixture and was confusing).
 - Reverted the Games-list redesign (A6) back to the previous flat, sortable table
   per feedback; the `+/-` column is also hardened to show "—" instead of
   "undefined" when a backend/build lacks the field.

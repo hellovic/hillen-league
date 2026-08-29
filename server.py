@@ -22,6 +22,7 @@ API:
 """
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -30,6 +31,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+HKTZ = datetime.timezone(datetime.timedelta(hours=8))  # the league runs in Hong Kong
 STATIC_DIR = os.path.join(HERE, "dashboard")
 DB_PATH = os.path.join(HERE, "hillen_league.db")
 
@@ -190,12 +192,20 @@ def query(conn, key, params=()):
 # API payload builders (shared by the live server and the static exporter)
 # --------------------------------------------------------------------------
 
-def meta_payload(conn):
+def meta_payload(conn, db_path=DB_PATH):
     counts = {r["k"]: r["v"] for r in query(conn, "meta")}
     combos = [{"season": s, "group": g} for s, g in
               conn.execute("SELECT DISTINCT season_id, group_id FROM season_teams ORDER BY 1, 2")]
     row = conn.execute(
         "SELECT MIN(game_date), MAX(game_date) FROM games WHERE game_date IS NOT NULL").fetchone()
+    # "data refresh" time = when the database was last written by a scrape, shown
+    # in Hong Kong time so it's consistent whether the refresh ran locally or on
+    # a (UTC) GitHub Actions runner.
+    try:
+        refreshed_at = datetime.datetime.fromtimestamp(os.path.getmtime(db_path), HKTZ) \
+            .strftime("%Y-%m-%d %H:%M:%S")
+    except OSError:
+        refreshed_at = None
     return {
         "seasons": query(conn, "seasons"),
         "groups": query(conn, "groups"),
@@ -203,6 +213,7 @@ def meta_payload(conn):
         "counts": counts,
         "min_game_date": row[0],
         "max_game_date": row[1],
+        "refreshed_at": refreshed_at,
         "default_season": 32,
         "default_group": 26,
     }
@@ -255,9 +266,9 @@ def export_static(out_dir, db_path=DB_PATH):
         data_root = os.path.join(out_dir, "data")
         os.makedirs(data_root, exist_ok=True)
         with open(os.path.join(data_root, "meta.json"), "w", encoding="utf-8") as f:
-            json.dump(meta_payload(conn), f, ensure_ascii=False)
+            json.dump(meta_payload(conn, db_path), f, ensure_ascii=False)
 
-        combos = meta_payload(conn)["combos"]
+        combos = meta_payload(conn, db_path)["combos"]
         n_teams = n_players = n_games = 0
         for combo in combos:
             season, group = combo["season"], combo["group"]
@@ -408,7 +419,7 @@ class Handler(BaseHTTPRequestHandler):
             conn = self._conn()
             try:
                 if path == "/api/meta":
-                    self._json(meta_payload(conn))
+                    self._json(meta_payload(conn, self.server.db_path))
                 elif path == "/api/standings":
                     self._json(query(conn, "standings", (int(season), int(group))))
                 elif path == "/api/teams":

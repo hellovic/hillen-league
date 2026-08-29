@@ -279,8 +279,8 @@ async function init() {
   const c = state.meta.counts;
   document.getElementById("foot-counts").textContent =
     `${c.teams} teams · ${c.players} players · ${c.games} games · ${c.box_scores} box-score rows`;
-  if (state.meta.max_game_date) {
-    document.getElementById("foot-fresh").textContent = ` · data through ${state.meta.max_game_date}`;
+  if (state.meta.refreshed_at) {
+    document.getElementById("foot-fresh").textContent = ` · data refresh ${state.meta.refreshed_at}`;
   }
   initTheme();
   setupGlobalSearch();
