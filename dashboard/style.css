@@ -243,6 +243,13 @@ footer.foot { padding: 14px 22px; color: var(--muted); font-size: 12px; border-t
 .quarter-table td:first-child { text-align: left; font-weight: 600; font-family: inherit; }
 .quarter-table .total { color: var(--accent2); font-weight: 700; }
 
+/* best-performance table on the game page (最佳表現) */
+.best-table { max-width: 640px; margin: 0 auto; font-size: 12.5px; }
+.best-table th.side { font-weight: 700; font-size: 12px; white-space: nowrap; }
+.best-table td:first-child { text-align: left; white-space: normal; }
+.best-table td:last-child { text-align: right; white-space: normal; }
+.best-table td.bst { text-align: center; font-weight: 700; color: var(--accent2); letter-spacing: .5px; }
+
 /* ---------- charts ---------- */
 .chart { width: 100%; height: auto; display: block; }
 /* keep wide charts from dominating the page: cap width + centre + smaller height */

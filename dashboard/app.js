@@ -1192,6 +1192,33 @@ async function renderGameDetail(view, eid) {
       </tbody></table>`;
   })();
 
+  // 最佳表現 — per-statistic leader(s) for home (主隊) and away (客隊), computed
+  // from the box score (mirrors the site's own "best performance" table).
+  const bestStats = [
+    ["pts", "PTS"], ["fg2m", "2PT"], ["fg3m", "3PT"], ["ftm", "FT"],
+    ["tot_reb", "REB"], ["ast", "AST"], ["stl", "ST"], ["blk", "BS"], ["eff", "EFF"],
+  ];
+  const leadersFor = (tid, key) => {
+    const rows = boxOf(tid);
+    const max = Math.max(0, ...rows.map(b => b[key] || 0));
+    if (max === 0) return { names: ["NIL"], value: 0 };
+    return { names: rows.filter(b => (b[key] || 0) === max).map(b => b.player_name), value: max };
+  };
+  const bestTable = `<div class="card"><h3>最佳表現 <span class="cn">Best Performance</span></h3>
+    <table class="data best-table">
+      <thead><tr><th class="side">主隊</th><th class="num"></th><th></th><th class="num"></th><th class="side">客隊</th></tr></thead>
+      <tbody>${bestStats.map(([key, label]) => {
+        const h = leadersFor(g.home_team_id, key), a = leadersFor(g.away_team_id, key);
+        return `<tr>
+          <td>${h.names.map(n => `<div>${esc(n)}</div>`).join("")}</td>
+          <td class="num mono">${h.value}</td>
+          <td class="bst">${label}</td>
+          <td class="num mono">${a.value}</td>
+          <td>${a.names.map(n => `<div>${esc(n)}</div>`).join("")}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>`;
+
   view.innerHTML = `
     <a class="back" href="#/games">← Games</a>
     <div class="view-head"><h2>${esc(g.group_name)} · ${esc(g.game_date)}</h2><div class="sub">${esc(g.venue || "")} · ${g.start_time || ""}–${g.end_time || ""}</div></div>
@@ -1215,6 +1242,7 @@ async function renderGameDetail(view, eid) {
       <div class="empty"><b>Forfeit</b> — ${hw ? esc(g.home_name) : esc(g.away_name)} awarded the win (${g.home_score ?? "—"}–${g.away_score ?? "—"} default).</div>` :
       `<div class="empty">${g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}</div>`}
     </div>
+    ${g.status === "completed" ? bestTable : ""}
     ${g.status === "completed" ? teamBoxCard(g.home_team_id) + teamBoxCard(g.away_team_id) : ""}`;
   if (g.status === "completed") {
     // sortable box-score headers (delegated on #view so re-renders keep working)
