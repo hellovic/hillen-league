@@ -159,6 +159,15 @@ CREATE INDEX IF NOT EXISTS idx_games_season ON games(season_id);
 CREATE INDEX IF NOT EXISTS idx_games_group  ON games(group_id);
 CREATE INDEX IF NOT EXISTS idx_rosters_player ON rosters(player_id);
 
+-- Last data refresh timestamp (HK time) written by the refresh pipeline
+-- (start.sh / GitHub Actions) after a full scrape. The dashboard footer shows
+-- this as "data refresh YYYY-mm-dd HH:mm:ss". Stored in the DB (not derived
+-- from the file mtime) so it survives git checkouts and dev-side scrapes.
+CREATE TABLE IF NOT EXISTS refresh_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+
 -- ============================================================================
 -- Analysis views (computed from raw data)
 -- ============================================================================

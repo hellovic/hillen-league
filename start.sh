@@ -62,6 +62,20 @@ if [ "$REFRESH" = "1" ]; then
         || { echo "!! scrape failed for s${s} g${g} — aborting"; exit 1; }
     done
   done
+  # record the data-refresh time (HK) so the dashboard footer can show when the
+  # data was last refreshed; stored in the DB so it survives git checkouts and
+  # dev-side scrapes (unlike the file mtime).
+  python3 - <<'PYEOF'
+import sqlite3, datetime
+db = sqlite3.connect("hillen_league.db")
+db.execute("CREATE TABLE IF NOT EXISTS refresh_meta (key TEXT PRIMARY KEY, value TEXT)")
+now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+db.execute("INSERT INTO refresh_meta(key, value) VALUES('refreshed_at', ?) "
+           "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (now,))
+db.commit()
+db.close()
+print(f"==> data refresh time recorded: {now} (HK)")
+PYEOF
 else
   echo "==> skipping scrape (--no-refresh)"
 fi

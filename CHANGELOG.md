@@ -19,10 +19,14 @@ Format follows deployed versions; each entry lists the user-visible changes.
 - **Light/dark theme toggle** (A1/D1): a 🌙/☀️ button in the header, persisted to
   `localStorage` and defaulting to the system light preference on first visit.
 - **Data-refresh timestamp** (D4): the footer now shows **data refresh
-  `YYYY-mm-dd HH:mm:ss`** — the last time the database was written by a scrape,
-  in Hong Kong time (consistent whether it ran locally or on GitHub Actions).
-  Replaces the previous "data through `<game date>`" label (a game date can be a
-  future scheduled fixture and was confusing).
+  `YYYY-mm-dd HH:mm:ss`** — the time the data was last refreshed, in Hong Kong
+  time (consistent whether it ran locally or on GitHub Actions). The timestamp is
+  **stored in the database** (`refresh_meta`, written by `start.sh` after a full
+  refresh) rather than derived from the file mtime, so it survives git checkouts
+  and dev-side scrapes. Replaces the previous "data through `<game date>`" label
+  (a game date can be a future scheduled fixture and was confusing). The build
+  stamp now includes this timestamp, so a refresh always cache-busts and the
+  footer updates immediately.
 - Reverted the Games-list redesign (A6) back to the previous flat, sortable table
   per feedback; the `+/-` column is also hardened to show "—" instead of
   "undefined" when a backend/build lacks the field.

@@ -198,14 +198,21 @@ def meta_payload(conn, db_path=DB_PATH):
               conn.execute("SELECT DISTINCT season_id, group_id FROM season_teams ORDER BY 1, 2")]
     row = conn.execute(
         "SELECT MIN(game_date), MAX(game_date) FROM games WHERE game_date IS NOT NULL").fetchone()
-    # "data refresh" time = when the database was last written by a scrape, shown
-    # in Hong Kong time so it's consistent whether the refresh ran locally or on
-    # a (UTC) GitHub Actions runner.
+    # "data refresh" time: prefer the timestamp stored by the refresh pipeline
+    # (start.sh / GitHub Actions) in refresh_meta; fall back to the database
+    # file's last-write time. Either way shown in Hong Kong time so it's
+    # consistent whether the refresh ran locally or on a (UTC) Actions runner.
     try:
-        refreshed_at = datetime.datetime.fromtimestamp(os.path.getmtime(db_path), HKTZ) \
-            .strftime("%Y-%m-%d %H:%M:%S")
-    except OSError:
+        refresh_row = conn.execute("SELECT value FROM refresh_meta WHERE key='refreshed_at'").fetchone()
+        refreshed_at = refresh_row[0] if refresh_row and refresh_row[0] else None
+    except sqlite3.Error:
         refreshed_at = None
+    if not refreshed_at:
+        try:
+            refreshed_at = datetime.datetime.fromtimestamp(os.path.getmtime(db_path), HKTZ) \
+                .strftime("%Y-%m-%d %H:%M:%S")
+        except OSError:
+            refreshed_at = None
     return {
         "seasons": query(conn, "seasons"),
         "groups": query(conn, "groups"),
@@ -265,10 +272,11 @@ def export_static(out_dir, db_path=DB_PATH):
     try:
         data_root = os.path.join(out_dir, "data")
         os.makedirs(data_root, exist_ok=True)
+        mp = meta_payload(conn, db_path)
         with open(os.path.join(data_root, "meta.json"), "w", encoding="utf-8") as f:
-            json.dump(meta_payload(conn, db_path), f, ensure_ascii=False)
+            json.dump(mp, f, ensure_ascii=False)
 
-        combos = meta_payload(conn, db_path)["combos"]
+        combos = mp["combos"]
         n_teams = n_players = n_games = 0
         for combo in combos:
             season, group = combo["season"], combo["group"]
@@ -312,9 +320,12 @@ def export_static(out_dir, db_path=DB_PATH):
             f.write("")
         # GitHub Pages caches assets for 10 min (max-age=600); version every
         # asset URL with a build stamp so viewers get the new build instantly.
-        # The stamp is derived from the actual game data (not the clock), so a
-        # re-export with no new data produces an identical index.html instead of
-        # a spurious diff/commit.
+        # The stamp is derived from the actual data (game rows + frontend source
+        # + the data-refresh timestamp), so:
+        #   * a re-export with genuinely no change produces an identical
+        #     index.html (no spurious diff/commit), but
+        #   * any refresh bumps refreshed_at, so the stamp changes and
+        #     cache-busts — otherwise the footer timestamp would stay stale.
         import hashlib
         sig_parts = [tuple(r) for r in conn.execute("""
             SELECT g.event_id, g.status, g.home_score, g.away_score,
@@ -326,7 +337,9 @@ def export_static(out_dir, db_path=DB_PATH):
         for name in ("app.js", "charts.js", "style.css", "index.html"):
             with open(os.path.join(STATIC_DIR, name), "rb") as f:
                 sig_src += name + ":" + hashlib.md5(f.read()).hexdigest() + ";"
-        stamp = hashlib.md5(str(sig_parts).encode() + sig_src.encode()).hexdigest()[:12]
+        stamp = hashlib.md5(
+            (str(sig_parts) + "|" + (mp.get("refreshed_at") or "") + sig_src).encode()
+        ).hexdigest()[:12]
         idx = os.path.join(out_dir, "index.html")
         with open(idx, encoding="utf-8") as f:
             html = f.read()
