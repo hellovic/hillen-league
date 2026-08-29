@@ -131,7 +131,7 @@ function csvDownload(filename, headers, rows) {
 }
 
 function csvButton(id) {
-  return `<button class="csv-btn" type="button" ${id ? `id="${id}" ` : ""}title="Download as CSV">⬇ CSV</button>`;
+  return `<button class="csv-btn csv-export" type="button" ${id ? `id="${id}" ` : ""}title="Download as CSV">⬇ CSV</button>`;
 }
 
 /* Bind a CSV button to a data builder. */
@@ -1086,7 +1086,7 @@ async function renderGameDetail(view, eid) {
     return `
     <div class="card">
       <h3>${esc(name)} ${color ? `<span class="pill">${esc(color)}</span>` : ""} <span class="cn">${win === null ? "" : win ? "WINNER" : "LOSER"}</span>
-        <button class="csv-btn team-table-csv" type="button" title="Download as CSV">⬇ CSV</button>
+        <button class="csv-btn csv-export team-table-csv" type="button" title="Download as CSV">⬇ CSV</button>
       </h3>
       <table class="data pin2">
         <thead><tr>
