@@ -1192,13 +1192,6 @@ async function renderGameDetail(view, eid) {
       </tbody></table>`;
   })();
 
-  const perfCells = (() => {
-    const h = tsOf(g.home_team_id), a = tsOf(g.away_team_id);
-    return [["TO", h.turnovers, a.turnovers], ["REB", h.rebounds, a.rebounds], ["FB", h.fastbreaks, a.fastbreaks]]
-      .filter(c => c[1] !== undefined || c[2] !== undefined)
-      .map(c => `<div class="q"><b>${c[1] ?? "—"} : ${c[2] ?? "—"}</b><span>${c[0]}</span></div>`).join("");
-  })();
-
   view.innerHTML = `
     <a class="back" href="#/games">← Games</a>
     <div class="view-head"><h2>${esc(g.group_name)} · ${esc(g.game_date)}</h2><div class="sub">${esc(g.venue || "")} · ${g.start_time || ""}–${g.end_time || ""}</div></div>
@@ -1217,8 +1210,7 @@ async function renderGameDetail(view, eid) {
         </div>
       </div>
       ${g.status === "completed" ? `
-      ${quarterTable}
-      <div class="qstrip">${perfCells}</div>` :
+      ${quarterTable}` :
       g.status === "forfeit" ? `
       <div class="empty"><b>Forfeit</b> — ${hw ? esc(g.home_name) : esc(g.away_name)} awarded the win (${g.home_score ?? "—"}–${g.away_score ?? "—"} default).</div>` :
       `<div class="empty">${g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}</div>`}
