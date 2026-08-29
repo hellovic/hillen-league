@@ -1075,56 +1075,105 @@ async function renderGameDetail(view, eid) {
   const tsOf = (tid) => (g.team_stats || []).find(s => s.team_id === tid) || {};
   const boxOf = (tid) => g.box.filter(b => b.team_id === tid);
 
-  const teamTable = (tid, name, color, win) => {
+  // Per-team, per-column sortable box-score tables. Numeric stat columns
+  // (2PT/3PT/FG/FT sort by makes; MIN sorts by clock minutes; DNP rows = 0) are
+  // clickable to sort desc/asc; the default keeps the site's jersey order.
+  const teamSort = {
+    [g.home_team_id]: { key: null, dir: "desc" },
+    [g.away_team_id]: { key: null, dir: "desc" },
+  };
+  const boxCols = [
+    { kh: "MIN", key: "minutes", num: true },
+    { kh: "2PT", key: "fg2m", num: true },
+    { kh: "3PT", key: "fg3m", num: true },
+    { kh: "FG", key: "fgm", num: true },
+    { kh: "FT", key: "ftm", num: true },
+    { kh: "REB", key: "tot_reb", num: true },
+    { kh: "AST", key: "ast", num: true },
+    { kh: "ST", key: "stl", num: true },
+    { kh: "BS", key: "blk", num: true },
+    { kh: "TO", key: "tov", num: true },
+    { kh: "PF", key: "pf", num: true },
+    { kh: "EFF", key: "eff", num: true },
+    { kh: "+/−", key: "plus_minus", num: true },
+    { kh: "PTS", key: "pts", num: true },
+  ];
+  const teamTotals = (rows) => rows.reduce((a, b) => {
+    ["fg2m","fg2a","fg3m","fg3a","fgm","fga","ftm","fta","off_reb","def_reb","tot_reb",
+     "ast","stl","blk","fb","ba","tov","pf","eff","pts"].forEach(k => a[k] = (a[k] || 0) + (b[k] || 0));
+    a.plus_minus += b.plus_minus || 0;
+    return a;
+  }, { plus_minus: 0 });
+  const sortVal = (key, b) => {
+    if (key === "minutes") {
+      const m = String(b.minutes || "0:00").match(/^(\d+):(\d+)$/);
+      return m ? (+m[1]) * 60 + (+m[2]) : 0;
+    }
+    return b[key];
+  };
+  const boxRows = (tid) => {
+    const st = teamSort[tid] || {};
     const rows = boxOf(tid);
-    const totals = rows.reduce((a, b) => {
-      ["fg2m","fg2a","fg3m","fg3a","fgm","fga","ftm","fta","off_reb","def_reb","tot_reb",
-       "ast","stl","blk","fb","ba","tov","pf","eff","pts"].forEach(k => a[k] = (a[k] || 0) + (b[k] || 0));
-      a.plus_minus += b.plus_minus || 0;
-      return a;
-    }, { plus_minus: 0 });
+    if (!st.key) return rows;
+    return [...rows].sort((a, b) => {
+      const va = sortVal(st.key, a), vb = sortVal(st.key, b);
+      const r = (typeof va === "number" && typeof vb === "number")
+        ? (va - vb) : String(va ?? "").localeCompare(String(vb ?? ""), "zh");
+      return st.dir === "desc" ? -r : r;
+    });
+  };
+  const boxRow = (b) => `<tr data-href="#/players/${b.player_id}" class="${b.minutes === "0:00" ? "dnp-row" : ""}">
+      <td class="num mono">${b.jersey_no ?? "—"}</td>
+      <td><a class="row-link" href="#/players/${b.player_id}">${esc(b.player_name)}</a>
+          ${b.minutes === "0:00" ? '<span class="badge np">DNP</span>' : ""}</td>
+      <td class="num mono">${b.minutes === "0:00" ? '<span class="dnp">—</span>' : esc(b.minutes)}</td>
+      <td class="num mono">${b.fg2m}-${b.fg2a}</td>
+      <td class="num mono">${b.fg3m}-${b.fg3a}</td>
+      <td class="num mono">${b.fgm}-${b.fga}</td>
+      <td class="num mono">${b.ftm}-${b.fta}</td>
+      <td class="num">${b.tot_reb}</td><td class="num">${b.ast}</td><td class="num">${b.stl}</td>
+      <td class="num">${b.blk}</td><td class="num">${b.tov}</td><td class="num">${b.pf}</td>
+      <td class="num">${b.eff}</td>
+      <td class="num ${b.plus_minus >= 0 ? "winner" : "loser"}">${b.plus_minus > 0 ? "+" : ""}${b.plus_minus}</td>
+      <td class="num mono">${b.pts}</td>
+    </tr>`;
+  const boxTbl = (tid) => {
+    const st = teamSort[tid] || {};
+    const rows = boxRows(tid);
+    const totals = teamTotals(boxOf(tid));
+    const ths = boxCols.map(c => {
+      const arrow = st.key === c.key ? (st.dir === "desc" ? " ▼" : " ▲") : "";
+      return `<th data-key="${c.key}" class="num${st.key === c.key ? " sorted" : ""}" title="Sort">${c.kh}${arrow}</th>`;
+    }).join("");
+    return `<table class="data pin2">
+      <thead><tr><th class="num">#</th><th>Player</th>${ths}</tr></thead>
+      <tbody>
+        ${rows.map(boxRow).join("") || '<tr><td colspan="16" class="empty">No box score</td></tr>'}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="3"><b>Team total</b></td>
+        <td class="num mono">${totals.fg2m}-${totals.fg2a}</td>
+        <td class="num mono">${totals.fg3m}-${totals.fg3a}</td>
+        <td class="num mono">${totals.fgm}-${totals.fga}</td>
+        <td class="num mono">${totals.ftm}-${totals.fta}</td>
+        <td class="num">${totals.tot_reb}</td><td class="num">${totals.ast}</td><td class="num">${totals.stl}</td>
+        <td class="num">${totals.blk}</td><td class="num">${totals.tov}</td><td class="num">${totals.pf}</td>
+        <td class="num">${totals.eff}</td>
+        <td class="num">${totals.plus_minus > 0 ? "+" : ""}${totals.plus_minus}</td>
+        <td class="num mono">${totals.pts}</td>
+      </tr></tfoot>
+    </table>`;
+  };
+  const teamBoxCard = (tid) => {
+    const name = tid === g.home_team_id ? g.home_name : g.away_name;
+    const color = tsOf(tid).shirt_color;
+    const win = tid === g.home_team_id ? hw : aw;
     return `
     <div class="card">
       <h3>${esc(name)} ${color ? `<span class="pill">${esc(color)}</span>` : ""} <span class="cn">${win === null ? "" : win ? "WINNER" : "LOSER"}</span>
         <button class="csv-btn csv-export team-table-csv" type="button" title="Download as CSV">⬇ CSV</button>
       </h3>
-      <table class="data pin2">
-        <thead><tr>
-          <th class="num">#</th><th>Player</th><th class="num">MIN</th>
-          <th class="num">2PT</th><th class="num">3PT</th><th class="num">FG</th><th class="num">FT</th>
-          <th class="num">REB</th><th class="num">AST</th><th class="num">ST</th><th class="num">BS</th>
-          <th class="num">TO</th><th class="num">PF</th><th class="num">EFF</th><th class="num">+/−</th><th class="num">PTS</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(b => `<tr data-href="#/players/${b.player_id}" class="${b.minutes === "0:00" ? "dnp-row" : ""}">
-            <td class="num mono">${b.jersey_no ?? "—"}</td>
-            <td><a class="row-link" href="#/players/${b.player_id}">${esc(b.player_name)}</a>
-                ${b.minutes === "0:00" ? '<span class="badge np">DNP</span>' : ""}</td>
-            <td class="num mono">${b.minutes === "0:00" ? '<span class="dnp">—</span>' : esc(b.minutes)}</td>
-            <td class="num mono">${b.fg2m}-${b.fg2a}</td>
-            <td class="num mono">${b.fg3m}-${b.fg3a}</td>
-            <td class="num mono">${b.fgm}-${b.fga}</td>
-            <td class="num mono">${b.ftm}-${b.fta}</td>
-            <td class="num">${b.tot_reb}</td><td class="num">${b.ast}</td><td class="num">${b.stl}</td>
-            <td class="num">${b.blk}</td><td class="num">${b.tov}</td><td class="num">${b.pf}</td>
-            <td class="num">${b.eff}</td>
-            <td class="num ${b.plus_minus >= 0 ? "winner" : "loser"}">${b.plus_minus > 0 ? "+" : ""}${b.plus_minus}</td>
-            <td class="num mono">${b.pts}</td>
-          </tr>`).join("") || '<tr><td colspan="16" class="empty">No box score</td></tr>'}
-        </tbody>
-        <tfoot><tr>
-          <td colspan="3"><b>Team total</b></td>
-          <td class="num mono">${totals.fg2m}-${totals.fg2a}</td>
-          <td class="num mono">${totals.fg3m}-${totals.fg3a}</td>
-          <td class="num mono">${totals.fgm}-${totals.fga}</td>
-          <td class="num mono">${totals.ftm}-${totals.fta}</td>
-          <td class="num">${totals.tot_reb}</td><td class="num">${totals.ast}</td><td class="num">${totals.stl}</td>
-          <td class="num">${totals.blk}</td><td class="num">${totals.tov}</td><td class="num">${totals.pf}</td>
-          <td class="num">${totals.eff}</td>
-          <td class="num">${totals.plus_minus > 0 ? "+" : ""}${totals.plus_minus}</td>
-          <td class="num mono">${totals.pts}</td>
-        </tr></tfoot>
-      </table>
+      <div id="box-tbl-${tid}">${boxTbl(tid)}</div>
     </div>`;
   };
 
@@ -1143,12 +1192,32 @@ async function renderGameDetail(view, eid) {
       </tbody></table>`;
   })();
 
-  const perfCells = (() => {
-    const h = tsOf(g.home_team_id), a = tsOf(g.away_team_id);
-    return [["TO", h.turnovers, a.turnovers], ["REB", h.rebounds, a.rebounds], ["FB", h.fastbreaks, a.fastbreaks]]
-      .filter(c => c[1] !== undefined || c[2] !== undefined)
-      .map(c => `<div class="q"><b>${c[1] ?? "—"} : ${c[2] ?? "—"}</b><span>${c[0]}</span></div>`).join("");
-  })();
+  // 最佳表現 — per-statistic leader(s) for home (主隊) and away (客隊), computed
+  // from the box score (mirrors the site's own "best performance" table).
+  const bestStats = [
+    ["pts", "PTS"], ["fg2m", "2PT"], ["fg3m", "3PT"], ["ftm", "FT"],
+    ["tot_reb", "REB"], ["ast", "AST"], ["stl", "ST"], ["blk", "BS"], ["eff", "EFF"],
+  ];
+  const leadersFor = (tid, key) => {
+    const rows = boxOf(tid);
+    const max = Math.max(0, ...rows.map(b => b[key] || 0));
+    if (max === 0) return { names: ["NIL"], value: 0 };
+    return { names: rows.filter(b => (b[key] || 0) === max).map(b => b.player_name), value: max };
+  };
+  const bestTable = `<div class="card"><h3>最佳表現 <span class="cn">Best Performance</span></h3>
+    <table class="data best-table">
+      <thead><tr><th class="side">主隊</th><th class="num"></th><th></th><th class="num"></th><th class="side">客隊</th></tr></thead>
+      <tbody>${bestStats.map(([key, label]) => {
+        const h = leadersFor(g.home_team_id, key), a = leadersFor(g.away_team_id, key);
+        return `<tr>
+          <td>${h.names.map(n => `<div>${esc(n)}</div>`).join("")}</td>
+          <td class="num mono">${h.value}</td>
+          <td class="bst">${label}</td>
+          <td class="num mono">${a.value}</td>
+          <td>${a.names.map(n => `<div>${esc(n)}</div>`).join("")}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>`;
 
   view.innerHTML = `
     <a class="back" href="#/games">← Games</a>
@@ -1168,15 +1237,27 @@ async function renderGameDetail(view, eid) {
         </div>
       </div>
       ${g.status === "completed" ? `
-      ${quarterTable}
-      <div class="qstrip">${perfCells}</div>` :
+      ${quarterTable}` :
       g.status === "forfeit" ? `
       <div class="empty"><b>Forfeit</b> — ${hw ? esc(g.home_name) : esc(g.away_name)} awarded the win (${g.home_score ?? "—"}–${g.away_score ?? "—"} default).</div>` :
       `<div class="empty">${g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}</div>`}
     </div>
-    ${g.status === "completed" ? teamTable(g.home_team_id, g.home_name, tsOf(g.home_team_id).shirt_color, hw) +
-                                teamTable(g.away_team_id, g.away_name, tsOf(g.away_team_id).shirt_color, aw) : ""}`;
+    ${g.status === "completed" ? bestTable : ""}
+    ${g.status === "completed" ? teamBoxCard(g.home_team_id) + teamBoxCard(g.away_team_id) : ""}`;
   if (g.status === "completed") {
+    // sortable box-score headers (delegated on #view so re-renders keep working)
+    view.addEventListener("click", (e) => {
+      const th = e.target.closest("th[data-key]");
+      if (!th) return;
+      const wrap = th.closest("div[id^='box-tbl-']");
+      if (!wrap) return;
+      const tid = +wrap.id.replace("box-tbl-", "");
+      const key = th.dataset.key;
+      const st = teamSort[tid] = teamSort[tid] || { key: null, dir: "desc" };
+      if (st.key === key) st.dir = st.dir === "desc" ? "asc" : "desc";
+      else { st.key = key; st.dir = "desc"; }
+      wrap.innerHTML = boxTbl(tid);
+    });
     bindCSV(view, ".team-table-csv", "box_score.csv", () => ({
       headers: ["Team", "Jersey", "Player", "MIN", "2PT", "3PT", "FG", "FT", "REB", "AST", "ST", "BS", "TO", "PF", "EFF", "+/-", "PTS"],
       rows: g.box.map(b => [b.team_id === g.home_team_id ? g.home_name : g.away_name, b.jersey_no, b.player_name,
