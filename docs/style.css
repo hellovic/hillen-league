@@ -276,6 +276,10 @@ table.data td.lo { color: var(--muted); }
 }
 .csv-btn:hover { border-color: var(--cyan); }
 
+/* CSV export buttons are hidden (CSS toggle) — the Compare links also use
+ * .csv-btn styling but keep their own .csv-btn usage and stay visible. */
+.csv-export { display: none; }
+
 /* ---------- theme toggle ---------- */
 .theme-toggle {
   background: var(--card2);
