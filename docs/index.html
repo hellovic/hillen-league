@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hillen League Dashboard</title>
-<link rel="stylesheet" href="style.css?v=8d04fefc8782">
+<link rel="stylesheet" href="style.css?v=e93ea6605f01">
 </head>
 <body>
 <header class="topbar">
@@ -16,12 +16,17 @@
     </div>
   </div>
   <div class="controls">
+    <div class="gsearch">
+      <input type="search" id="global-search" placeholder="Search players, teams, games…" autocomplete="off" aria-label="Search">
+      <div id="global-results" class="global-results" role="listbox"></div>
+    </div>
     <label>Season
       <select id="season-select"></select>
     </label>
     <label>Group
       <select id="group-select"></select>
     </label>
+    <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light / dark" aria-label="Toggle theme">🌙</button>
   </div>
 </header>
 
@@ -30,15 +35,16 @@
   <button data-view="teams">Teams</button>
   <button data-view="players">Players</button>
   <button data-view="games">Games</button>
+  <button data-view="leaders">Leaders</button>
   <button data-view="compare">Compare</button>
 </nav>
 
 <main id="view"></main>
 
-<footer class="foot">Data from hillen-sports.com · SQLite · <span id="foot-counts"></span></footer>
+<footer class="foot">Data from hillen-sports.com · SQLite · <span id="foot-counts"></span><span id="foot-fresh"></span></footer>
 
 <script src="charts.js"></script>
-<script>window.HL_BUILD="8d04fefc8782";</script>
-<script src="app.js?v=8d04fefc8782"></script>
+<script>window.HL_BUILD="e93ea6605f01";</script>
+<script src="app.js?v=e93ea6605f01"></script>
 </body>
 </html>

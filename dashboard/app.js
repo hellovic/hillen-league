@@ -1029,7 +1029,11 @@ async function renderLeaders(view) {
       <div class="card"><div class="empty">No leaderboard data for this group.</div></div>`;
     return;
   }
-  // group by category, preserving the site's order (first appearance)
+  // group by category, in the league's display order (MVP → 得分王 → 助攻王 → 籃板王
+  // → 三分王 → 封阻王 → 罰球王 → 偷截王); unknown categories go last
+  const ORDER = ["mvp", "pts", "ast", "reb", "fg3", "blk", "ft", "stl"];
+  const prio = (c) => { const i = ORDER.indexOf(c); return i === -1 ? ORDER.length + c : i; };
+  leaders.sort((a, b) => (prio(a.category) - prio(b.category)) || (a.rank - b.rank));
   const cats = []; let cur = null;
   for (const r of leaders) {
     if (!cur || cur.key !== r.category) { cur = { key: r.category, cn: r.category_cn, items: [] }; cats.push(cur); }

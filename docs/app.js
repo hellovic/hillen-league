@@ -54,6 +54,14 @@ function esc(s) {
 
 function fmtDate(d) { return d ? d.slice(5).replace("-", "/") : ""; }
 
+/* Shooting-efficiency helpers (null when there are no attempts). */
+function efgPct(made, att, threes) { return att ? (made + 0.5 * (threes || 0)) / att * 100 : null; }
+function tsPct(pts, fga, fta) {
+  const tsa = fga + 0.44 * (fta || 0);
+  return tsa ? pts / (2 * tsa) * 100 : null;
+}
+function pctStr(v) { return (v === null || v === undefined || isNaN(v)) ? "—" : v.toFixed(1) + "%"; }
+
 function resultOf(g, teamId) {
   if (g.status !== "completed") return { text: "—", cls: "draw" };
   const mine = g.home_team_id === teamId ? g.home_score : g.away_score;
@@ -135,6 +143,102 @@ function bindCSV(container, selector, filename, build) {
   });
 }
 
+/* ---------------- theme (light / dark) ---------------- */
+
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  const b = document.getElementById("theme-toggle");
+  if (b) b.textContent = t === "dark" ? "🌙" : "☀️";
+}
+
+function initTheme() {
+  let theme = localStorage.getItem("hl-theme");
+  if (theme !== "light" && theme !== "dark") {
+    // first visit: default dark (the app is designed dark), but respect a
+    // system light preference if the user hasn't chosen
+    theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+  }
+  applyTheme(theme);
+  const b = document.getElementById("theme-toggle");
+  b.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    applyTheme(next);
+    localStorage.setItem("hl-theme", next);
+  });
+}
+
+/* ---------------- global search (players / teams / games) ---------------- */
+
+let searchIndex = null;   // built once on first focus/search, cached per page load
+
+async function buildSearchIndex() {
+  if (searchIndex) return searchIndex;
+  const combos = (state.meta && state.meta.combos) || [];
+  const players = [], teams = [], games = [];
+  const results = await Promise.all(combos.map(async (combo) => {
+    try {
+      const [p, t, g] = await Promise.all([
+        api("players", { season: combo.season, group: combo.group }),
+        api("teams", { season: combo.season, group: combo.group }),
+        api("games", { season: combo.season, group: combo.group }),
+      ]);
+      return { combo, p, t, g };
+    } catch (e) { return null; }
+  }));
+  for (const r of results) {
+    if (!r) continue;
+    const gr = (state.meta.groups.find(x => x.season_id === r.combo.season && x.group_id === r.combo.group) || {});
+    const ctx = `${r.combo.season} · ${gr.name || "group " + r.combo.group}`;
+    for (const x of r.p) players.push({ name: x.player_name, sub: x.team_name + " · " + ctx, href: "#/players/" + x.player_id });
+    for (const x of r.t) teams.push({ name: x.team_name, sub: ctx, href: "#/teams/" + x.team_id });
+    for (const x of r.g) games.push({
+      name: `${x.home_name} vs ${x.away_name}`,
+      sub: `${x.game_date}${x.venue ? " · " + x.venue : ""} · ${ctx}`,
+      href: "#/games/" + x.event_id,
+    });
+  }
+  searchIndex = { players, teams, games };
+  return searchIndex;
+}
+
+function searchMatches(idx, q) {
+  q = q.toLowerCase();
+  const out = [];
+  for (const p of idx.players) if (p.name.toLowerCase().includes(q)) out.push({ kind: "player", label: p.name, sub: p.sub, href: p.href });
+  for (const t of idx.teams) if (t.name.toLowerCase().includes(q)) out.push({ kind: "team", label: t.name, sub: t.sub, href: t.href });
+  for (const g of idx.games) if (g.name.toLowerCase().includes(q) || g.sub.toLowerCase().includes(q)) out.push({ kind: "game", label: g.name, sub: g.sub, href: g.href });
+  return out.slice(0, 30);
+}
+
+function setupGlobalSearch() {
+  const input = document.getElementById("global-search");
+  const box = document.getElementById("global-results");
+  let timer = null;
+  const render = (items) => {
+    box.innerHTML = items.length
+      ? items.map(it => `<a class="gs-item" href="${it.href}" data-kind="${it.kind}">
+          <span class="gs-k">${it.kind}</span> ${esc(it.label)} <span class="gs-sub">${esc(it.sub)}</span></a>`).join("")
+      : '<div class="gs-empty">No matches</div>';
+    box.classList.add("open");
+  };
+  const run = async () => {
+    try {
+      const idx = await buildSearchIndex();
+      const q = input.value.trim();
+      if (!q) { box.classList.remove("open"); box.innerHTML = ""; return; }
+      render(searchMatches(idx, q));
+    } catch (e) { /* leave closed */ }
+  };
+  input.addEventListener("focus", run);
+  input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(run, 180); });
+  box.addEventListener("click", (e) => {
+    if (e.target.closest(".gs-item")) { box.classList.remove("open"); input.value = ""; }
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".gsearch")) box.classList.remove("open");
+  });
+}
+
 /* ---------------- header / controls ---------------- */
 
 async function init() {
@@ -175,6 +279,11 @@ async function init() {
   const c = state.meta.counts;
   document.getElementById("foot-counts").textContent =
     `${c.teams} teams · ${c.players} players · ${c.games} games · ${c.box_scores} box-score rows`;
+  if (state.meta.max_game_date) {
+    document.getElementById("foot-fresh").textContent = ` · data through ${state.meta.max_game_date}`;
+  }
+  initTheme();
+  setupGlobalSearch();
   sel.addEventListener("change", () => { state.season = +sel.value; rebuildGroups(); route(); });
   gsel.addEventListener("change", () => { state.group = +gsel.value; route(); });
   document.querySelectorAll("#tabs button").forEach(b => {
@@ -223,6 +332,7 @@ function route() {
   else if (parts[0] === "teams") { setView("teams"); renderTeams(view); }
   else if (parts[0] === "players") { setView("players"); renderPlayers(view); }
   else if (parts[0] === "games") { setView("games"); renderGames(view); }
+  else if (parts[0] === "leaders") { setView("leaders"); renderLeaders(view); }
   else { setView("standings"); renderStandings(view); }
 }
 
@@ -332,7 +442,11 @@ function comparePlayersHTML(pa, pb) {
     ["FG%", pct(pa.fgm, pa.fga), pct(pb.fgm, pb.fga), false],
     ["3P%", pct(pa.fg3m, pa.fg3a), pct(pb.fg3m, pb.fg3a), false],
     ["FT%", pct(pa.ftm, pa.fta), pct(pb.ftm, pb.fta), false],
+    ["eFG%", pct(pa.fgm + 0.5 * pa.fg3m, pa.fga), pct(pb.fgm + 0.5 * pb.fg3m, pb.fga), false],
+    ["TS%", pct(pa.pts, 2 * (pa.fga + 0.44 * pa.fta)), pct(pb.pts, 2 * (pb.fga + 0.44 * pb.fta)), false],
     ["+/- (season)", pa.plus_minus, pb.plus_minus, false],
+    ["Fast-break pts", pa.fb, pb.fb, false],
+    ["Blocked against", pa.ba, pb.ba, true],
   ];
   const radarMax = (k) => Math.max(pa[k] / g(pa), pb[k] / g(pb), 0.1) * 1.2;
   const radar = radarChart([
@@ -686,12 +800,20 @@ async function renderPlayers(view) {
     { key: "spg", label: "SPG", num: true },
     { key: "bpg", label: "BPG", num: true },
     { key: "effpg", label: "EFF", num: true },
+    { key: "plus_minus", label: "+/-", num: true },
     { key: "fg_pct", label: "FG%", num: true },
     { key: "fg3_pct", label: "3P%", num: true },
+    { key: "efg", label: "eFG%", num: true },
+    { key: "ts", label: "TS%", num: true },
   ];
+  players.forEach(p => {
+    p.efg = efgPct(p.fgm, p.fga, p.fg3m);
+    p.ts = tsPct(p.pts, p.fga, p.fta);
+  });
   const rowHtml = (p) => {
     const fgp = p.fga ? (p.fgm / p.fga * 100).toFixed(1) : "—";
     const t3p = p.fg3a ? (p.fg3m / p.fg3a * 100).toFixed(1) : "—";
+    const pm = (p.plus_minus === undefined || p.plus_minus === null) ? null : p.plus_minus;
     return `<tr data-href="#/players/${p.player_id}">
       <td><a class="row-link" href="#/players/${p.player_id}">${esc(p.player_name)}</a></td>
       <td><a class="row-link" style="color:var(--muted)" href="#/teams/${p.team_id}">${esc(p.team_name)}</a></td>
@@ -704,8 +826,11 @@ async function renderPlayers(view) {
       <td class="num">${p.spg}</td>
       <td class="num">${p.bpg}</td>
       <td class="num">${p.effpg}</td>
+      <td class="num ${pm === null ? "" : (pm >= 0 ? "winner" : "loser")}">${pm === null ? "—" : (pm > 0 ? "+" : "") + pm}</td>
       <td class="num">${fgp}</td>
       <td class="num">${t3p}</td>
+      <td class="num">${p.efg === null ? "—" : p.efg.toFixed(1) + "%"}</td>
+      <td class="num">${p.ts === null ? "—" : p.ts.toFixed(1) + "%"}</td>
     </tr>`;
   };
   const draw = () => {
@@ -729,11 +854,13 @@ async function renderPlayers(view) {
     </div>
     <div class="card"><div id="players-table"></div></div>`;
   bindCSV(view, ".csv-btn", "players.csv", () => ({
-    headers: ["Player", "Team", "GP", "MIN", "PPG", "PTS", "RPG", "APG", "SPG", "BPG", "EFF", "FG%", "3P%"],
+    headers: ["Player", "Team", "GP", "MIN", "PPG", "PTS", "RPG", "APG", "SPG", "BPG", "EFF", "+/-", "FG%", "3P%", "eFG%", "TS%"],
     rows: (state.playersRows || players).map(p => [
       p.player_name, p.team_name, p.gp, p.minutes.toFixed(1), p.ppg, p.pts, p.rpg, p.apg,
       p.spg, p.bpg, p.effpg,
+      (p.plus_minus === undefined || p.plus_minus === null ? "" : p.plus_minus),
       p.fga ? (p.fgm / p.fga * 100).toFixed(1) : "", p.fg3a ? (p.fg3m / p.fg3a * 100).toFixed(1) : "",
+      p.efg === null ? "" : p.efg.toFixed(1), p.ts === null ? "" : p.ts.toFixed(1),
     ]),
   }));
   bindSort(view.querySelector("#players-table"), draw);
@@ -785,8 +912,10 @@ async function renderPlayerDetail(view, pid) {
         <dl class="kv" style="margin-top:12px">
           <dt>Minutes</dt><dd class="mono">${p.minutes.toFixed(1)} (${p.gp ? (p.minutes / p.gp).toFixed(1) : 0}/g)</dd>
           <dt>Shooting</dt><dd class="mono">${p.fgm}/${p.fga} FG · ${p.fg2m}/${p.fg2a} 2P · ${p.fg3m}/${p.fg3a} 3P · ${p.ftm}/${p.fta} FT</dd>
+          <dt>Efficiency</dt><dd class="mono">eFG% ${pctStr(efgPct(p.fgm, p.fga, p.fg3m))} · FT% ${pctStr(p.fta ? p.ftm / p.fta * 100 : null)} · TS% ${pctStr(tsPct(p.pts, p.fga, p.fta))}</dd>
           <dt>Off / Def reb</dt><dd class="mono">${p.off_reb} / ${p.def_reb}</dd>
           <dt>Turnovers / fouls</dt><dd class="mono">${p.tov} / ${p.pf}</dd>
+          <dt>Fast-break / blk-against</dt><dd class="mono">${p.fb} / ${p.ba}</dd>
           <dt>+/-</dt><dd class="mono">${p.plus_minus > 0 ? "+" : ""}${p.plus_minus}</dd>
         </dl>
       </div>
@@ -886,6 +1015,55 @@ async function renderGames(view) {
     document.querySelector("#games-table").innerHTML =
       makeTable(keys, sortRows(games, state.sort.key || "game_date", state.sort.dir || "asc"), rowHtml, "t-games", 1);
   });
+}
+
+/* ---------------- leaders ---------------- */
+
+async function renderLeaders(view) {
+  view.innerHTML = '<div class="empty">Loading…</div>';
+  let leaders;
+  try { leaders = await api("leaders", { season: state.season, group: state.group }); }
+  catch (e) { leaders = []; }
+  if (!leaders || !leaders.length) {
+    view.innerHTML = `<div class="view-head"><h2>Leaders</h2></div>
+      <div class="card"><div class="empty">No leaderboard data for this group.</div></div>`;
+    return;
+  }
+  // group by category, in the league's display order (MVP → 得分王 → 助攻王 → 籃板王
+  // → 三分王 → 封阻王 → 罰球王 → 偷截王); unknown categories go last
+  const ORDER = ["mvp", "pts", "ast", "reb", "fg3", "blk", "ft", "stl"];
+  const prio = (c) => { const i = ORDER.indexOf(c); return i === -1 ? ORDER.length + c : i; };
+  leaders.sort((a, b) => (prio(a.category) - prio(b.category)) || (a.rank - b.rank));
+  const cats = []; let cur = null;
+  for (const r of leaders) {
+    if (!cur || cur.key !== r.category) { cur = { key: r.category, cn: r.category_cn, items: [] }; cats.push(cur); }
+    cur.items.push(r);
+  }
+  view.innerHTML = `
+    <div class="view-head"><h2>Leaders</h2><div class="toolbar">
+      <div class="sub">${cats.length} categories · season ${state.season} · ${esc((state.meta.groups.find(g => g.season_id === state.season && g.group_id === state.group) || {}).name || "")}</div>
+      ${csvButton()}
+    </div></div>
+    <div class="grid-2">
+      ${cats.map(cat => `
+        <div class="card"><h3>${esc(cat.cn)} <span class="cn">${esc(cat.key)}</span></h3>
+          <table class="data"><thead><tr><th class="num">#</th><th>Player</th><th>Team</th>
+            <th class="num">GP</th><th class="num">Total</th><th class="num">Avg</th></tr></thead><tbody>
+            ${cat.items.map(r => `<tr data-href="#/players/${r.player_id}">
+              <td class="num">${r.rank}</td>
+              <td><a class="row-link" href="#/players/${r.player_id}">${esc(r.player_name)}</a></td>
+              <td><a class="row-link" style="color:var(--muted)" href="#/teams/${r.team_id}">${esc(r.team_name)}</a></td>
+              <td class="num">${r.games_played ?? "—"}</td>
+              <td class="num">${r.total ?? "—"}</td>
+              <td class="num">${r.avg ?? "—"}</td>
+            </tr>`).join("")}
+          </tbody></table>
+        </div>`).join("")}
+    </div>`;
+  bindCSV(view, ".csv-btn", "leaders.csv", () => ({
+    headers: ["Category", "Rank", "Player", "Team", "GP", "Total", "Avg"],
+    rows: leaders.map(r => [r.category_cn, r.rank, r.player_name, r.team_name, r.games_played, r.total, r.avg]),
+  }));
 }
 
 async function renderGameDetail(view, eid) {

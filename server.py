@@ -167,7 +167,11 @@ QUERIES = {
         JOIN players p ON p.player_id = l.player_id
         JOIN teams   t ON t.team_id = l.team_id
         WHERE l.season_id = ? AND l.group_id = ?
-        ORDER BY l.category, l.rank""",
+        ORDER BY CASE l.category
+                   WHEN 'mvp' THEN 1 WHEN 'pts' THEN 2 WHEN 'ast' THEN 3
+                   WHEN 'reb' THEN 4 WHEN 'fg3' THEN 5 WHEN 'blk' THEN 6
+                   WHEN 'ft'  THEN 7 WHEN 'stl' THEN 8
+                   ELSE 99 END, l.rank""",
     "seasons": "SELECT season_id, name FROM seasons ORDER BY season_id",
     "groups": """SELECT g.season_id, g.group_id, g.name FROM groups g
                  WHERE EXISTS (SELECT 1 FROM season_teams st
@@ -305,7 +309,13 @@ def export_static(out_dir, db_path=DB_PATH):
             SELECT g.event_id, g.status, g.home_score, g.away_score,
                    (SELECT COUNT(*) FROM player_game_stats p WHERE p.event_id = g.event_id)
             FROM games g ORDER BY g.event_id""")]
-        stamp = hashlib.md5(str(sig_parts).encode()).hexdigest()[:12]
+        # Hash the frontend sources too, so a code change (new feature/fix) bumps
+        # the stamp and cache-busts cleanly even when the data is unchanged.
+        sig_src = ""
+        for name in ("app.js", "charts.js", "style.css", "index.html"):
+            with open(os.path.join(STATIC_DIR, name), "rb") as f:
+                sig_src += name + ":" + hashlib.md5(f.read()).hexdigest() + ";"
+        stamp = hashlib.md5(str(sig_parts).encode() + sig_src.encode()).hexdigest()[:12]
         idx = os.path.join(out_dir, "index.html")
         with open(idx, encoding="utf-8") as f:
             html = f.read()
