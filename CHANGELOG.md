@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- Data refresh 2026-08-30: 118 games, 2969 box-score rows (seasons 31, 32). 0 new, 1 updated, 0 removed, 117 unchanged.
 - Data refresh 2026-08-29: 118 games, 2917 box-score rows (seasons 31, 32). 2 new, 2 updated, 0 removed, 114 unchanged.
 - **Shooting efficiency** (A1): eFG% and True-Shooting % for every player — added
   as sortable columns on the Players table, plus eFG%/FT%/TS% on the player
