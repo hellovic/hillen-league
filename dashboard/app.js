@@ -1201,20 +1201,23 @@ async function renderGameDetail(view, eid) {
   const leadersFor = (tid, key) => {
     const rows = boxOf(tid);
     const max = Math.max(0, ...rows.map(b => b[key] || 0));
-    if (max === 0) return { names: ["NIL"], value: 0 };
-    return { names: rows.filter(b => (b[key] || 0) === max).map(b => b.player_name), value: max };
+    if (max === 0) return { players: [{ id: null, name: "NIL" }], value: 0 };
+    return { players: rows.filter(b => (b[key] || 0) === max).map(b => ({ id: b.player_id, name: b.player_name })), value: max };
   };
+  const bestLeaders = (list) => list.map(p =>
+    p.id ? `<div><a class="row-link" href="#/players/${p.id}">${esc(p.name)}</a></div>`
+         : `<div>${esc(p.name)}</div>`).join("");
   const bestTable = `<div class="card"><h3>最佳表現 <span class="cn">Best Performance</span></h3>
     <table class="data best-table">
       <thead><tr><th class="side">主隊</th><th class="num"></th><th></th><th class="num"></th><th class="side">客隊</th></tr></thead>
       <tbody>${bestStats.map(([key, label]) => {
         const h = leadersFor(g.home_team_id, key), a = leadersFor(g.away_team_id, key);
         return `<tr>
-          <td>${h.names.map(n => `<div>${esc(n)}</div>`).join("")}</td>
+          <td>${bestLeaders(h.players)}</td>
           <td class="num mono">${h.value}</td>
           <td class="bst">${label}</td>
           <td class="num mono">${a.value}</td>
-          <td>${a.names.map(n => `<div>${esc(n)}</div>`).join("")}</td>
+          <td>${bestLeaders(a.players)}</td>
         </tr>`;
       }).join("")}</tbody>
     </table></div>`;
