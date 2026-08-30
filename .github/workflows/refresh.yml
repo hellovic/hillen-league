@@ -5,7 +5,7 @@ name: Daily data refresh
 # GitHub Pages). Runs in GitHub's cloud, so your Mac doesn't need to be on.
 #
 # Triggers:
-#   - on a schedule (edit the cron below; it is UTC — 01:00 UTC = 09:00 HKT)
+#   - on a schedule (cron below is UTC; these correspond to Hong Kong time)
 #   - manually from the Actions tab ("Run workflow")
 #
 # Because the scheduled workflow lives in the default branch (main), any change
@@ -13,7 +13,14 @@ name: Daily data refresh
 
 on:
   schedule:
-    - cron: '0 1 * * *'        # daily at 01:00 UTC = 09:00 Hong Kong
+    # Every day 06:00 HKT = 22:00 UTC the previous day
+    - cron: '0 22 * * *'
+    # Sat & Sun 12:00 HKT = 04:00 UTC
+    - cron: '0 4  * * 0,6'
+    # Sat & Sun 15:00 HKT = 07:00 UTC
+    - cron: '0 7  * * 0,6'
+    # Sat & Sun 21:00 HKT = 13:00 UTC
+    - cron: '0 13 * * 0,6'
   workflow_dispatch:
 
 permissions:

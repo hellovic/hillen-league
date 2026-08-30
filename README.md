@@ -198,8 +198,11 @@ A **GitHub Actions workflow** (`.github/workflows/refresh.yml`) runs the same
 It refreshes the data, validates it, rebuilds `docs/`, commits the result, and
 pushes back to `main` (which auto-rebuilds GitHub Pages).
 
-* Default: **daily at 01:00 UTC = 09:00 Hong Kong** — edit the `cron` in the file
-  (must be pushed to `main` to take effect).
+* Default (Hong Kong time): **every day 06:00, plus Sat & Sun 12:00 / 15:00 /
+  21:00** — edit the `cron` in the file (cron is UTC; must be pushed to `main`
+  to take effect).
+* Runs in GitHub's cloud on **Hong Kong time** (the cron entries are converted
+  from HK to UTC).
 * Also triggerable **manually** from the repo's **Actions** tab → *Daily data
   refresh* → *Run workflow*.
 * The commit is authored by "Hillen League Bot" (`actions@users.noreply.github.com`).
