@@ -28,10 +28,6 @@ on:
 permissions:
   contents: write              # allow committing + pushing the refreshed data
 
-concurrency:
-  group: hillen-refresh
-  cancel-in-progress: false    # don't cancel a run that's mid-push
-
 jobs:
   refresh:
     runs-on: ubuntu-latest
