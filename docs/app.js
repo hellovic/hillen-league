@@ -289,8 +289,20 @@ async function init() {
   document.querySelectorAll("#tabs button").forEach(b => {
     b.addEventListener("click", () => { location.hash = "/" + b.dataset.view; });
   });
-  window.addEventListener("hashchange", route);
+  window.addEventListener("hashchange", () => { trackPageview(); route(); });
   route();
+  trackPageview();
+}
+
+/* PostHog: report each route as a page view. This is a hash-routed SPA, so the
+ * default auto-capture won't fire on hash-only navigation — fire $pageview on
+ * every load/hashchange. On localhost PostHog is never initialized (see
+ * index.html), so posthog.capture there is just a harmless no-op stub. */
+function trackPageview() {
+  if (window.posthog && typeof window.posthog.capture === "function") {
+    try { window.posthog.capture("$pageview", { $current_url: location.href }); }
+    catch (e) { /* ignore */ }
+  }
 }
 
 function setView(v) {
