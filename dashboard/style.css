@@ -210,6 +210,11 @@ table.data td.mono { font-family: var(--mono); font-size: 12px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-weight: 600; }
 
+/* Shooting / Efficiency stat lists on the player page: each component is a
+ * separate element so they wrap neatly instead of one cramped long line. */
+.sstats { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.sstats span { white-space: nowrap; line-height: 1.35; }
+
 /* ---------- bars ---------- */
 .bar-row { display: flex; align-items: center; gap: 10px; margin: 5px 0; font-size: 12px; }
 .bar-row .bl { width: 170px; text-align: right; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -389,7 +394,10 @@ table.data td.lo { color: var(--muted); }
   .bar-row .bl { width: 130px; }
   .bar-row .bl[style*="210px"], .bar-row .bl[style*="width:100%"] { width: 100% !important; }
 
-  .kv { font-size: 14px; }
+  .kv { font-size: 14px; grid-template-columns: 1fr; gap: 3px 0; }
+  .kv dt + dd { margin: 0 0 6px; }
+  /* Shooting / Efficiency: put each stat on its own line on small screens */
+  .sstats { flex-direction: column; align-items: flex-start; gap: 2px; }
   .pill { font-size: 11px; }
   .back { font-size: 14px; }
   footer.foot { padding: 12px; font-size: 11px; }
