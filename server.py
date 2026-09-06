@@ -337,6 +337,11 @@ def export_static(out_dir, db_path=DB_PATH):
         for name in ("app.js", "charts.js", "style.css", "index.html"):
             with open(os.path.join(STATIC_DIR, name), "rb") as f:
                 sig_src += name + ":" + hashlib.md5(f.read()).hexdigest() + ";"
+        # server.py changes can alter the data payloads (e.g. a query field), so
+        # it must bump the stamp too or the affected data files would be served
+        # from a stale cache.
+        with open(os.path.abspath(__file__), "rb") as f:
+            sig_src += "server.py:" + hashlib.md5(f.read()).hexdigest() + ";"
         stamp = hashlib.md5(
             (str(sig_parts) + "|" + (mp.get("refreshed_at") or "") + sig_src).encode()
         ).hexdigest()[:12]
