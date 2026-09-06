@@ -120,7 +120,7 @@ QUERIES = {
         FROM v_player_season_totals v
         WHERE v.season_id = ? AND v.player_id = ?""",
     "player_games": """
-        SELECT g.event_id, g.game_date, g.home_team_id, g.away_team_id,
+        SELECT g.event_id, g.game_date, g.status, g.home_team_id, g.away_team_id,
                g.home_score, g.away_score, pgs.team_id, pgs.jersey_no, pgs.minutes,
                pgs.pts, pgs.fgm, pgs.fga, pgs.fg3m, pgs.fg3a, pgs.ftm, pgs.fta,
                pgs.off_reb, pgs.def_reb, pgs.tot_reb, pgs.ast, pgs.stl, pgs.blk,
