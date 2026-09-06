@@ -973,8 +973,8 @@ async function renderPlayerDetail(view, pid) {
         </div>
         <dl class="kv" style="margin-top:12px">
           <dt>Minutes</dt><dd class="mono">${p.minutes.toFixed(1)} (${p.gp ? (p.minutes / p.gp).toFixed(1) : 0}/g)</dd>
-          <dt>Shooting</dt><dd class="mono">${p.fgm}/${p.fga} FG · ${p.fg2m}/${p.fg2a} 2P · ${p.fg3m}/${p.fg3a} 3P · ${p.ftm}/${p.fta} FT</dd>
-          <dt>Efficiency</dt><dd class="mono">eFG% ${pctStr(efgPct(p.fgm, p.fga, p.fg3m))} · FT% ${pctStr(p.fta ? p.ftm / p.fta * 100 : null)} · TS% ${pctStr(tsPct(p.pts, p.fga, p.fta))}</dd>
+          <dt>Shooting</dt><dd class="mono sstats"><span>${p.fgm}/${p.fga} FG</span><span>${p.fg2m}/${p.fg2a} 2P</span><span>${p.fg3m}/${p.fg3a} 3P</span><span>${p.ftm}/${p.fta} FT</span></dd>
+          <dt>Efficiency</dt><dd class="mono sstats"><span>eFG% ${pctStr(efgPct(p.fgm, p.fga, p.fg3m))}</span><span>FT% ${pctStr(p.fta ? p.ftm / p.fta * 100 : null)}</span><span>TS% ${pctStr(tsPct(p.pts, p.fga, p.fta))}</span></dd>
           <dt>Off / Def reb</dt><dd class="mono">${p.off_reb} / ${p.def_reb}</dd>
           <dt>Turnovers / fouls</dt><dd class="mono">${p.tov} / ${p.pf}</dd>
           <dt>Fast-break / blk-against</dt><dd class="mono">${p.fb} / ${p.ba}</dd>
