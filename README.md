@@ -45,6 +45,7 @@ A zero-dependency web dashboard over the database:
 - **CSV export** — a ⬇ CSV button on every table (standings, teams, players, games, box scores, game logs, rosters, leaders); Excel-friendly (UTF-8 BOM)
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 - **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
+- **Open Graph / share previews**: `og:` + `twitter:` meta tags and a branded `og.png` (1200×630) so links shared on WhatsApp/Telegram/etc. show a proper title/description/image. (These are static — link-preview crawlers don't run JS and the `#hash` isn't sent to the server, so all routes share the same card.) `make_og.py` regenerates `og.png`.
 - **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `dashboard/index.html`.
 
 ```bash
