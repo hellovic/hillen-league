@@ -118,7 +118,8 @@ QUERIES = {
                v.fgm, v.fga, v.fg2m, v.fg2a, v.fg3m, v.fg3a, v.ftm, v.fta,
                v.off_reb, v.def_reb, v.fb, v.ba, v.tov, v.pf, v.plus_minus
         FROM v_player_season_totals v
-        WHERE v.season_id = ? AND v.player_id = ?""",
+        WHERE v.season_id = ? AND v.player_id = ? AND v.group_id = ?
+        ORDER BY v.team_id""",
     "player_games": """
         SELECT g.event_id, g.game_date, g.status, g.home_team_id, g.away_team_id,
                g.home_score, g.away_score, pgs.team_id, pgs.jersey_no, pgs.minutes,
@@ -131,7 +132,7 @@ QUERIES = {
         JOIN teams opp ON opp.team_id =
              CASE WHEN g.home_team_id = pgs.team_id THEN g.away_team_id
                   ELSE g.home_team_id END
-        WHERE pgs.player_id = ? AND g.season_id = ?
+        WHERE pgs.player_id = ? AND g.season_id = ? AND g.group_id = ?
           AND pgs.minutes IS NOT NULL AND pgs.minutes != '' AND pgs.minutes != '0:00'
         ORDER BY g.game_date""",
     "games": """
@@ -237,12 +238,31 @@ def team_payload(conn, season, tid):
     return team
 
 
-def player_payload(conn, season, pid):
-    rows = query(conn, "player_detail", (season, pid))
+def player_payload(conn, season, pid, group=None):
+    """Season totals + game log for one player, scoped to a group.
+
+    A player_id can represent more than one team in the same season (sometimes
+    even within the same group). The player page is always shown in a group
+    context, so we scope both the totals and the game log to that group and —
+    when the player played for several teams within it — aggregate the rows so
+    the "Season totals" card always matches the game log below it.
+    """
+    rows = query(conn, "player_detail", (season, pid, group))
     if not rows:
         return None
-    player = rows[0]
-    player["games"] = query(conn, "player_games", (pid, season))
+    if len(rows) == 1:
+        player = dict(rows[0])
+    else:
+        # Same player, multiple teams within this group: sum the stats and
+        # join the team labels so totals stay consistent with the game log.
+        agg = dict(rows[0])
+        for k in ("gp", "minutes", "pts", "reb", "ast", "stl", "blk", "eff",
+                  "fgm", "fga", "fg2m", "fg2a", "fg3m", "fg3a", "ftm", "fta",
+                  "off_reb", "def_reb", "fb", "ba", "tov", "pf", "plus_minus"):
+            agg[k] = sum(r[k] or 0 for r in rows)
+        agg["team_name"] = " / ".join(r["team_name"] for r in rows)
+        player = agg
+    player["games"] = query(conn, "player_games", (pid, season, group))
     return player
 
 
@@ -299,7 +319,7 @@ def export_static(out_dir, db_path=DB_PATH):
                     json.dump(p, f, ensure_ascii=False)
                 n_teams += 1
             for pl in players:
-                p = player_payload(conn, season, pl["player_id"])
+                p = player_payload(conn, season, pl["player_id"], group)
                 os.makedirs(os.path.join(d, "players"), exist_ok=True)
                 with open(os.path.join(d, "players", f"{pl['player_id']}.json"), "w", encoding="utf-8") as f:
                     json.dump(p, f, ensure_ascii=False)
@@ -453,7 +473,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(query(conn, "players", (int(season), int(group))))
                 elif re.fullmatch(r"/api/players/\d+", path):
                     pid = int(path.rsplit("/", 1)[1])
-                    payload = player_payload(conn, int(season), pid)
+                    if group is None:
+                        self._json({"error": "player detail requires ?group="}, 400)
+                        return
+                    payload = player_payload(conn, int(season), pid, int(group))
                     if payload is None:
                         self._json({"error": "player not found"}, 404)
                         return

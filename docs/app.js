@@ -30,7 +30,7 @@ async function api(path, params = {}) {
     let r = await fetch(file + v);
     // detail pages (games/<id>, teams/<id>, players/<id>) may belong to another
     // group than the one currently selected — try every exported combo
-    if (!r.ok && path !== "meta" && !params.group && state.meta) {
+    if (!r.ok && path !== "meta" && state.meta) {
       for (const c of state.meta.combos) {
         const alt = `data/${c.season}/${c.group}/${path}.json`;
         const r2 = await fetch(alt + v);
@@ -454,8 +454,8 @@ async function renderCompareResult(el) {
   const { type, a, b } = state.compare;
   if (type === "p") {
     const [pa, pb] = await Promise.all([
-      api("players/" + a, { season: state.season }),
-      api("players/" + b, { season: state.season }),
+      api("players/" + a, { season: state.season, group: state.group }),
+      api("players/" + b, { season: state.season, group: state.group }),
     ]);
     el.innerHTML = comparePlayersHTML(pa, pb);
     setTitle(`${pa.player_name} vs ${pb.player_name}`, "Compare", "Season " + state.season);
@@ -932,7 +932,7 @@ async function renderPlayers(view) {
 
 async function renderPlayerDetail(view, pid) {
   view.innerHTML = '<div class="empty">Loading…</div>';
-  const p = await api("players/" + pid, { season: state.season });
+  const p = await api("players/" + pid, { season: state.season, group: state.group });
   if (p.error) { view.innerHTML = `<div class="empty">${esc(p.error)}</div>`; return; }
   const groupList = await api("players", { season: state.season, group: state.group });
   const gN = Math.max(groupList.length, 1);
@@ -1004,8 +1004,8 @@ async function renderPlayerDetail(view, pid) {
         <th class="num">BS</th><th class="num">TO</th><th class="num">PF</th><th class="num">EFF</th><th class="num">+/−</th>
       </tr></thead><tbody>
         ${p.games.map(g => {
-          const isHome = g.home_team_id === p.team_id;
-          const r = resultOf(g, p.team_id);
+          const isHome = g.home_team_id === g.team_id;
+          const r = resultOf(g, g.team_id);
           return `<tr data-href="#/games/${g.event_id}">
             <td>${esc(g.game_date)}</td>
             <td>${isHome ? "vs" : "@"} <a class="row-link" href="#/teams/${isHome ? g.away_team_id : g.home_team_id}">${esc(g.opponent)}</a></td>
@@ -1030,8 +1030,8 @@ async function renderPlayerDetail(view, pid) {
   bindCSV(view, "#gamelog-csv", "player_games.csv", () => ({
     headers: ["Date", "Opponent", "Result", "MIN", "PTS", "2PT", "3PT", "FT", "REB", "AST", "ST", "BS", "TO", "PF", "EFF", "+/-"],
     rows: p.games.map(x => {
-      const isHome = x.home_team_id === p.team_id;
-      const r = resultOf(x, p.team_id);
+      const isHome = x.home_team_id === x.team_id;
+      const r = resultOf(x, x.team_id);
       return [x.game_date, x.opponent, r.text, x.minutes, x.pts,
               `${x.fgm - x.fg3m}-${x.fga - x.fg3a}`, `${x.fg3m}-${x.fg3a}`, `${x.ftm}-${x.fta}`,
               x.tot_reb, x.ast, x.stl, x.blk, x.tov, x.pf, x.eff, x.plus_minus];
