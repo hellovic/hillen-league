@@ -28,10 +28,16 @@ async function api(path, params = {}) {
       ? "data/meta.json"
       : `data/${params.season ?? state.season}/${params.group ?? state.group}/${path}.json`;
     let r = await fetch(file + v);
-    // detail pages (games/<id>, teams/<id>, players/<id>) may belong to another
-    // group than the one currently selected — try every exported combo
-    if (!r.ok && path !== "meta" && state.meta) {
+    // Detail pages (games/<id>, teams/<id>, players/<id>) requested WITHOUT an
+    // explicit group may belong to another *group* than the one currently
+    // selected (e.g. a hash link or global-search hit) — fall back to the same
+    // season's combos only. A season is a hard boundary: never serve one
+    // season's data under a different season's header. When a group IS passed
+    // (player detail/compare), stay strict — the selected group is respected.
+    if (!r.ok && path !== "meta" && !params.group && state.meta) {
+      const wantSeason = params.season ?? state.season;
       for (const c of state.meta.combos) {
+        if (c.season !== wantSeason) continue;
         const alt = `data/${c.season}/${c.group}/${path}.json`;
         const r2 = await fetch(alt + v);
         if (r2.ok) { r = r2; break; }
@@ -200,12 +206,13 @@ async function buildSearchIndex() {
     if (!r) continue;
     const gr = (state.meta.groups.find(x => x.season_id === r.combo.season && x.group_id === r.combo.group) || {});
     const ctx = `${r.combo.season} · ${gr.name || "group " + r.combo.group}`;
-    for (const x of r.p) players.push({ name: x.player_name, sub: x.team_name + " · " + ctx, href: "#/players/" + x.player_id });
-    for (const x of r.t) teams.push({ name: x.team_name, sub: ctx, href: "#/teams/" + x.team_id });
+    for (const x of r.p) players.push({ name: x.player_name, sub: x.team_name + " · " + ctx, href: "#/players/" + x.player_id, season: r.combo.season, group: r.combo.group });
+    for (const x of r.t) teams.push({ name: x.team_name, sub: ctx, href: "#/teams/" + x.team_id, season: r.combo.season, group: r.combo.group });
     for (const x of r.g) games.push({
       name: `${x.home_name} vs ${x.away_name}`,
       sub: `${x.game_date}${x.venue ? " · " + x.venue : ""} · ${ctx}`,
       href: "#/games/" + x.event_id,
+      season: r.combo.season, group: r.combo.group,
     });
   }
   searchIndex = { players, teams, games };
@@ -215,9 +222,9 @@ async function buildSearchIndex() {
 function searchMatches(idx, q) {
   q = q.toLowerCase();
   const out = [];
-  for (const p of idx.players) if (p.name.toLowerCase().includes(q)) out.push({ kind: "player", label: p.name, sub: p.sub, href: p.href });
-  for (const t of idx.teams) if (t.name.toLowerCase().includes(q)) out.push({ kind: "team", label: t.name, sub: t.sub, href: t.href });
-  for (const g of idx.games) if (g.name.toLowerCase().includes(q) || g.sub.toLowerCase().includes(q)) out.push({ kind: "game", label: g.name, sub: g.sub, href: g.href });
+  for (const p of idx.players) if (p.name.toLowerCase().includes(q)) out.push({ kind: "player", label: p.name, sub: p.sub, href: p.href, season: p.season, group: p.group });
+  for (const t of idx.teams) if (t.name.toLowerCase().includes(q)) out.push({ kind: "team", label: t.name, sub: t.sub, href: t.href, season: t.season, group: t.group });
+  for (const g of idx.games) if (g.name.toLowerCase().includes(q) || g.sub.toLowerCase().includes(q)) out.push({ kind: "game", label: g.name, sub: g.sub, href: g.href, season: g.season, group: g.group });
   return out.slice(0, 30);
 }
 
@@ -227,7 +234,7 @@ function setupGlobalSearch() {
   let timer = null;
   const render = (items) => {
     box.innerHTML = items.length
-      ? items.map(it => `<a class="gs-item" href="${it.href}" data-kind="${it.kind}">
+      ? items.map(it => `<a class="gs-item" href="${it.href}" data-kind="${it.kind}" data-season="${it.season ?? ""}" data-group="${it.group ?? ""}">
           <span class="gs-k">${it.kind}</span> ${esc(it.label)} <span class="gs-sub">${esc(it.sub)}</span></a>`).join("")
       : '<div class="gs-empty">No matches</div>';
     box.classList.add("open");
@@ -243,7 +250,19 @@ function setupGlobalSearch() {
   input.addEventListener("focus", run);
   input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(run, 180); });
   box.addEventListener("click", (e) => {
-    if (e.target.closest(".gs-item")) { box.classList.remove("open"); input.value = ""; }
+    const item = e.target.closest(".gs-item");
+    if (!item) return;
+    box.classList.remove("open"); input.value = "";
+    // The item may live in a different season/group than the one currently
+    // selected (the search spans every combo). Switch the selectors to match
+    // before the hash change navigates, so strict detail pages find the item.
+    const s = item.dataset.season, g = item.dataset.group;
+    if (s && g && (+s !== state.season || +g !== state.group)) {
+      state.season = +s; state.group = +g;
+      const sel = document.getElementById("season-select");
+      if (sel && sel.value !== String(state.season)) sel.value = String(state.season);
+      rebuildGroups();
+    }
   });
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".gsearch")) box.classList.remove("open");
@@ -251,6 +270,37 @@ function setupGlobalSearch() {
 }
 
 /* ---------------- header / controls ---------------- */
+
+// Groups are season-scoped (group ids are reused with different meanings across
+// seasons), so the dropdown lists the selected season's groups only. Defined at
+// module scope so the global-search click handler (cross-group navigation) can
+// re-sync the selectors after switching season/group.
+function rebuildGroups() {
+  const sel = document.getElementById("season-select");
+  if (sel && sel.value !== String(state.season)) sel.value = String(state.season);
+  const gsel = document.getElementById("group-select");
+  if (!gsel) return;
+  const ageKey = (name) => {
+    const m = name.match(/U(\d+)([A-Za-z]?)/);
+    return m ? [+m[1], m[2] || ""] : [999, name];
+  };
+  const groups = (state.meta.groups || [])
+    .filter(g => g.season_id === state.season)
+    .sort((a, b) => {
+      const ka = ageKey(a.name), kb = ageKey(b.name);
+      return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
+    });
+  if (!groups.some(g => g.group_id === state.group) && groups.length) {
+    state.group = groups[0].group_id;
+  }
+  gsel.innerHTML = "";
+  groups.forEach(g => {
+    const o = document.createElement("option");
+    o.value = g.group_id; o.textContent = g.name;
+    if (g.group_id === state.group) o.selected = true;
+    gsel.appendChild(o);
+  });
+}
 
 async function init() {
   state.meta = await api("meta");
@@ -261,31 +311,6 @@ async function init() {
     if (s.season_id === state.season) o.selected = true;
     sel.appendChild(o);
   });
-  const gsel = document.getElementById("group-select");
-  const rebuildGroups = () => {
-    // groups are season-scoped (group ids are reused with different meanings
-    // across seasons), so the dropdown lists the selected season's groups only
-    const ageKey = (name) => {
-      const m = name.match(/U(\d+)([A-Za-z]?)/);
-      return m ? [+m[1], m[2] || ""] : [999, name];
-    };
-    const groups = state.meta.groups
-      .filter(g => g.season_id === state.season)
-      .sort((a, b) => {
-        const ka = ageKey(a.name), kb = ageKey(b.name);
-        return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
-      });
-    if (!groups.some(g => g.group_id === state.group) && groups.length) {
-      state.group = groups[0].group_id;
-    }
-    gsel.innerHTML = "";
-    groups.forEach(g => {
-      const o = document.createElement("option");
-      o.value = g.group_id; o.textContent = g.name;
-      if (g.group_id === state.group) o.selected = true;
-      gsel.appendChild(o);
-    });
-  };
   rebuildGroups();
   const c = state.meta.counts;
   document.getElementById("foot-counts").textContent =
@@ -295,6 +320,7 @@ async function init() {
   }
   initTheme();
   setupGlobalSearch();
+  const gsel = document.getElementById("group-select");
   sel.addEventListener("change", () => { state.season = +sel.value; rebuildGroups(); route(); });
   gsel.addEventListener("change", () => { state.group = +gsel.value; route(); });
   document.querySelectorAll("#tabs button").forEach(b => {
@@ -932,7 +958,14 @@ async function renderPlayers(view) {
 
 async function renderPlayerDetail(view, pid) {
   view.innerHTML = '<div class="empty">Loading…</div>';
-  const p = await api("players/" + pid, { season: state.season, group: state.group });
+  let p;
+  try {
+    p = await api("players/" + pid, { season: state.season, group: state.group });
+  } catch (e) {
+    setTitle("Not found");
+    view.innerHTML = `<div class="empty">No stats — this player doesn't appear in ${esc(groupName())} · Season ${state.season}. Try another group or season.</div>`;
+    return;
+  }
   if (p.error) { view.innerHTML = `<div class="empty">${esc(p.error)}</div>`; return; }
   const groupList = await api("players", { season: state.season, group: state.group });
   const gN = Math.max(groupList.length, 1);
