@@ -296,12 +296,20 @@ async function init() {
 
 /* PostHog: report each route as a page view. This is a hash-routed SPA, so the
  * default auto-capture won't fire on hash-only navigation — fire $pageview on
- * every load/hashchange. On localhost PostHog is never initialized (see
- * index.html), so posthog.capture there is just a harmless no-op stub. */
+ * every load/hashchange. Because the whole app lives under one URL path (only
+ * the #hash changes), we also set $pathname to the actual route so PostHog's
+ * page reports show /standings, /teams/123, /compare/… as separate pages.
+ * On localhost PostHog is never initialized (see index.html), so posthog.capture
+ * there is just a harmless no-op stub. */
 function trackPageview() {
   if (window.posthog && typeof window.posthog.capture === "function") {
-    try { window.posthog.capture("$pageview", { $current_url: location.href }); }
-    catch (e) { /* ignore */ }
+    try {
+      const route = (location.hash || "#/").replace(/^#/, "") || "/";
+      window.posthog.capture("$pageview", {
+        $current_url: location.href,
+        $pathname: route,            // hash route as the "page" for reports
+      });
+    } catch (e) { /* ignore */ }
   }
 }
 
