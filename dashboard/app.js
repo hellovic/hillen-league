@@ -62,6 +62,17 @@ function tsPct(pts, fga, fta) {
 }
 function pctStr(v) { return (v === null || v === undefined || isNaN(v)) ? "—" : v.toFixed(1) + "%"; }
 
+/* Dynamic document title per route, e.g.
+ *   "YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard" */
+const APP_TITLE = "Hillen League Dashboard";
+function setTitle(...parts) {
+  document.title = parts.filter(p => p != null && String(p) !== "").concat(APP_TITLE).join(" - ");
+}
+function groupName() {
+  const g = state.meta && state.meta.groups.find(x => x.season_id === state.season && x.group_id === state.group);
+  return g ? g.name : "";
+}
+
 function resultOf(g, teamId) {
   if (g.status !== "completed") return { text: "—", cls: "draw" };
   const mine = g.home_team_id === teamId ? g.home_score : g.away_score;
@@ -345,6 +356,7 @@ async function withNotFound(view, fn) {
   try {
     await fn();
   } catch (e) {
+    setTitle("Not found");
     view.innerHTML = `<div class="empty">Not found — this ${/teams/.test(location.hash) ? "team" : /players/.test(location.hash) ? "player" : "game"} doesn't exist in the current data.</div>`;
   }
 }
@@ -354,6 +366,17 @@ function route() {
   const parts = h.split("/").filter(Boolean);
   const view = document.getElementById("view");
   state.sort = {};
+  // generic title so the tab isn't stale while an (async) detail view loads;
+  // each render refines it with the actual names once data arrives
+  if      (parts[0] === "teams"   && parts[1]) setTitle("Team");
+  else if (parts[0] === "players" && parts[1]) setTitle("Player");
+  else if (parts[0] === "games"   && parts[1]) setTitle("Game");
+  else if (parts[0] === "compare")            setTitle("Compare");
+  else if (parts[0] === "teams")              setTitle("Teams");
+  else if (parts[0] === "players")            setTitle("Players");
+  else if (parts[0] === "games")              setTitle("Games");
+  else if (parts[0] === "leaders")            setTitle("Leaders");
+  else                                        setTitle("Standings");
   if (parts[0] === "teams" && parts[1]) { setView("teams"); withNotFound(view, () => renderTeamDetail(view, +parts[1])); }
   else if (parts[0] === "players" && parts[1]) { setView("players"); withNotFound(view, () => renderPlayerDetail(view, +parts[1])); }
   else if (parts[0] === "games" && parts[1]) { setView("games"); withNotFound(view, () => renderGameDetail(view, +parts[1])); }
@@ -435,12 +458,14 @@ async function renderCompareResult(el) {
       api("players/" + b, { season: state.season }),
     ]);
     el.innerHTML = comparePlayersHTML(pa, pb);
+    setTitle(`${pa.player_name} vs ${pb.player_name}`, "Compare", "Season " + state.season);
   } else {
     const [ta, tb] = await Promise.all([
       api("teams/" + a, { season: state.season }),
       api("teams/" + b, { season: state.season }),
     ]);
     el.innerHTML = compareTeamsHTML(ta, tb);
+    setTitle(`${ta.team_name} vs ${tb.team_name}`, "Compare", "Season " + state.season);
   }
 }
 
@@ -664,6 +689,7 @@ async function renderStandings(view) {
     document.querySelector("#st-table").innerHTML =
       makeTable(keys, sortRows(standings, state.sort.key || "rank", state.sort.dir || "asc"), rowHtml, "t-standings", 2);
   });
+  setTitle(groupName(), "Standings", "Season " + state.season);
 }
 
 /* ---------------- teams ---------------- */
@@ -706,6 +732,7 @@ async function renderTeams(view) {
     document.querySelector("#teams-table").innerHTML =
       makeTable(keys, sortRows(teams, state.sort.key || "team_name", state.sort.dir || "asc"), rowHtml, "t-teams", 1);
   });
+  setTitle(groupName(), "Teams", "Season " + state.season);
 }
 
 async function renderTeamDetail(view, tid) {
@@ -814,6 +841,7 @@ async function renderTeamDetail(view, tid) {
               isHome ? g.home_score : g.away_score, isHome ? g.away_score : g.home_score, g.venue];
     }),
   }));
+  setTitle(t.team_name, t.group_name, "Season " + state.season);
 }
 
 /* ---------------- players ---------------- */
@@ -899,6 +927,7 @@ async function renderPlayers(view) {
   bindSort(view.querySelector("#players-table"), draw);
   document.getElementById("player-search").addEventListener("input", draw);
   draw();
+  setTitle(groupName(), "Players", "Season " + state.season);
 }
 
 async function renderPlayerDetail(view, pid) {
@@ -1008,6 +1037,7 @@ async function renderPlayerDetail(view, pid) {
               x.tot_reb, x.ast, x.stl, x.blk, x.tov, x.pf, x.eff, x.plus_minus];
     }),
   }));
+  setTitle(p.player_name, p.team_name, groupName(), "Season " + state.season);
 }
 
 /* ---------------- games ---------------- */
@@ -1048,6 +1078,7 @@ async function renderGames(view) {
     document.querySelector("#games-table").innerHTML =
       makeTable(keys, sortRows(games, state.sort.key || "game_date", state.sort.dir || "asc"), rowHtml, "t-games", 1);
   });
+  setTitle(groupName(), "Games", "Season " + state.season);
 }
 
 /* ---------------- leaders ---------------- */
@@ -1097,12 +1128,17 @@ async function renderLeaders(view) {
     headers: ["Category", "Rank", "Player", "Team", "GP", "Total", "Avg"],
     rows: leaders.map(r => [r.category_cn, r.rank, r.player_name, r.team_name, r.games_played, r.total, r.avg]),
   }));
+  setTitle(groupName(), "Leaders", "Season " + state.season);
 }
 
 async function renderGameDetail(view, eid) {
   view.innerHTML = '<div class="empty">Loading…</div>';
   const g = await api("games/" + eid);
-  if (g.error) { view.innerHTML = `<div class="empty">${esc(g.error)}</div>`; return; }
+  if (g.error) { setTitle("Not found"); view.innerHTML = `<div class="empty">${esc(g.error)}</div>`; return; }
+  const statusNote = g.status !== "completed"
+    ? (g.status === "forfeit" ? "Forfeit" : g.status === "not_played" ? "Not played" : "Scheduled")
+    : "";
+  setTitle(g.group_name, g.game_date, `${g.home_name} vs ${g.away_name}`, statusNote);
   const hw = g.home_score > g.away_score, aw = g.away_score > g.home_score;
   const qOf = (tid) => (g.quarters || []).find(q => q.team_id === tid) || {};
   const tsOf = (tid) => (g.team_stats || []).find(s => s.team_id === tid) || {};

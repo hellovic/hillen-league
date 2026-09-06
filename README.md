@@ -44,6 +44,7 @@ A zero-dependency web dashboard over the database:
 - **Light/dark theme toggle** (persisted), and a footer **data-through** date
 - **CSV export** — a ⬇ CSV button on every table (standings, teams, players, games, box scores, game logs, rosters, leaders); Excel-friendly (UTF-8 BOM)
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
+- **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
 - **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `dashboard/index.html`.
 
 ```bash
