@@ -299,19 +299,32 @@ async function init() {
  * every load/hashchange. Because the whole app lives under one URL path (only
  * the #hash changes), we also set $pathname to the actual route so PostHog's
  * page reports show /standings, /teams/123, /compare/… as separate pages.
+ * We capture pageviews manually (capture_pageview: false), so PostHog won't emit
+ * $pageleave on its own — we fire it too on route changes and page unload, which
+ * is what Web analytics uses for bounce rate / session duration.
  * On localhost PostHog is never initialized (see index.html), so posthog.capture
  * there is just a harmless no-op stub. */
+let _phLastRoute = null;
+function _phRoute() { return (location.hash || "#/").replace(/^#/, "") || "/"; }
+function _phSend() { return !!(window.posthog && typeof window.posthog.capture === "function"); }
 function trackPageview() {
-  if (window.posthog && typeof window.posthog.capture === "function") {
-    try {
-      const route = (location.hash || "#/").replace(/^#/, "") || "/";
-      window.posthog.capture("$pageview", {
-        $current_url: location.href,
-        $pathname: route,            // hash route as the "page" for reports
-      });
-    } catch (e) { /* ignore */ }
-  }
+  if (!_phSend()) return;
+  try {
+    const route = _phRoute();
+    // leaving the previous page (a matching $pageleave, so bounce/session works)
+    if (_phLastRoute !== null && _phLastRoute !== route) {
+      window.posthog.capture("$pageleave", { $current_url: location.href, $pathname: _phLastRoute });
+    }
+    window.posthog.capture("$pageview", { $current_url: location.href, $pathname: route });
+    _phLastRoute = route;
+  } catch (e) { /* ignore */ }
 }
+// $pageleave when the user actually leaves the site / closes the tab
+window.addEventListener("pagehide", () => {
+  if (!_phSend()) return;
+  try { window.posthog.capture("$pageleave", { $current_url: location.href, $pathname: _phRoute() }); }
+  catch (e) { /* ignore */ }
+});
 
 function setView(v) {
   state.view = v;

@@ -15,7 +15,8 @@ if (!/^(localhost|127\.)/.test(location.hostname)) {
   posthog.init('phc_sXy4XnR8B5MHTq2M3GPQFBKxY4hwZTv5P8Km87mJHUmC', {
     api_host: 'https://us.i.posthog.com',
     defaults: '2026-05-30',
-    capture_pageview: false
+    capture_pageview: false,   // hash-routed SPA: we fire $pageview/$pageleave manually
+    capture_pageleave: false
   });
 }
 </script>
