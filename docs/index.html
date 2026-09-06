@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hillen League Dashboard</title>
-<link rel="stylesheet" href="style.css?v=860fbba49360">
+<link rel="stylesheet" href="style.css?v=1d0c308b57ea">
 <!-- PostHog analytics (cloud). The project API key is public by design. The
      loader registers window.posthog; we only init it on the real (non-localhost)
      site so local dev traffic isn't tracked. Pageviews are fired manually on
@@ -15,7 +15,8 @@ if (!/^(localhost|127\.)/.test(location.hostname)) {
   posthog.init('phc_sXy4XnR8B5MHTq2M3GPQFBKxY4hwZTv5P8Km87mJHUmC', {
     api_host: 'https://us.i.posthog.com',
     defaults: '2026-05-30',
-    capture_pageview: false
+    capture_pageview: false,   // hash-routed SPA: we fire $pageview/$pageleave manually
+    capture_pageleave: false
   });
 }
 </script>
@@ -58,7 +59,7 @@ if (!/^(localhost|127\.)/.test(location.hostname)) {
 <footer class="foot">Data from hillen-sports.com · SQLite · <span id="foot-counts"></span><span id="foot-fresh"></span></footer>
 
 <script src="charts.js"></script>
-<script>window.HL_BUILD="860fbba49360";</script>
-<script src="app.js?v=860fbba49360"></script>
+<script>window.HL_BUILD="1d0c308b57ea";</script>
+<script src="app.js?v=1d0c308b57ea"></script>
 </body>
 </html>
