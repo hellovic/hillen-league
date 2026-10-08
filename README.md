@@ -3,14 +3,19 @@
 SQLite database of Hillen Youth League (驍籃青少年籃球聯賽) data, scraped from
 https://www.hillen-sports.com/hillenyouth/ for analysis.
 
-**Current contents:** Two seasons of **Youth Girls** data.
+**Current contents:** Three seasons of **Youth Girls** data.
 
+* **Season 33** (第三十三屆驍籃青少年籃球聯賽) — the **live season** so far:
+  YOUTH GIRLS U11 GROUP A (11), U13 (16) — 6 teams, 4 games (2 played).
 * **Season 32** (第三十二屆驍籃青少年籃球聯賽): U9 (27), U11A (28), U11B (31),
-  U13 (26), U15 (30) — 27 teams, 40 games.
+  U13 (26), U15 (30) — 27 teams, 61 games.
 * **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
   U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
 
-Combined: 45 teams, 615 players, 111 games, 2,831 player-game box-score rows.
+Combined: 51 teams, 671 players, 136 games, 3,233 player-game box-score rows.
+
+Season 33 has only just started, so it has two groups today — add more by appending
+their ids to the season-33 loop in `start.sh` (see *Re-scraping / adding more data*).
 
 The schema and scraper are parameterised, so other groups/seasons can be added with one command.
 
@@ -116,7 +121,7 @@ Reference entities:
 | Table | Key | Notes |
 |---|---|---|
 | `seasons` | `season_id` | e.g. 32 = 第三十二屆驍籃青少年籃球聯賽 |
-| `groups` | `(season_id, group_id)` | **Season-scoped**: the site reuses group ids across seasons with different meanings (26 = YOUTH GIRLS U13 in s32, but YOUTH GIRL U11 GROUP A in s31) |
+| `groups` | `(season_id, group_id)` | **Season-scoped**: the site reuses group ids across seasons with different meanings (26 = YOUTH GIRLS U13 in s32, but YOUTH GIRL U11 GROUP A in s31; 11 = U11 GROUP A for boys in s32, but YOUTH GIRLS U11 GROUP A in s33). Always key on the pair — never assume a group id means the same thing in another season. |
 | `teams` | `team_id` | Team (name = latest known; ids are stable across seasons) |
 | `players` | `player_id` | Player (global id, name) |
 
@@ -185,6 +190,10 @@ python3 scraper.py --group 30
 
 # Add another season (season id shown in team-page URLs, e.g. season_id=31)
 python3 scraper.py --season 31 --group 26
+
+# Add a live-season group the same way, e.g. YOUTH GIRLS U11 GROUP A in season 33
+# (season 33's groups are already in start.sh, so a plain ./start.sh covers them)
+python3 scraper.py --season 33 --group 11
 
 # Verify the database is consistent (exit 0 = all good)
 python3 validate.py

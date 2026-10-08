@@ -4,6 +4,19 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- Data refresh 2026-10-08: 136 games, 3233 box-score rows (seasons 31, 32, 33). 9 new, 2 updated, 0 removed, 125 unchanged.
+- **Season 33** (第三十三屆驍籃青少年籃球聯賽) added — the live season's two Youth
+  Girls groups: **YOUTH GIRLS U11 GROUP A** (group 11) and **YOUTH GIRLS U13**
+  (group 16). 6 teams, 4 games (2 played so far), 50 box-score rows. The season is
+  still early, so more groups will appear as it progresses. The dashboard's season
+  switcher picks it up automatically from `meta.json` — no frontend change was
+  needed, and the default season deliberately stays 32 (season 33 has few games
+  yet). Note group ids are season-scoped: `11` is YOUTH GIRLS U11 GROUP A in s33
+  but U11 GROUP A (boys) in s32.
+- The same refresh picked up the season-32 fixtures that had since been played
+  (**9 new games, 2 that went `scheduled` → `completed`**, incl. event 20726 and
+  20727 both finishing 2026-09-06), because season 32 was still running alongside
+  season 33.
 - Data refresh 2026-09-06: 123 games, 3036 box-score rows (seasons 31, 32). 0 new, 1 updated, 0 removed, 122 unchanged.
 - Data refresh 2026-09-05: 123 games, 3012 box-score rows (seasons 31, 32). 0 new, 2 updated, 0 removed, 121 unchanged.
 - Data refresh 2026-09-01: 123 games, 2991 box-score rows (seasons 31, 32). 5 new, 0 updated, 0 removed, 118 unchanged.
@@ -35,10 +48,12 @@ Format follows deployed versions; each entry lists the user-visible changes.
 - Reverted the Games-list redesign (A6) back to the previous flat, sortable table
   per feedback; the `+/-` column is also hardened to show "—" instead of
   "undefined" when a backend/build lacks the field.
-- **Daily refresh now covers season 32 only** — season 31 is finished (its results
-  are frozen), so it is no longer re-scraped; its data stays in the DB and
-  dashboard for reference. Also fixed the refresh loop scraping the phantom
-  group `1001` (a `GROUPS` variable-name collision with an environment variable).
+- **Daily refresh now covers the two live seasons (32 and 33)** — season 32
+  (U13 26, U9 27, U11A 28, U15 30, U11B 31) and season 33 (U11 GROUP A 11,
+  U13 16). Season 31 is finished (its results are frozen), so it is no longer
+  re-scraped; its data stays in the DB and dashboard for reference. Also fixed
+  the refresh loop scraping the phantom group `1001` (a `GROUPS` variable-name
+  collision with an environment variable).
 - New API/payload fields: `plus_minus`, `fb`, `ba` in `/api/players`; `min/max_game_date`
   in `/api/meta`.
 - Commits: local — deployed when requested.

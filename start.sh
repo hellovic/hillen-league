@@ -49,20 +49,27 @@ if [ "$REFRESH" = "1" ]; then
   python3 refresh_diff.py snapshot "$SNAPSHOT" || echo "!! could not snapshot — continuing"
 fi
 
-# 1. refresh every girls group in the CURRENT season (32) from the live site.
-#    Season 31 is finished (its results are frozen), so it is no longer
+# 1. refresh every Youth Girls group in the ACTIVE seasons from the live site.
+#    Season 32 (U9 27, U11A 28, U11B 31, U13 26, U15 30) and Season 33
+#    (U11 GROUP A 11, U13 16) both still have fixtures scheduled, so both are
+#    re-scraped. Season 31 is finished (its results are frozen) and is no longer
 #    re-scraped — its data stays in the DB and dashboard for reference.
 # NOTE: use explicit per-season group lists (not a GROUPS variable) — `GROUPS`
 # is an environment/array variable on some hosts (it was `1001` on the GitHub
 # runner), so `GROUPS="..."` silently does NOT override it and the loop would
 # scrape the wrong (phantom) group.
 if [ "$REFRESH" = "1" ]; then
-  for s in 32; do
-    for g in 26 27 28 30 31; do
-      echo "==> scraping season $s group $g (--refresh)"
-      python3 scraper.py --season "$s" --group "$g" --refresh \
-        || { echo "!! scrape failed for s${s} g${g} — aborting"; exit 1; }
-    done
+  # Season 32 — Youth Girls: U13 (26), U9 (27), U11A (28), U15 (30), U11B (31)
+  for g in 26 27 28 30 31; do
+    echo "==> scraping season 32 group $g (--refresh)"
+    python3 scraper.py --season 32 --group "$g" --refresh \
+      || { echo "!! scrape failed for s32 g${g} — aborting"; exit 1; }
+  done
+  # Season 33 — Youth Girls: U11 GROUP A (11), U13 (16)
+  for g in 11 16; do
+    echo "==> scraping season 33 group $g (--refresh)"
+    python3 scraper.py --season 33 --group "$g" --refresh \
+      || { echo "!! scrape failed for s33 g${g} — aborting"; exit 1; }
   done
   # record the data-refresh time (HK) so the dashboard footer can show when the
   # data was last refreshed; stored in the DB so it survives git checkouts and
