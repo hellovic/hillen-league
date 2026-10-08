@@ -17,6 +17,13 @@ Format follows deployed versions; each entry lists the user-visible changes.
   (**9 new games, 2 that went `scheduled` → `completed`**, incl. event 20726 and
   20727 both finishing 2026-09-06), because season 32 was still running alongside
   season 33.
+- Data refresh 2026-10-07: 132 games, 3183 box-score rows (seasons 31, 32). 3 new, 0 updated, 0 removed, 129 unchanged.
+- Data refresh 2026-10-04: 129 games, 3183 box-score rows (seasons 31, 32). 0 new, 1 updated, 0 removed, 128 unchanged.
+- Data refresh 2026-09-30: 129 games, 3183 box-score rows (seasons 31, 32). 1 new, 0 updated, 0 removed, 128 unchanged.
+- Data refresh 2026-09-20: 128 games, 3135 box-score rows (seasons 31, 32). 0 new, 1 updated, 0 removed, 127 unchanged.
+- Data refresh 2026-09-16: 128 games, 3135 box-score rows (seasons 31, 32). 3 new, 0 updated, 0 removed, 125 unchanged.
+- Data refresh 2026-09-12: 125 games, 3110 box-score rows (seasons 31, 32). 0 new, 1 updated, 0 removed, 124 unchanged.
+- Data refresh 2026-09-09: 125 games, 3089 box-score rows (seasons 31, 32). 2 new, 0 updated, 0 removed, 123 unchanged.
 - Data refresh 2026-09-06: 123 games, 3036 box-score rows (seasons 31, 32). 0 new, 1 updated, 0 removed, 122 unchanged.
 - Data refresh 2026-09-05: 123 games, 3012 box-score rows (seasons 31, 32). 0 new, 2 updated, 0 removed, 121 unchanged.
 - Data refresh 2026-09-01: 123 games, 2991 box-score rows (seasons 31, 32). 5 new, 0 updated, 0 removed, 118 unchanged.
