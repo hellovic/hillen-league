@@ -453,38 +453,50 @@ class Handler(BaseHTTPRequestHandler):
     def _api(self, path, get):
         season = get("season")
         group = get("group")
+
+        # season/group are integers in SQL. A missing or non-numeric value used
+        # to reach int() deep inside a branch and raise TypeError, which the
+        # except clause below did not catch — the handler then died mid-request
+        # and the client saw a dropped connection (curl reports HTTP 000)
+        # instead of a diagnosable error. Validate up front so every endpoint
+        # that needs them fails cleanly with a 400 that names the parameter.
+        def req_int(v, name):
+            if v is None or v == "":
+                raise ValueError(f"missing required query parameter: {name}")
+            return int(v)
+
         try:
             conn = self._conn()
             try:
                 if path == "/api/meta":
                     self._json(meta_payload(conn, self.server.db_path))
                 elif path == "/api/standings":
-                    self._json(query(conn, "standings", (int(season), int(group))))
+                    self._json(query(conn, "standings", (req_int(season, "season"), req_int(group, "group"))))
                 elif path == "/api/teams":
-                    self._json(query(conn, "teams", (int(season), int(group))))
+                    self._json(query(conn, "teams", (req_int(season, "season"), req_int(group, "group"))))
                 elif re.fullmatch(r"/api/teams/\d+", path):
                     tid = int(path.rsplit("/", 1)[1])
-                    payload = team_payload(conn, int(season), tid)
+                    payload = team_payload(conn, req_int(season, "season"), tid)
                     if payload is None:
                         self._json({"error": "team not found"}, 404)
                         return
                     self._json(payload)
                 elif path == "/api/players":
-                    self._json(query(conn, "players", (int(season), int(group))))
+                    self._json(query(conn, "players", (req_int(season, "season"), req_int(group, "group"))))
                 elif re.fullmatch(r"/api/players/\d+", path):
                     pid = int(path.rsplit("/", 1)[1])
                     if group is None:
                         self._json({"error": "player detail requires ?group="}, 400)
                         return
-                    payload = player_payload(conn, int(season), pid, int(group))
+                    payload = player_payload(conn, req_int(season, "season"), pid, req_int(group, "group"))
                     if payload is None:
                         self._json({"error": "player not found"}, 404)
                         return
                     self._json(payload)
                 elif path == "/api/games":
-                    self._json(query(conn, "games", (int(season), int(group))))
+                    self._json(query(conn, "games", (req_int(season, "season"), req_int(group, "group"))))
                 elif path == "/api/leaders":
-                    self._json(query(conn, "leaders", (int(season), int(group))))
+                    self._json(query(conn, "leaders", (req_int(season, "season"), req_int(group, "group"))))
                 elif re.fullmatch(r"/api/games/\d+", path):
                     eid = int(path.rsplit("/", 1)[1])
                     payload = game_payload(conn, eid)
@@ -496,7 +508,7 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"error": "unknown endpoint"}, 404)
             finally:
                 conn.close()
-        except (ValueError, sqlite3.Error) as e:
+        except (ValueError, TypeError, sqlite3.Error) as e:
             self._json({"error": str(e)}, 400)
 
     def log_message(self, fmt, *args):

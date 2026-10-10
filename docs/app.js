@@ -28,16 +28,34 @@ async function api(path, params = {}) {
       ? "data/meta.json"
       : `data/${params.season ?? state.season}/${params.group ?? state.group}/${path}.json`;
     let r = await fetch(file + v);
-    // Detail pages (games/<id>, teams/<id>, players/<id>) requested WITHOUT an
-    // explicit group may belong to another *group* than the one currently
-    // selected (e.g. a hash link or global-search hit) — fall back to the same
-    // season's combos only. A season is a hard boundary: never serve one
-    // season's data under a different season's header. When a group IS passed
-    // (player detail/compare), stay strict — the selected group is respected.
+    // Detail pages requested WITHOUT an explicit group may live in another
+    // group — or, for ids that are globally unique, another season entirely
+    // (e.g. a shared link to a game in a season the visitor isn't currently on).
+    //   games/<event_id>  event_id is a primary key: unique across every season,
+    //                     so its season and group are derivable from the id.
+    //                     Never season-dependent.
+    //   teams/<team_id>   team_id is a primary key too, but a team can be
+    //                     entered in more than one season, so prefer the
+    //                     requested season and only then reach wider.
+    //   players/<id>      player_id is a single identity, but it deliberately
+    //                     maps to several per-season stat sets (71 players
+    //                     appear in more than one season), so *which* season to
+    //                     show is genuinely ambiguous — stay inside the
+    //                     requested season rather than guess.
+    // Whichever season answered, the caller re-syncs the app context from the
+    // payload's own season_id/group_id, so the header can never name the wrong
+    // season. When a group IS passed (player detail/compare) stay strict.
     if (!r.ok && path !== "meta" && !params.group && state.meta) {
       const wantSeason = params.season ?? state.season;
-      for (const c of state.meta.combos) {
-        if (c.season !== wantSeason) continue;
+      const seasonAgnostic = /^(games|teams)\//.test(path);
+      const ordered = seasonAgnostic
+        // requested season first, then newest season first
+        ? [...state.meta.combos].sort((a, b) =>
+            (b.season === wantSeason) - (a.season === wantSeason) ||
+            b.season - a.season)
+        : state.meta.combos;
+      for (const c of ordered) {
+        if (!seasonAgnostic && c.season !== wantSeason) continue;
         const alt = `data/${c.season}/${c.group}/${path}.json`;
         const r2 = await fetch(alt + v);
         if (r2.ok) { r = r2; break; }
@@ -372,6 +390,26 @@ function setView(v) {
   document.getElementById("meta-line").textContent =
     `${s ? s.name : "Season " + state.season} · ${g ? g.name : "Group " + state.group}`;
   window.scrollTo(0, 0);
+}
+
+/* A shared link can point at a game or team belonging to a season/group other
+ * than the one the visitor is currently on. Those payloads carry their own
+ * season_id/group_id, so move the app's context to match before rendering —
+ * otherwise the header and the season/group selectors would name the wrong
+ * season while showing the right data, which is exactly the confusion the
+ * season boundary was meant to prevent. Rendering continues regardless of
+ * whether the selectors exist (they may not during early init). */
+function syncContext(seasonId, groupId) {
+  if (seasonId == null) return;
+  const sameSeason = seasonId === state.season;
+  const sameGroup = groupId == null || groupId === state.group;
+  if (sameSeason && sameGroup) return;
+  state.season = seasonId;
+  if (groupId != null) state.group = groupId;
+  const sel = document.getElementById("season-select");
+  if (sel) sel.value = String(state.season);
+  rebuildGroups();
+  setView(state.view);
 }
 
 /* ---------------- routing ---------------- */
@@ -765,6 +803,10 @@ async function renderTeamDetail(view, tid) {
   view.innerHTML = '<div class="empty">Loading…</div>';
   const t = await api("teams/" + tid, { season: state.season });
   if (t.error) { view.innerHTML = `<div class="empty">${esc(t.error)}</div>`; return; }
+  // A team can be entered in more than one season, so a shared link may have
+  // resolved outside the visitor's current season — adopt the team's context
+  // so the title and selectors agree with the data shown.
+  syncContext(t.season_id, t.group_id);
   const leaders = t.leaders.slice(0, 5);
   const trendGames = t.games.filter(x => x.status === "completed").sort((a, b) => a.game_date.localeCompare(b.game_date));
   // one green/red bar pair per game, labelled with date + result — easier to
@@ -1168,6 +1210,9 @@ async function renderGameDetail(view, eid) {
   view.innerHTML = '<div class="empty">Loading…</div>';
   const g = await api("games/" + eid);
   if (g.error) { setTitle("Not found"); view.innerHTML = `<div class="empty">${esc(g.error)}</div>`; return; }
+  // event_id is globally unique, so a shared link may have come from another
+  // season/group than the visitor is on — adopt the game's own context.
+  syncContext(g.season_id, g.group_id);
   const statusNote = g.status !== "completed"
     ? (g.status === "forfeit" ? "Forfeit" : g.status === "not_played" ? "Not played" : "Scheduled")
     : "";
