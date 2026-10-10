@@ -302,8 +302,10 @@ def preview_page(kind, ident, title, desc, hash_target):
     crawler may follow to the SPA root, which would hand it the generic site card
     again — the exact bug this fixes. A JS redirect is invisible to crawlers
     (they don't run JS) and instant for people; the <p> below is the no-JS
-    fallback. hash_target is relative ("../../#/games/1") so the export works
-    under any host path, not just the production one.
+    fallback. hash_target is the hash route relative to the site root
+    ("#/games/1"); the writer prepends exactly as many "../" as the stub is
+    directories deep, so the export works under any host path, not just the
+    production one.
 
     No og:image / twitter:image on purpose: a chat preview should be a compact
     text card. An image would also have to be a *generic* league banner standing
@@ -369,13 +371,14 @@ def export_static(out_dir, db_path=DB_PATH):
         # newest season, then (players only) most games played, then lowest group
         # id. Newest-season is the policy agreed for shared player links (71
         # players span 2+ seasons), so their page can't be ambiguous.
-        game_ids, team_best, player_best = [], {}, {}
+        game_ids, team_best, player_best, combo_keys = [], {}, {}, []
         for combo in combos:
             season, group = combo["season"], combo["group"]
             d = os.path.join(data_root, str(season), str(group))
             teams = query(conn, "teams", (season, group))
             players = query(conn, "players", (season, group))
             games = query(conn, "games", (season, group))
+            combo_keys.append((season, group))
             for name, payload in (("standings.json", query(conn, "standings", (season, group))),
                                   ("teams.json", teams),
                                   ("players.json", players),
@@ -416,10 +419,16 @@ def export_static(out_dir, db_path=DB_PATH):
                 shutil.copy2(src, os.path.join(out_dir, name))
         # ---- share pages: a real URL per entity (see preview_page) ----
         def write_share(kind, ident, title, desc, target):
-            pd = os.path.join(out_dir, kind, str(ident))
+            """target is a hash route relative to the site root, e.g. "#/games/1"."""
+            ident = str(ident)
+            pd = os.path.join(out_dir, kind, ident)
             os.makedirs(pd, exist_ok=True)
+            # A stub lives one directory per path segment below the root
+            # (games/20863/ is 2 deep, groups/33/11/ is 3), so climb back out of
+            # exactly that many — plus the kind directory — to reach the site root.
+            up = "../" * (ident.count("/") + 2)
             with open(os.path.join(pd, "index.html"), "w", encoding="utf-8") as f:
-                f.write(preview_page(kind, ident, title, desc, target))
+                f.write(preview_page(kind, ident, title, desc, up + target))
 
         n_share = 0
         for eid in game_ids:
@@ -440,7 +449,7 @@ def export_static(out_dir, db_path=DB_PATH):
                  "not_played": "Not played"}.get(g["status"]),
                 group_names.get((g["season_id"], g["group_id"])),
                 when, g["venue"], season_names.get(g["season_id"])) if x)
-            write_share("games", eid, title, desc, f"../../#/games/{eid}")
+            write_share("games", eid, title, desc, f"#/games/{eid}")
             n_share += 1
 
         for tid, (season, _grp) in sorted(team_best.items()):
@@ -453,7 +462,7 @@ def export_static(out_dir, db_path=DB_PATH):
                 f"{t['pts_for']} PF / {t['pts_against']} PA",
                 f"roster {len(t['roster'])}",
                 season_names.get(season)) if x)
-            write_share("teams", tid, title, desc, f"../../#/teams/{tid}")
+            write_share("teams", tid, title, desc, f"#/teams/{tid}")
             n_share += 1
 
         for pid, (season, _gp, neg_group) in sorted(player_best.items()):
@@ -472,7 +481,26 @@ def export_static(out_dir, db_path=DB_PATH):
             # the season/group suffix is what opens a shared player link in the
             # right context — player ids repeat across seasons (app.js route())
             write_share("players", pid, title, desc,
-                        f"../../#/players/{pid}/{season}/{group}")
+                        f"#/players/{pid}?season={season}&group={group}")
+            n_share += 1
+
+        # One page per season+group. The group is the unit people actually pass
+        # around (a group's standings table is what a parent sends to another
+        # parent), and unlike games/teams/players it has no id of its own that
+        # could stand alone: group ids are reused across seasons with different
+        # meanings, so the season has to be in the path.
+        for season, group in combo_keys:
+            gname = group_names.get((season, group), f"Group {group}")
+            rows = query(conn, "standings", (season, group))
+            # straight from the table in its own order, so the card agrees with the
+            # page a recipient lands on (a team with no games yet can head a table)
+            top = " · ".join(f"{r['rank']}. {r['team_name']} {r['wins']}-{r['losses']}"
+                             for r in rows[:3])
+            title = f"{gname} · Season {season} standings"
+            desc = " · ".join(x for x in (top, f"{len(rows)} teams",
+                                          season_names.get(season)) if x)
+            write_share("groups", f"{season}/{group}", title, desc,
+                        f"#/standings?season={season}&group={group}")
             n_share += 1
 
         # tell GitHub Pages not to run Jekyll over the site
@@ -518,7 +546,7 @@ def export_static(out_dir, db_path=DB_PATH):
         print(f"exported static site to {out_dir}/ (build {stamp})")
         print(f"  combos: {combos}")
         print(f"  teams: {n_teams} · players: {n_players} · games: {n_games}")
-        print(f"  share pages: {n_share} (games/teams/players, one per entity)")
+        print(f"  share pages: {n_share} (per game/team/player + one per season+group)")
     finally:
         conn.close()
 
@@ -553,14 +581,25 @@ class Handler(BaseHTTPRequestHandler):
             self._api(path, get)
             return
 
-        # Share links (/games/20863/, /teams/1595/, /players/15376/) are real files
-        # in the export, written by export_static. In dev there are none, so a link
-        # copied by the 🔗 button would 404 — send it to the equivalent hash route
-        # instead. A local copy can't be previewed by a chat app anyway.
+        # Share links (/games/20863/, /teams/1595/, /players/15376/,
+        # /groups/33/11/) are real files in the export, written by export_static.
+        # In dev there are none, so a link copied by the 🔗 button would 404 — send
+        # it to the equivalent hash route instead. A local copy can't be previewed
+        # by a chat app anyway.
         m = re.fullmatch(r"/(games|teams|players)/(\d+)/?", path)
         if m:
             self.send_response(302)
             self.send_header("Location", f"/#/{m.group(1)}/{m.group(2)}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        # A group page is just that group's standings, so it needs the season and
+        # group as context — they are the one route that carries them in the URL.
+        m = re.fullmatch(r"/groups/(\d+)/(\d+)/?", path)
+        if m:
+            self.send_response(302)
+            self.send_header(
+                "Location", f"/#/standings?season={m.group(1)}&group={m.group(2)}")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return

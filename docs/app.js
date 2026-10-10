@@ -131,10 +131,14 @@ function copyShareLink(kind, id, btn) {
 function shareButton(kind, id) {
   const what = kind === "games" ? "teams, date and score"
              : kind === "teams" ? "record and roster"
+             : kind === "groups" ? "season standings"
              : "statistics";
+  const noun = kind === "groups" ? "group's" : `${kind.slice(0, -1)}'s`;
+  // id is quoted: a group's id is a composite path ("33/11"), which would be read
+  // as arithmetic if it were interpolated bare
   return `<button class="csv-btn" type="button"`
-       + ` title="Copy a link that previews this ${kind.slice(0, -1)}'s ${what} in WhatsApp and other chat apps"`
-       + ` onclick="copyShareLink('${kind}',${id},this)">🔗 Copy link</button>`;
+       + ` title="Copy a link that previews this ${noun} ${what} in WhatsApp and other chat apps"`
+       + ` onclick="copyShareLink('${kind}','${id}',this)">🔗 Copy link</button>`;
 }
 
 /* Dynamic document title per route, e.g.
@@ -390,10 +394,12 @@ async function init() {
   initTheme();
   setupGlobalSearch();
   const gsel = document.getElementById("group-select");
-  sel.addEventListener("change", () => { state.season = +sel.value; rebuildGroups(); route(); });
-  gsel.addEventListener("change", () => { state.group = +gsel.value; route(); });
+  sel.addEventListener("change", () => { state.season = +sel.value; rebuildGroups(); syncUrl(); route(); });
+  gsel.addEventListener("change", () => { state.group = +gsel.value; syncUrl(); route(); });
+  // carry the current season/group into the tab link, so switching tabs — and the
+  // URL left in the address bar — keeps the context the visitor is looking at
   document.querySelectorAll("#tabs button").forEach(b => {
-    b.addEventListener("click", () => { location.hash = "/" + b.dataset.view; });
+    b.addEventListener("click", () => { location.hash = contextHash(b.dataset.view); });
   });
   window.addEventListener("hashchange", () => { trackPageview(); route(); });
   route();
@@ -411,7 +417,10 @@ async function init() {
  * On localhost PostHog is never initialized (see index.html), so posthog.capture
  * there is just a harmless no-op stub. */
 let _phLastRoute = null;
-function _phRoute() { return (location.hash || "#/").replace(/^#/, "") || "/"; }
+// The season/group query is deliberately dropped from the reported path: it
+// refines a route rather than naming a different page, and keeping it would split
+// /standings into a separate row per season in PostHog's page reports.
+function _phRoute() { return ((location.hash || "#/").replace(/^#/, "").split("?")[0]) || "/"; }
 function _phSend() { return !!(window.posthog && typeof window.posthog.capture === "function"); }
 function trackPageview() {
   if (!_phSend()) return;
@@ -463,6 +472,33 @@ function syncContext(seasonId, groupId) {
   setView(state.view);
 }
 
+/* ---------------- season/group in the URL ----------------
+ * The selected season and group used to live only in memory, so a link could not
+ * name them: #/standings opened whatever the visitor's browser last had (season
+ * 32 by default) and the address bar kept saying "#/standings" while showing
+ * another season, so copying it produced the wrong page. The context now rides in
+ * the fragment's query string:
+ *
+ *   #/standings?season=33&group=11
+ *
+ * A query rather than extra path segments, because the *path* has to stay
+ * unambiguous: #/teams/33 already means team 33, and #/players/33/11 would collide
+ * with the detail routes that take an id in the same position.
+ */
+const LIST_VIEWS = ["standings", "teams", "players", "games", "leaders"];
+/* The current context as a fragment query, e.g. "?season=33&group=11". */
+function contextQuery() { return `?season=${state.season}&group=${state.group}`; }
+function contextHash(view) { return `#/${view}${contextQuery()}`; }
+/* Reflect the current context in the address bar so it is always copyable, but
+ * without pushing a history entry: picking a season is a refinement of the page
+ * you are on, not a navigation, so Back must not rewind through every season you
+ * tried. Detail routes describe themselves and are left alone. */
+function syncUrl() {
+  if (!LIST_VIEWS.includes(state.view)) return;
+  const want = contextHash(state.view);
+  if (location.hash !== want) history.replaceState(null, "", want);
+}
+
 /* ---------------- routing ---------------- */
 
 /* Detail views render "Loading…" then fetch; a missing id (404) rejects the
@@ -477,10 +513,22 @@ async function withNotFound(view, fn) {
 }
 
 function route() {
-  const h = location.hash.replace(/^#\/?/, "");
+  const [h, query] = location.hash.replace(/^#\/?/, "").split("?");
   const parts = h.split("/").filter(Boolean);
   const view = document.getElementById("view");
   state.sort = {};
+  // #/standings?season=33&group=11 — adopt the context before dispatching, so the
+  // heading, both dropdowns and the fetched data agree from the first paint. The
+  // season has to exist in the data (an unknown one leaves the group list empty);
+  // a group that doesn't belong to that season falls back to the season's first.
+  const q = new URLSearchParams(query || "");
+  const qSeason = +q.get("season"), qGroup = +q.get("group");
+  const seasons = (state.meta && state.meta.seasons) || [];
+  const groups = (state.meta && state.meta.groups) || [];
+  if (seasons.some(s => s.season_id === qSeason)) {
+    const okGroup = groups.some(g => g.season_id === qSeason && g.group_id === qGroup);
+    syncContext(qSeason, okGroup ? qGroup : null);
+  }
   // generic title so the tab isn't stale while an (async) detail view loads;
   // each render refines it with the actual names once data arrives
   if      (parts[0] === "teams"   && parts[1]) setTitle("Team");
@@ -495,10 +543,10 @@ function route() {
   if (parts[0] === "teams" && parts[1]) { setView("teams"); withNotFound(view, () => renderTeamDetail(view, +parts[1])); }
   else if (parts[0] === "players" && parts[1]) {
     setView("players");
-    // A shared player link carries the season and group it was generated for
-    // (#/players/15376/32/31) because player ids repeat across seasons and the id
-    // alone cannot say which one to show. Adopt that context first, so the
-    // heading, both dropdowns and the fetched data all agree.
+    // A shared player link carries the season and group it was generated for —
+    // #/players/15376?season=32&group=31, handled above; the older
+    // #/players/15376/32/31 path form is still accepted — because player ids repeat
+    // across seasons and the id alone cannot say which one to show.
     const ps = +parts[2], pg = +parts[3];
     if (Number.isFinite(ps) && Number.isFinite(pg)) syncContext(ps, pg);
     withNotFound(view, () => renderPlayerDetail(view, +parts[1]));
@@ -556,7 +604,9 @@ async function renderCompare(view, type, idA, idB) {
   const go = () => {
     pick("a"); pick("b");
     if (state.compare.a && state.compare.b) {
-      location.hash = `#/compare/${state.compare.type}/${state.compare.a}/${state.compare.b}`;
+      // carry the context: the pickers list this season's group, so without it
+      // the recipient gets the pair but a picker full of some other group
+      location.hash = `#/compare/${state.compare.type}/${state.compare.a}/${state.compare.b}` + contextQuery();
     } else {
       document.getElementById("cmp-result").innerHTML =
         `<div class="empty">Choose two ${kind === "p" ? "players" : "teams"} to compare.</div>`;
@@ -565,7 +615,7 @@ async function renderCompare(view, type, idA, idB) {
   view.querySelector("#cmp-a").addEventListener("change", go);
   view.querySelector("#cmp-b").addEventListener("change", go);
   view.querySelector("#cmp-type").addEventListener("change", () => {
-    location.hash = `#/compare/${view.querySelector("#cmp-type").value}`;
+    location.hash = `#/compare/${view.querySelector("#cmp-type").value}` + contextQuery();
   });
   if (idA && idB) {
     const el = document.getElementById("cmp-result");
@@ -783,7 +833,7 @@ async function renderStandings(view) {
       <td class="num">${s.points}</td>
     </tr>`;
   view.innerHTML = `
-    <div class="view-head"><h2>Standings</h2><div class="toolbar"><div class="sub">${teams.length} teams · ${played.length} played</div>${csvButton()}</div></div>
+    <div class="view-head"><h2>Standings</h2><div class="toolbar"><div class="sub">${teams.length} teams · ${played.length} played</div>${shareButton("groups", `${state.season}/${state.group}`)}${csvButton()}</div></div>
     <div class="grid-2">
       <div class="card"><h3>Group Table</h3>
         <div id="st-table">${makeTable(keys, standings, rowHtml, "t-standings", 2)}</div>
@@ -886,7 +936,7 @@ async function renderTeamDetail(view, tid) {
     <a class="back" href="#/teams">← Teams</a>
     <div class="view-head"><h2>${esc(t.team_name)}</h2><div class="toolbar">
       <div class="sub">${esc(t.group_name || "")} · season ${state.season}</div>
-      <a class="csv-btn" href="#/compare/t/${tid}">⇄ Compare</a>
+      <a class="csv-btn" href="#/compare/t/${tid}${contextQuery()}">⇄ Compare</a>
       ${shareButton("teams", tid)}
     </div></div>
     <div class="grid-2">
@@ -1094,7 +1144,7 @@ async function renderPlayerDetail(view, pid) {
     <a class="back" href="#/players">← Players</a>
     <div class="view-head"><h2>${esc(p.player_name)}</h2><div class="toolbar">
       <div class="sub"><a class="row-link" href="#/teams/${p.team_id}">${esc(p.team_name)}</a> · season ${state.season}</div>
-      <a class="csv-btn" href="#/compare/p/${pid}">⇄ Compare</a>
+      <a class="csv-btn" href="#/compare/p/${pid}${contextQuery()}">⇄ Compare</a>
       ${shareButton("players", pid)}
     </div></div>
     <div class="grid-2">

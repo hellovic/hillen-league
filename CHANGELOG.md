@@ -4,6 +4,25 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **Season and group now live in the URL** — `#/standings?season=33&group=11`
+  opens exactly that table, so a standings link is shareable the way a game link
+  already was. The season/group dropdowns (and the tabs) previously only mutated
+  in-memory state, so the address bar kept saying `#/standings` while showing
+  another season and any copied link landed on the default. They now write the
+  pair into the fragment with `history.replaceState` — a refinement of the current
+  page, so Back still leaves the view instead of rewinding through every season
+  you tried. `route()` validates both (an unknown season is ignored, an unknown
+  group falls back to that season's first group) and the positional player form
+  `#/players/<id>/<season>/<group>` still works. Compare links carry the context
+  too, since their pickers list one season's group, and PostHog page paths strip
+  the query so `/standings` does not become one row per season visited.
+- **One share page per season+group** — `groups/<season>/<group>/` (12 pages)
+  whose card names the top of that table, e.g. `1. Dreams Team U11 0-0 ·
+  2. 林文燦 1-1 · 3. 永青 1-0 · 4 teams · 第33屆驍籃青少年籃球聯賽`, so a standings
+  link previews the table instead of the generic league card. 825 share pages in
+  total. `write_share` now derives how far to climb out of a stub from the id it
+  is handed (`../../` for `games/20863/`, `../../../` for `groups/33/11/`); the
+  first cut hardcoded `../../`, which sent a group link to a directory listing.
 - Data refresh 2026-10-10: 136 games, 3260 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 135 unchanged.
 - Data refresh 2026-10-08: 136 games, 3233 box-score rows (seasons 31, 32, 33). 9 new, 2 updated, 0 removed, 125 unchanged.
 - **Link previews are text-only** — `og:image` and `twitter:image` were removed
