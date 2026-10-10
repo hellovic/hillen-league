@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hillen League Dashboard - Youth Girls Basketball League</title>
 <!-- Open Graph / share previews (WhatsApp, Telegram, Messenger, iMessage, Slack…).
-     These are static because link-preview crawlers don't run JS and the #hash
-     isn't sent to the server, so all routes share the same card. -->
+     A link-preview crawler doesn't run JS, and a URL #fragment is never sent to
+     the server, so this page can only ever preview as the generic league card —
+     every SPA route shares it. For per-game/team/player cards, server.py writes an
+     extra stub page per entity (games/20863/, teams/1595/, players/15376/) with
+     that entity's own tags and a forward into the hash route; app.js's "Copy link"
+     button hands out those URLs. See SITE_URL and preview_page() in server.py. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Hillen League">
 <meta property="og:title" content="Hillen League - Youth Girls Basketball League">

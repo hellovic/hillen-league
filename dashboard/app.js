@@ -86,6 +86,57 @@ function tsPct(pts, fga, fta) {
 }
 function pctStr(v) { return (v === null || v === undefined || isNaN(v)) ? "—" : v.toFixed(1) + "%"; }
 
+/* ---------------- share links ----------------
+ * The dashboard is hash-routed, and a URL fragment is never sent to the server,
+ * so a link-preview crawler (WhatsApp, Telegram, Slack…) cannot tell which game
+ * `#/games/20863` means: it fetches the same bytes as the home page and shows the
+ * generic site card. `server.py --export docs` therefore also writes a real path
+ * per entity (games/20863/, teams/1595/, players/15376/) whose <head> carries
+ * that entity's own Open Graph tags and which forwards the visitor into the hash
+ * route. That real URL is what belongs in a chat, and it is what this button
+ * copies — the #/… address you are browsing is not shareable. */
+function shareBase() {
+  // "…/hillen-league/" — drops a trailing "index.html" and never leaks a share
+  // stub's own path, because the stub replaces it with a hash route before this
+  // code runs.
+  return location.origin + location.pathname.replace(/[^/]*$/, "");
+}
+function legacyCopy(text, ok) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "-1000px";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); ok(); }
+  catch (e) { window.prompt("Copy this link:", text); }
+  document.body.removeChild(ta);
+}
+function copyShareLink(kind, id, btn) {
+  const url = `${shareBase()}${kind}/${id}/`;
+  const done = () => {
+    const was = btn.textContent;
+    btn.textContent = "✓ Copied";
+    setTimeout(() => { btn.textContent = was; }, 1500);
+  };
+  // the async clipboard API needs a secure context (https or localhost); a
+  // plain-http host such as a LAN preview falls back to the legacy path
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(done, () => legacyCopy(url, done));
+  } else {
+    legacyCopy(url, done);
+  }
+}
+function shareButton(kind, id) {
+  const what = kind === "games" ? "teams, date and score"
+             : kind === "teams" ? "record and roster"
+             : "statistics";
+  return `<button class="csv-btn" type="button"`
+       + ` title="Copy a link that previews this ${kind.slice(0, -1)}'s ${what} in WhatsApp and other chat apps"`
+       + ` onclick="copyShareLink('${kind}',${id},this)">🔗 Copy link</button>`;
+}
+
 /* Dynamic document title per route, e.g.
  *   "YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard" */
 const APP_TITLE = "Hillen League Dashboard";
@@ -442,7 +493,16 @@ function route() {
   else if (parts[0] === "leaders")            setTitle("Leaders");
   else                                        setTitle("Standings");
   if (parts[0] === "teams" && parts[1]) { setView("teams"); withNotFound(view, () => renderTeamDetail(view, +parts[1])); }
-  else if (parts[0] === "players" && parts[1]) { setView("players"); withNotFound(view, () => renderPlayerDetail(view, +parts[1])); }
+  else if (parts[0] === "players" && parts[1]) {
+    setView("players");
+    // A shared player link carries the season and group it was generated for
+    // (#/players/15376/32/31) because player ids repeat across seasons and the id
+    // alone cannot say which one to show. Adopt that context first, so the
+    // heading, both dropdowns and the fetched data all agree.
+    const ps = +parts[2], pg = +parts[3];
+    if (Number.isFinite(ps) && Number.isFinite(pg)) syncContext(ps, pg);
+    withNotFound(view, () => renderPlayerDetail(view, +parts[1]));
+  }
   else if (parts[0] === "games" && parts[1]) { setView("games"); withNotFound(view, () => renderGameDetail(view, +parts[1])); }
   else if (parts[0] === "compare") {
     setView("compare");
@@ -827,6 +887,7 @@ async function renderTeamDetail(view, tid) {
     <div class="view-head"><h2>${esc(t.team_name)}</h2><div class="toolbar">
       <div class="sub">${esc(t.group_name || "")} · season ${state.season}</div>
       <a class="csv-btn" href="#/compare/t/${tid}">⇄ Compare</a>
+      ${shareButton("teams", tid)}
     </div></div>
     <div class="grid-2">
       <div class="card"><h3>Season record</h3>
@@ -1034,6 +1095,7 @@ async function renderPlayerDetail(view, pid) {
     <div class="view-head"><h2>${esc(p.player_name)}</h2><div class="toolbar">
       <div class="sub"><a class="row-link" href="#/teams/${p.team_id}">${esc(p.team_name)}</a> · season ${state.season}</div>
       <a class="csv-btn" href="#/compare/p/${pid}">⇄ Compare</a>
+      ${shareButton("players", pid)}
     </div></div>
     <div class="grid-2">
       <div class="card"><h3>Season totals</h3>
@@ -1371,7 +1433,10 @@ async function renderGameDetail(view, eid) {
 
   view.innerHTML = `
     <a class="back" href="#/games">← Games</a>
-    <div class="view-head"><h2>${esc(g.group_name)} · ${esc(g.game_date)}</h2><div class="sub">${esc(g.venue || "")} · ${g.start_time || ""}–${g.end_time || ""}</div></div>
+    <div class="view-head"><h2>${esc(g.group_name)} · ${esc(g.game_date)}</h2><div class="toolbar">
+      <div class="sub">${esc(g.venue || "")} · ${g.start_time || ""}–${g.end_time || ""}</div>
+      ${shareButton("games", eid)}
+    </div></div>
     <div class="card">
       <div class="scoreboard">
         <div class="team">

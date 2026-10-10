@@ -34,6 +34,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HKTZ = datetime.timezone(datetime.timedelta(hours=8))  # the league runs in Hong Kong
 STATIC_DIR = os.path.join(HERE, "dashboard")
 DB_PATH = os.path.join(HERE, "hillen_league.db")
+# Canonical public URL of the exported site. Needed because og:url / og:image
+# must be absolute — link-preview crawlers don't resolve relative ones. Only the
+# share pages use it; the dashboard itself stays origin-relative so it works on
+# any host. Update here (and in dashboard/index.html) if the site ever moves.
+SITE_URL = "https://hellovic.github.io/hillen-league/"
 
 QUERIES = {
     "meta": """
@@ -277,6 +282,58 @@ def game_payload(conn, eid):
     return game
 
 
+def preview_page(kind, ident, title, desc, hash_target):
+    """One shareable page for one entity (game / team / player), at a real path.
+
+    Why this exists. The dashboard is a hash-routed SPA, and a URL fragment is
+    never sent to the server: WhatsApp (or Telegram / Slack / iMessage / …)
+    asking for .../#/games/20863 issues exactly the same request as one asking
+    for the home page — same bytes, no trace of "20863" anywhere. Crawlers don't
+    run JavaScript either, so they never see the score the app renders. Per-game
+    cards are therefore impossible to produce from the hash URL at all.
+
+    The fix is a real URL per entity. This writes `games/20863/index.html`, which
+    GitHub Pages serves at /hillen-league/games/20863/. Its <head> carries that
+    game's own Open Graph tags, so the crawler reads the real score, and the body
+    hands a human straight to the SPA route via location.replace().
+
+    Deliberately NO <meta http-equiv="refresh">: a refresh is a redirect a
+    crawler may follow to the SPA root, which would hand it the generic site card
+    again — the exact bug this fixes. A JS redirect is invisible to crawlers
+    (they don't run JS) and instant for people; the <p> below is the no-JS
+    fallback. hash_target is relative ("../../#/games/1") so the export works
+    under any host path, not just the production one.
+    """
+    from html import escape
+
+    url = f"{SITE_URL}{kind}/{ident}/"
+    e_title, e_desc = escape(title), escape(desc)
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{e_title} - Hillen League Dashboard</title>
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Hillen League">
+<meta property="og:title" content="{e_title}">
+<meta property="og:description" content="{e_desc}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="{SITE_URL}og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{e_title}">
+<meta name="twitter:description" content="{e_desc}">
+<meta name="twitter:image" content="{SITE_URL}og.png">
+<script>location.replace({json.dumps(hash_target)});</script>
+</head>
+<body>
+<p>Taking you to <a href="{escape(hash_target)}">{e_title}</a>…</p>
+</body>
+</html>
+"""
+
+
 def export_static(out_dir, db_path=DB_PATH):
     """Generate a fully static copy of the dashboard (data/*.json + assets)
     that works on any static host (GitHub Pages, Netlify, Cloudflare…)."""
@@ -296,8 +353,17 @@ def export_static(out_dir, db_path=DB_PATH):
         with open(os.path.join(data_root, "meta.json"), "w", encoding="utf-8") as f:
             json.dump(mp, f, ensure_ascii=False)
 
+        season_names = {s["season_id"]: s["name"] for s in mp["seasons"]}
+        group_names = {(g["season_id"], g["group_id"]): g["name"] for g in mp["groups"]}
         combos = mp["combos"]
         n_teams = n_players = n_games = 0
+        # Share pages (see preview_page): one per entity. A team can be entered in
+        # several seasons and a player in several seasons *and* groups, so record
+        # the best context per id while looping and emit once at the end —
+        # newest season, then (players only) most games played, then lowest group
+        # id. Newest-season is the policy agreed for shared player links (71
+        # players span 2+ seasons), so their page can't be ambiguous.
+        game_ids, team_best, player_best = [], {}, {}
         for combo in combos:
             season, group = combo["season"], combo["group"]
             d = os.path.join(data_root, str(season), str(group))
@@ -318,23 +384,91 @@ def export_static(out_dir, db_path=DB_PATH):
                 with open(os.path.join(d, "teams", f"{t['team_id']}.json"), "w", encoding="utf-8") as f:
                     json.dump(p, f, ensure_ascii=False)
                 n_teams += 1
+                if (season, group) > team_best.get(t["team_id"], (0, 0)):
+                    team_best[t["team_id"]] = (season, group)
             for pl in players:
                 p = player_payload(conn, season, pl["player_id"], group)
                 os.makedirs(os.path.join(d, "players"), exist_ok=True)
                 with open(os.path.join(d, "players", f"{pl['player_id']}.json"), "w", encoding="utf-8") as f:
                     json.dump(p, f, ensure_ascii=False)
                 n_players += 1
+                # -group so that, all else equal, the lower group id wins
+                cand = (season, p["gp"] if p else 0, -group)
+                if cand > player_best.get(pl["player_id"], (0, 0, 0)):
+                    player_best[pl["player_id"]] = cand
             for g in games:
                 p = game_payload(conn, g["event_id"])
                 os.makedirs(os.path.join(d, "games"), exist_ok=True)
                 with open(os.path.join(d, "games", f"{g['event_id']}.json"), "w", encoding="utf-8") as f:
                     json.dump(p, f, ensure_ascii=False)
                 n_games += 1
+                game_ids.append(g["event_id"])
 
         for name in os.listdir(STATIC_DIR):
             src = os.path.join(STATIC_DIR, name)
             if os.path.isfile(src):
                 shutil.copy2(src, os.path.join(out_dir, name))
+        # ---- share pages: a real URL per entity (see preview_page) ----
+        def write_share(kind, ident, title, desc, target):
+            pd = os.path.join(out_dir, kind, str(ident))
+            os.makedirs(pd, exist_ok=True)
+            with open(os.path.join(pd, "index.html"), "w", encoding="utf-8") as f:
+                f.write(preview_page(kind, ident, title, desc, target))
+
+        n_share = 0
+        for eid in game_ids:
+            g = game_payload(conn, eid)
+            if not g:
+                continue
+            scored = (g["status"] == "completed"
+                      and g["home_score"] is not None and g["away_score"] is not None)
+            title = (f"{g['home_name']} {g['home_score']}-{g['away_score']} {g['away_name']}"
+                     if scored else f"{g['home_name']} vs {g['away_name']}")
+            when = g["game_date"] or ""
+            if g["start_time"]:
+                when += (" " if when else "") + g["start_time"]
+                if g["end_time"]:
+                    when += "–" + g["end_time"]
+            desc = " · ".join(x for x in (
+                {"scheduled": "Scheduled", "forfeit": "Forfeit",
+                 "not_played": "Not played"}.get(g["status"]),
+                group_names.get((g["season_id"], g["group_id"])),
+                when, g["venue"], season_names.get(g["season_id"])) if x)
+            write_share("games", eid, title, desc, f"../../#/games/{eid}")
+            n_share += 1
+
+        for tid, (season, _grp) in sorted(team_best.items()):
+            t = team_payload(conn, season, tid)
+            if not t:
+                continue
+            title = f"{t['team_name']} — {t['group_name']}"
+            desc = " · ".join(x for x in (
+                f"{t['gp']} GP {t['wins']}-{t['losses']}",
+                f"{t['pts_for']} PF / {t['pts_against']} PA",
+                f"roster {len(t['roster'])}",
+                season_names.get(season)) if x)
+            write_share("teams", tid, title, desc, f"../../#/teams/{tid}")
+            n_share += 1
+
+        for pid, (season, _gp, neg_group) in sorted(player_best.items()):
+            group = -neg_group
+            p = player_payload(conn, season, pid, group)
+            if not p:
+                continue
+            gp = max(p["gp"], 1)
+            title = f"{p['player_name']} — {p['team_name']}"
+            desc = " · ".join(x for x in (
+                f"{p['gp']} GP",
+                f"{p['pts'] / gp:.1f} PPG", f"{p['reb'] / gp:.1f} RPG",
+                f"{p['ast'] / gp:.1f} APG",
+                group_names.get((season, group)),
+                season_names.get(season)) if x)
+            # the season/group suffix is what opens a shared player link in the
+            # right context — player ids repeat across seasons (app.js route())
+            write_share("players", pid, title, desc,
+                        f"../../#/players/{pid}/{season}/{group}")
+            n_share += 1
+
         # tell GitHub Pages not to run Jekyll over the site
         with open(os.path.join(out_dir, ".nojekyll"), "w") as f:
             f.write("")
@@ -378,6 +512,7 @@ def export_static(out_dir, db_path=DB_PATH):
         print(f"exported static site to {out_dir}/ (build {stamp})")
         print(f"  combos: {combos}")
         print(f"  teams: {n_teams} · players: {n_players} · games: {n_games}")
+        print(f"  share pages: {n_share} (games/teams/players, one per entity)")
     finally:
         conn.close()
 
@@ -410,6 +545,18 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/"):
             self._api(path, get)
+            return
+
+        # Share links (/games/20863/, /teams/1595/, /players/15376/) are real files
+        # in the export, written by export_static. In dev there are none, so a link
+        # copied by the 🔗 button would 404 — send it to the equivalent hash route
+        # instead. A local copy can't be previewed by a chat app anyway.
+        m = re.fullmatch(r"/(games|teams|players)/(\d+)/?", path)
+        if m:
+            self.send_response(302)
+            self.send_header("Location", f"/#/{m.group(1)}/{m.group(2)}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
 
         # static files
