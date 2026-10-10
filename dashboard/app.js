@@ -224,7 +224,12 @@ function csvButton(id) {
   return `<button class="csv-btn csv-export" type="button" ${id ? `id="${id}" ` : ""}title="Download as CSV">⬇ CSV</button>`;
 }
 
-/* Bind a CSV button to a data builder. */
+/* Bind a CSV button to a data builder.
+ * Select the button's own marker class (.csv-export) or its id — never the
+ * shared styling class .csv-btn, which Compare links and the share button also
+ * carry. querySelector() takes the first match in document order, so binding
+ * on .csv-btn inside a toolbar that also holds a share button wires the
+ * download onto the wrong element (it made Standings' "Copy link" save a CSV). */
 function bindCSV(container, selector, filename, build) {
   const btn = container.querySelector(selector);
   if (btn) btn.addEventListener("click", () => {
@@ -855,7 +860,7 @@ async function renderStandings(view) {
         </div>
       </div>
     </div>`;
-  bindCSV(view, ".csv-btn", "standings.csv", () => ({
+  bindCSV(view, ".csv-export", "standings.csv", () => ({
     headers: ["Rank", "Team", "GP", "W", "L", "F", "+/-", "Points"],
     rows: standings.map(s => [s.rank, s.team_name, s.gp, s.wins, s.losses, s.forfeits, s.diff, s.points]),
   }));
@@ -898,7 +903,7 @@ async function renderTeams(view) {
     <div class="card">
       <div id="teams-table">${makeTable(keys, teams, rowHtml, "t-teams", 1)}</div>
     </div>`;
-  bindCSV(view, ".csv-btn", "teams.csv", () => ({
+  bindCSV(view, ".csv-export", "teams.csv", () => ({
     headers: ["Team", "GP", "W", "L", "PF", "PA", "+/-", "Manager", "Captain"],
     rows: teams.map(t => [t.team_name, t.gp, t.wins, t.losses, t.pts_for, t.pts_against, t.diff, t.manager, t.captain_name]),
   }));
@@ -1093,7 +1098,7 @@ async function renderPlayers(view) {
       </div>
     </div>
     <div class="card"><div id="players-table"></div></div>`;
-  bindCSV(view, ".csv-btn", "players.csv", () => ({
+  bindCSV(view, ".csv-export", "players.csv", () => ({
     headers: ["Player", "Team", "GP", "MIN", "PPG", "PTS", "RPG", "APG", "SPG", "BPG", "EFF", "+/-", "FG%", "3P%", "eFG%", "TS%"],
     rows: (state.playersRows || players).map(p => [
       p.player_name, p.team_name, p.gp, p.minutes.toFixed(1), p.ppg, p.pts, p.rpg, p.apg,
@@ -1257,7 +1262,7 @@ async function renderGames(view) {
     <div class="card">
       <div id="games-table">${makeTable(keys, games, rowHtml, "t-games", 1)}</div>
     </div>`;
-  bindCSV(view, ".csv-btn", "games.csv", () => ({
+  bindCSV(view, ".csv-export", "games.csv", () => ({
     headers: ["Date", "Home", "Score", "Away", "Venue", "Status"],
     rows: games.map(g => [g.game_date, g.home_name, g.status === "completed" ? `${g.home_score}-${g.away_score}` : "", g.away_name, g.venue, g.status]),
   }));
@@ -1311,7 +1316,7 @@ async function renderLeaders(view) {
           </tbody></table>
         </div>`).join("")}
     </div>`;
-  bindCSV(view, ".csv-btn", "leaders.csv", () => ({
+  bindCSV(view, ".csv-export", "leaders.csv", () => ({
     headers: ["Category", "Rank", "Player", "Team", "GP", "Total", "Avg"],
     rows: leaders.map(r => [r.category_cn, r.rank, r.player_name, r.team_name, r.games_played, r.total, r.avg]),
   }));

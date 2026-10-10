@@ -288,8 +288,9 @@ table.data td.lo { color: var(--muted); }
 }
 .csv-btn:hover { border-color: var(--cyan); }
 
-/* CSV export buttons are hidden (CSS toggle) — the Compare links also use
- * .csv-btn styling but keep their own .csv-btn usage and stay visible. */
+/* CSV export buttons are hidden (CSS toggle) — the Compare links and the
+ * "Copy link" button also use .csv-btn for styling, so .csv-btn is a styling
+ * hook only. Anything that binds behaviour must match .csv-export or an id. */
 .csv-export { display: none; }
 
 /* ---------- theme toggle ---------- */
