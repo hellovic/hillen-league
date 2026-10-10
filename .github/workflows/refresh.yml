@@ -1,8 +1,14 @@
 name: Daily data refresh
 
-# Refresh Hillen League data from the live site, validate it, rebuild the
-# static docs/ export, and push the new data back to main (which auto-rebuilds
-# GitHub Pages). Runs in GitHub's cloud, so your Mac doesn't need to be on.
+# Refresh Hillen League data from the live site, validate it, rebuild the static
+# site, and publish it to GitHub Pages. Runs in GitHub's cloud, so your Mac
+# doesn't need to be on.
+#
+# The site is published as a **Pages artifact**, not from a folder in the repo.
+# docs/ is build output (~2,000 files: the JSON the dashboard fetches plus one
+# share page per game, team, player and standings table), so it is gitignored
+# and never committed — only the refreshed database, which is the data of
+# record, is committed back to main.
 #
 # Triggers:
 #   - on a schedule (cron below is UTC; these correspond to Hong Kong time)
@@ -10,6 +16,8 @@ name: Daily data refresh
 #
 # Because the scheduled workflow lives in the default branch (main), any change
 # to this file must be pushed to main to take effect.
+#
+# Requires: Settings → Pages → Source = "GitHub Actions".
 
 on:
   schedule:
@@ -26,7 +34,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write              # allow committing + pushing the refreshed data
+  contents: write              # commit + push the refreshed data
+  pages: write                 # publish the built site
+  id-token: write              # required by actions/deploy-pages
+
+# Never let two refreshes publish at the same time.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   refresh:
@@ -44,5 +59,23 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git checkout main 2>/dev/null || git switch main 2>/dev/null || true
 
-      - name: Refresh, validate, export, commit & push
+      - name: Refresh, validate and rebuild the site
         run: ./start.sh
+
+      # start.sh rebuilt docs/ in the step above; publish exactly that. There is
+      # nothing to commit for it — docs/ is generated, not source.
+      - name: Upload the built site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+
+  deploy:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-actions
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

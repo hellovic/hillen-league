@@ -1,0 +1,60 @@
+name: Deploy site
+
+# Publish the static dashboard whenever something that shapes it lands on main —
+# a commit you push yourself (after a local ./start.sh run, or a dashboard edit),
+# or a manual run from the Actions tab.
+#
+# The scheduled refresh publishes from inside refresh.yml instead, because events
+# triggered by a workflow's own GITHUB_TOKEN do not start further workflow runs.
+#
+# docs/ is build output: it is produced here from the committed database and
+# uploaded as a Pages artifact, so it never has to live in git.
+#
+# Requires: Settings → Pages → Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server.py'
+      - 'dashboard/**'
+      - 'schema.sql'
+      - 'hillen_league.db'
+      - 'make_og.py'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build the static site
+        run: python3 server.py --export docs
+
+      - name: Upload the built site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-actions
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

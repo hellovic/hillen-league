@@ -82,20 +82,32 @@ The dashboard also runs as a **pure static site** — the same frontend falls ba
 pre-exported JSON under `docs/` when no `/api` is available, so it works on any
 static host. GitHub Pages is free and gives a permanent URL.
 
+`docs/` is **build output, not source**: it is gitignored and produced by
+`python3 server.py --export docs` (which `./start.sh` runs for you). It is
+~2,000 files — the JSON the dashboard fetches plus one share/preview page per
+game, team, player and standings table — so it is published as a Pages
+**artifact** built inside the workflow, never committed. Only the ~20 source
+files and `hillen_league.db` (the data of record) live in git, and the published
+site is byte-for-byte the same either way.
+
 **Deploy only when asked**: normal work (edits, fixes, new features) is committed
-locally with descriptive notes; the static export (`docs/`) and the push to
-GitHub happen only when a deployment is requested.
+locally with descriptive notes; the push to GitHub happens only when a deployment
+is requested. Pushing is what publishes — `.github/workflows/deploy.yml` rebuilds
+the site from the committed database and puts it live (~1-2 min), and the daily
+`.github/workflows/refresh.yml` does the same for scraped data on its own
+schedule.
 
 ```bash
 # ---- normal development: commit locally, do NOT push ----
 git add -A
 git commit -m "describe the change"
 
-# ---- deploy (only when requested): regenerate, commit, push ----
-python3 server.py --export docs     # rebuild static site into docs/
-git add docs
-git commit -m "deploy: <what changed>"
-git push                            # GitHub Pages auto-rebuilds (~1 min)
+# ---- deploy (only when requested) ----
+git push                            # deploy.yml rebuilds + publishes the site
+
+# ---- optional: look at the built site locally ----
+python3 server.py --export docs     # rebuild the static export into docs/
+python3 -m http.server 8001 --directory docs   # open http://localhost:8001/
 ```
 
 Setup once:
@@ -107,9 +119,11 @@ Setup once:
    git branch -M main
    git push -u origin main
    ```
-3. GitHub → repo → **Settings → Pages** → *Source: Deploy from a branch*,
-   branch `main`, folder **`/docs`** → Save (GitHub's folder list only offers `/` or `/docs`)
-4. Done — the dashboard is live at
+3. GitHub → repo → **Settings → Pages** → *Source*: **GitHub Actions**
+   (not "Deploy from a branch" — the site is built and published by the
+   workflows, so `docs/` never has to be committed)
+4. Actions tab → **Deploy site** → *Run workflow* (the first push does it too).
+   Done — the dashboard is live at
    `https://<YOUR_USERNAME>.github.io/hillen-league/`
 
 Alternative static hosts (same `docs/` folder, no code changes): drag `docs/` into
@@ -209,9 +223,14 @@ box scores. All inserts are upserts, so re-runs are safe and idempotent.
 
 A **GitHub Actions workflow** (`.github/workflows/refresh.yml`) runs the same
 `./start.sh` in GitHub's cloud on a schedule, so your Mac doesn't need to be on.
-It refreshes the data, validates it, rebuilds `docs/`, commits the result, and
-pushes back to `main` (which auto-rebuilds GitHub Pages).
+It refreshes the data, validates it, rebuilds `docs/`, commits the database back
+to `main`, and publishes the site to Pages as a build artifact. A second workflow
+(`.github/workflows/deploy.yml`) republishes whenever a site-shaping file lands
+on `main`, so a local `./start.sh` push goes live the same way.
 
+* Publishing requires **Settings → Pages → Source = "GitHub Actions"**. The
+  built site is uploaded as an artifact, so the ~2,000 generated files never
+  enter git — the repo is source + the database only.
 * Default (Hong Kong time): **every day 06:00, plus Sat & Sun 09:00 / 12:00 /
   15:00 / 21:00** — edit the `cron` in the file (cron is UTC; must be pushed to
   `main` to take effect).

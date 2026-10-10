@@ -4,6 +4,14 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **The generated site is no longer committed** — `docs/` is build output
+  (~2,000 files: the JSON the dashboard fetches plus one share page per game,
+  team, player and standings table), so it is gitignored and published as a
+  **GitHub Pages artifact** built inside the workflow. The repo drops from 2,117
+  tracked files to ~20 project files plus the database, while the published site
+  stays byte-for-byte the same — same URLs, same previews. `refresh.yml` uploads
+  what `./start.sh` built; the new `deploy.yml` rebuilds and republishes on a
+  push. Requires **Settings → Pages → Source = "GitHub Actions"**.
 - **Season and group now live in the URL** — `#/standings?season=33&group=11`
   opens exactly that table, so a standings link is shareable the way a game link
   already was. The season/group dropdowns (and the tabs) previously only mutated

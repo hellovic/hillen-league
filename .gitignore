@@ -13,3 +13,9 @@ cache/
 
 # dashboard server log (if any)
 *.log
+
+# generated static site — build output, not source: `python3 server.py --export docs`
+# (~2,000 files: the dashboard's JSON plus one share/preview page per game, team,
+# player and standings table). The workflows publish it as a GitHub Pages
+# artifact, so it never needs to be committed.
+docs/
