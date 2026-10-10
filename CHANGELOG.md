@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- Data refresh 2026-10-10: 136 games, 3260 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 135 unchanged.
 - Data refresh 2026-10-08: 136 games, 3233 box-score rows (seasons 31, 32, 33). 9 new, 2 updated, 0 removed, 125 unchanged.
 - **Season 33** (第三十三屆驍籃青少年籃球聯賽) added — the live season's two Youth
   Girls groups: **YOUTH GIRLS U11 GROUP A** (group 11) and **YOUTH GIRLS U13**
