@@ -34,7 +34,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HKTZ = datetime.timezone(datetime.timedelta(hours=8))  # the league runs in Hong Kong
 STATIC_DIR = os.path.join(HERE, "dashboard")
 DB_PATH = os.path.join(HERE, "hillen_league.db")
-# Canonical public URL of the exported site. Needed because og:url / og:image
+# Canonical public URL of the exported site. Needed because og:url must be
+# absolute (crawlers don't resolve relative ones).
 # must be absolute — link-preview crawlers don't resolve relative ones. Only the
 # share pages use it; the dashboard itself stays origin-relative so it works on
 # any host. Update here (and in dashboard/index.html) if the site ever moves.
@@ -303,6 +304,13 @@ def preview_page(kind, ident, title, desc, hash_target):
     (they don't run JS) and instant for people; the <p> below is the no-JS
     fallback. hash_target is relative ("../../#/games/1") so the export works
     under any host path, not just the production one.
+
+    No og:image / twitter:image on purpose: a chat preview should be a compact
+    text card. An image would also have to be a *generic* league banner standing
+    in for a specific game, and WhatsApp always lets a thumbnail dominate the
+    message. twitter:card is "summary" rather than "summary_large_image" so
+    Twitter/X lays out a text card instead of reserving an image slot. This page
+    body has no <img> either, so nothing can be picked up as a fallback.
     """
     from html import escape
 
@@ -320,11 +328,9 @@ def preview_page(kind, ident, title, desc, hash_target):
 <meta property="og:title" content="{e_title}">
 <meta property="og:description" content="{e_desc}">
 <meta property="og:url" content="{url}">
-<meta property="og:image" content="{SITE_URL}og.png">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{e_title}">
 <meta name="twitter:description" content="{e_desc}">
-<meta name="twitter:image" content="{SITE_URL}og.png">
 <script>location.replace({json.dumps(hash_target)});</script>
 </head>
 <body>

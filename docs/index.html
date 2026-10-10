@@ -10,18 +10,20 @@
      every SPA route shares it. For per-game/team/player cards, server.py writes an
      extra stub page per entity (games/20863/, teams/1595/, players/15376/) with
      that entity's own tags and a forward into the hash route; app.js's "Copy link"
-     button hands out those URLs. See SITE_URL and preview_page() in server.py. -->
+     button hands out those URLs. See SITE_URL and preview_page() in server.py.
+     No og:image on purpose — previews are meant to be compact text cards, and the
+     only available image was a generic league banner that would stand in for a
+     specific game. twitter:card is "summary" (not "summary_large_image") so no
+     image slot is reserved. make_og.py / og.png are kept but currently unused. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Hillen League">
 <meta property="og:title" content="Hillen League - Youth Girls Basketball League">
 <meta property="og:description" content="Live standings, teams, player season stats and per-game box scores for the Hillen Youth Girls Basketball League.">
 <meta property="og:url" content="https://hellovic.github.io/hillen-league/">
-<meta property="og:image" content="https://hellovic.github.io/hillen-league/og.png">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Hillen League - Youth Girls Basketball League">
 <meta name="twitter:description" content="Live standings, teams, player season stats and per-game box scores for the Hillen Youth Girls Basketball League.">
-<meta name="twitter:image" content="https://hellovic.github.io/hillen-league/og.png">
-<link rel="stylesheet" href="style.css?v=6c8994b7daf3">
+<link rel="stylesheet" href="style.css?v=375352a60222">
 <!-- PostHog analytics (cloud). The project API key is public by design. The
      loader registers window.posthog; we only init it on the real (non-localhost)
      site so local dev traffic isn't tracked. Page views are fired manually on
@@ -96,7 +98,7 @@ if (!/^(localhost|127\.)/.test(location.hostname)) {
 <footer class="foot">Data from hillen-sports.com · SQLite · <span id="foot-counts"></span><span id="foot-fresh"></span></footer>
 
 <script src="charts.js"></script>
-<script>window.HL_BUILD="6c8994b7daf3";</script>
-<script src="app.js?v=6c8994b7daf3"></script>
+<script>window.HL_BUILD="375352a60222";</script>
+<script src="app.js?v=375352a60222"></script>
 </body>
 </html>

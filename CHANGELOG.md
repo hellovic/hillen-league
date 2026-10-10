@@ -6,6 +6,14 @@ Format follows deployed versions; each entry lists the user-visible changes.
 ## [v5.1] — Unreleased — Dashboard feature bundle
 - Data refresh 2026-10-10: 136 games, 3260 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 135 unchanged.
 - Data refresh 2026-10-08: 136 games, 3233 box-score rows (seasons 31, 32, 33). 9 new, 2 updated, 0 removed, 125 unchanged.
+- **Link previews are text-only** — `og:image` and `twitter:image` were removed
+  from both the site-level card (`dashboard/index.html`) and every generated share
+  page, and `twitter:card` changed from `summary_large_image` to `summary` so no
+  image slot is reserved. A thumbnail dominates a WhatsApp message, and the only
+  image on offer was a generic league banner standing in for a specific game. The
+  preview now shows just the title and description (score, date, venue, season…).
+  Share pages contain no `<img>` at all, so a crawler cannot fall back to one.
+  `make_og.py` and `og.png` are kept but unused; restoring the banner is two lines.
 - **Shareable links that actually preview** — a `#/games/20863` link could never
   carry the game's details: a URL fragment is never sent to the server, so WhatsApp
   fetches exactly the same bytes as the home page and shows the generic league
