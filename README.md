@@ -39,7 +39,7 @@ The schema and scraper are parameterised, so other groups/seasons can be added w
 
 A zero-dependency web dashboard over the database:
 
-- **Standings** — official group table + points for/against bars
+- **Standings** — official group table, ordered by points (official listing order as the tiebreak) + points for/against bars
 - **Teams** — rosters, season leaders, results, and a points-for/against trend chart
 - **Players** — sortable/searchable season stats (incl. +/-), **shooting efficiency (eFG%, TS%)**, per-game points chart, radar vs group average, full game logs
 - **Games** — box scores, scoring-by-quarter table, team performance, full per-player lines
@@ -147,7 +147,7 @@ Season-scoped data:
 |---|---|---|
 | `season_teams` | `(season_id, team_id)` | Group enrollment + manager, captain, home/away colours, season pts for/against |
 | `rosters` | `(season_id, team_id, player_id)` | Jersey numbers |
-| `standings` | `(season_id, group_id, team_id)` | Official 分組表: rank, GP, W/L, forfeits, +/- , points |
+| `standings` | `(season_id, group_id, team_id)` | Official 分組表: `rank` (the page's own row order), GP, W/L, forfeits, +/- , points. The dashboard orders rows by points and shows that position as `pos` |
 | `games` | `event_id` | Date/time, venue, home/away teams, final score, status (`completed` / `forfeit` / `not_played` / `scheduled`) |
 | `game_quarters` | `(event_id, team_id)` | Q1–Q4 + OT per team |
 | `game_team_stats` | `(event_id, team_id)` | Team turnovers, rebounds, fast-break points, shirt colour |

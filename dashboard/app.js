@@ -816,8 +816,12 @@ async function renderStandings(view) {
   ]);
   const maxPf = Math.max(...teams.map(t => t.pts_for), 1);
   const played = games.filter(g => g.status === "completed");
+  // The server orders the table by points, official listing order as the
+  // tiebreak (standings_rows in server.py), and numbers the rows 1..n. `pos` is
+  // that display position; `rank` is the scraped 分組表 row order, which lists
+  // teams in entry order — season 33 group 11 had a 0-game team on top.
   const keys = [
-    { key: "rank", label: "#", num: true },
+    { key: "pos", label: "#", num: true },
     { key: "team_name", label: "Team" },
     { key: "gp", label: "GP", num: true },
     { key: "wins", label: "W", num: true },
@@ -827,7 +831,7 @@ async function renderStandings(view) {
     { key: "points", label: "Pts", num: true },
   ];
   const rowHtml = (s) => `<tr data-href="#/teams/${s.team_id}">
-      <td class="num">${s.rank}</td>
+      <td class="num">${s.pos ?? s.rank}</td>
       <td><a class="row-link" href="#/teams/${s.team_id}">${esc(s.team_name)}</a></td>
       <td class="num">${s.gp}</td>
       <td class="num">${s.wins}</td>
@@ -862,11 +866,11 @@ async function renderStandings(view) {
     </div>`;
   bindCSV(view, ".csv-export", "standings.csv", () => ({
     headers: ["Rank", "Team", "GP", "W", "L", "F", "+/-", "Points"],
-    rows: standings.map(s => [s.rank, s.team_name, s.gp, s.wins, s.losses, s.forfeits, s.diff, s.points]),
+    rows: standings.map(s => [s.pos ?? s.rank, s.team_name, s.gp, s.wins, s.losses, s.forfeits, s.diff, s.points]),
   }));
   bindSort(view.querySelector("#st-table"), () => {
     document.querySelector("#st-table").innerHTML =
-      makeTable(keys, sortRows(standings, state.sort.key || "rank", state.sort.dir || "asc"), rowHtml, "t-standings", 2);
+      makeTable(keys, sortRows(standings, state.sort.key || "pos", state.sort.dir || "asc"), rowHtml, "t-standings", 2);
   });
   setTitle(groupName(), "Standings", "Season " + state.season);
 }

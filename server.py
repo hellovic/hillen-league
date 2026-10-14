@@ -195,6 +195,23 @@ def query(conn, key, params=()):
     return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
+def standings_rows(conn, season, group):
+    """A group's table, ordered the way the dashboard shows it.
+
+    division.php lists the teams in entry order and only starts agreeing with
+    the points once games are played: season 33 group 11 opens with a team that
+    has not played at all (0 GP, 0 pts) ahead of the 3-point leader. So sort by
+    points and keep the official listing order as the tiebreak — that order is
+    the league's own tiebreak once teams are level. `rank` stays as scraped;
+    `pos` is the display position the UI and the share card show.
+    """
+    rows = query(conn, "standings", (season, group))
+    rows.sort(key=lambda r: (-(r["points"] or 0), r["rank"]))
+    for i, r in enumerate(rows, 1):
+        r["pos"] = i
+    return rows
+
+
 # --------------------------------------------------------------------------
 # API payload builders (shared by the live server and the static exporter)
 # --------------------------------------------------------------------------
@@ -379,7 +396,7 @@ def export_static(out_dir, db_path=DB_PATH):
             players = query(conn, "players", (season, group))
             games = query(conn, "games", (season, group))
             combo_keys.append((season, group))
-            for name, payload in (("standings.json", query(conn, "standings", (season, group))),
+            for name, payload in (("standings.json", standings_rows(conn, season, group)),
                                   ("teams.json", teams),
                                   ("players.json", players),
                                   ("games.json", games),
@@ -491,10 +508,10 @@ def export_static(out_dir, db_path=DB_PATH):
         # meanings, so the season has to be in the path.
         for season, group in combo_keys:
             gname = group_names.get((season, group), f"Group {group}")
-            rows = query(conn, "standings", (season, group))
-            # straight from the table in its own order, so the card agrees with the
-            # page a recipient lands on (a team with no games yet can head a table)
-            top = " · ".join(f"{r['rank']}. {r['team_name']} {r['wins']}-{r['losses']}"
+            rows = standings_rows(conn, season, group)
+            # same order as the page a recipient lands on (points first, official
+            # listing order as the tiebreak), so the card agrees with the page
+            top = " · ".join(f"{r['pos']}. {r['team_name']} {r['wins']}-{r['losses']}"
                              for r in rows[:3])
             title = f"{gname} · Season {season} standings"
             desc = " · ".join(x for x in (top, f"{len(rows)} teams",
@@ -663,7 +680,7 @@ class Handler(BaseHTTPRequestHandler):
                 if path == "/api/meta":
                     self._json(meta_payload(conn, self.server.db_path))
                 elif path == "/api/standings":
-                    self._json(query(conn, "standings", (req_int(season, "season"), req_int(group, "group"))))
+                    self._json(standings_rows(conn, req_int(season, "season"), req_int(group, "group")))
                 elif path == "/api/teams":
                     self._json(query(conn, "teams", (req_int(season, "season"), req_int(group, "group"))))
                 elif re.fullmatch(r"/api/teams/\d+", path):
