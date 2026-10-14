@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- Data refresh 2026-10-14: 139 games, 3329 box-score rows (seasons 31, 32, 33). 3 new, 0 updated, 0 removed, 136 unchanged.
 - Data refresh 2026-10-11: 136 games, 3329 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 135 unchanged.
 - **The generated site is no longer committed** — `docs/` is build output
   (~2,000 files: the JSON the dashboard fetches plus one share page per game,
