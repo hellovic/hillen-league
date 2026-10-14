@@ -27,21 +27,23 @@ Format follows deployed versions; each entry lists the user-visible changes.
   too, since their pickers list one season's group, and PostHog page paths strip
   the query so `/standings` does not become one row per season visited.
 - **One share page per season+group** — `groups/<season>/<group>/` (12 pages)
-  whose card names the top of that table, e.g. `1. 林文燦 1-1 · 2. 永青 1-0 ·
-  3. Kidult Sports Girl Team 0-1 · 4 teams · 第33屆驍籃青少年籃球聯賽`, so a standings
+  whose card names the top of that table, e.g. `1. 永青 2-0 · 2. 林文燦 1-1 ·
+  3. Dreams Team U11 0-1 · 5 teams · 第33屆驍籃青少年籃球聯賽`, so a standings
   link previews the table instead of the generic league card. 825 share pages in
   total. `write_share` now derives how far to climb out of a stub from the id it
   is handed (`../../` for `games/20863/`, `../../../` for `groups/33/11/`); the
   first cut hardcoded `../../`, which sent a group link to a directory listing.
-- **The standings table is ordered by points** — `division.php` lists each group's
+- **The standings table is ordered by points** — `division.php` lists a group's
   teams in entry order and only starts agreeing with the points once games are
-  played: season 33 group 11 opened with `Dreams Team U11` (0 GP, 0 pts) above the
-  3-point leader. `standings_rows()` (server.py) now sorts by points descending,
-  keeping the official listing order as the tiebreak — that order is the league's
-  own tiebreak once teams are level — and numbers the rows `1..n` as `pos`. The `#`
-  column, the CSV export and the group share card all show `pos`; the scraped order
-  is kept in the database as `rank`. 11 of the 12 group tables are unchanged, since
-  in every other one the official order already was the points order.
+  played, so a team that has not played can head a table. `standings_rows()`
+  (server.py) now sorts by points descending, keeping the official listing order as
+  the tiebreak — that order is the league's own tiebreak once teams are level — and
+  numbers the rows `1..n` as `pos`. The `#` column, the CSV export and the group
+  share card all show `pos`; the scraped order is kept in the database as `rank`. A
+  group whose official order already was the points order is unaffected
+  (`pos == rank`): as of the 2026-10-14 refresh that is every group except season
+  33's U11 (group 11, `St.Patrick's School` on 0 games listed first) and U13
+  (group 16, `Wishful U13` and `康仁` both on 0 games listed first).
 - Data refresh 2026-10-10: 136 games, 3260 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 135 unchanged.
 - Data refresh 2026-10-08: 136 games, 3233 box-score rows (seasons 31, 32, 33). 9 new, 2 updated, 0 removed, 125 unchanged.
 - **Link previews are text-only** — `og:image` and `twitter:image` were removed
