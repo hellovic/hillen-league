@@ -14,7 +14,7 @@ https://www.hillen-sports.com/hillenyouth/ for analysis.
 * **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
   U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
 
-Combined: 61 teams, 796 players, 140 games, 3,329 player-game box-score rows.
+Combined: 61 teams, 796 players, 140 games, 3,351 player-game box-score rows.
 
 Season 33 has only just started, so most of its seven divisions have played nothing
 yet — a group is scraped whether or not it has results, so the dashboard's group
@@ -48,6 +48,12 @@ A zero-dependency web dashboard over the database:
 - **Players** — sortable/searchable season stats (incl. +/-), **shooting efficiency (eFG%, TS%)**, per-game points chart, radar vs group average, full game logs
 - **Games** — box scores, scoring-by-quarter table, team performance, full per-player lines
 - **Leaders** — the league's own top-5 leaderboards per category (MVP, 得分王, 三分王, 助攻王, 偷截王, 罰球王, 籃板王, 封阻王), with CSV
+- **Landing page** — a bare visit (`https://hellovic.github.io/hillen-league/`) opens
+  **season 33 · YOUTH GIRLS U13**. The default is not baked into the dashboard:
+  `/api/meta` reports `default_season`/`default_group` and `init()` applies them
+  before the first render, so changing the landing page is a two-line edit in
+  `server.py` (a group that is not in that season falls back to the season's first
+  group).
 - **Season/group live in the URL** — `#/standings?season=33&group=11` opens exactly that table, so a standings link is shareable like a game link. Changing either dropdown (or clicking a tab) writes the pair into the fragment with `history.replaceState`, so the address bar always describes what you are looking at while Back still leaves the page instead of rewinding through every season you tried. `route()` validates the values — an unknown season is ignored and an unknown group falls back to that season's first group — and the older positional form `#/players/<id>/<season>/<group>` is still accepted. Compare links carry the context too, since their pickers list one season's group.
 - **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
 - **Global search** — header box that matches players, teams, and games **across all seasons/groups** and jumps to the page

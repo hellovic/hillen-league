@@ -1,7 +1,10 @@
 /* Hillen League Dashboard — vanilla JS, no dependencies. */
 "use strict";
 
-const state = { meta: null, season: 32, group: 26, view: "standings", sort: {} };
+/* `season`/`group` here are only the pre-meta fallback: init() overwrites them
+ * from meta.default_season/default_group, which is where the landing page is
+ * configured (server.py). They are kept in sync with it for clarity. */
+const state = { meta: null, season: 33, group: 16, view: "standings", sort: {} };
 
 /* ---------------- utils ---------------- */
 
@@ -382,6 +385,13 @@ function rebuildGroups() {
 
 async function init() {
   state.meta = await api("meta");
+  // The landing season/group is configured server-side (meta.default_season /
+  // default_group) so it can be changed without editing the dashboard. Applied
+  // before the selectors are built and before the first route() render, so a
+  // bare visit never flashes another season. If the configured group is not in
+  // that season, rebuildGroups() falls back to the season's first group.
+  if (state.meta.default_season != null) state.season = state.meta.default_season;
+  if (state.meta.default_group != null) state.group = state.meta.default_group;
   const sel = document.getElementById("season-select");
   state.meta.seasons.forEach(s => {
     const o = document.createElement("option");

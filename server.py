@@ -248,8 +248,13 @@ def meta_payload(conn, db_path=DB_PATH):
         "min_game_date": row[0],
         "max_game_date": row[1],
         "refreshed_at": refreshed_at,
-        "default_season": 32,
-        "default_group": 26,
+        # The page a bare visit lands on (no #/route). The dashboard applies
+        # these before its first render, so this is the single place to change
+        # the default season/group. It must name a season/group that exists: if
+        # the group is not in that season, the dashboard's rebuildGroups() falls
+        # back to the season's first group.
+        "default_season": 33,
+        "default_group": 16,      # 第33屆 · YOUTH GIRLS U13
     }
 
 
