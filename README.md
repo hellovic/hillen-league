@@ -5,17 +5,21 @@ https://www.hillen-sports.com/hillenyouth/ for analysis.
 
 **Current contents:** Three seasons of **Youth Girls** data.
 
-* **Season 33** (第三十三屆驍籃青少年籃球聯賽) — the **live season** so far:
-  YOUTH GIRLS U11 GROUP A (11), U13 (16) — 6 teams, 4 games (2 played).
+* **Season 33** (第三十三屆驍籃青少年籃球聯賽) — the **live season**:
+  YOUTH GIRLS U9 GROUP A (25), U9 GROUP B (26), U11 GROUP A (11), U11 GROUP B (27),
+  U11 GROUP C (28), U13 (16), U15 (29) — 24 teams, 6 games (4 played). The league
+  lists seven Youth Girls divisions this season; U15 is registered but has no teams yet.
 * **Season 32** (第三十二屆驍籃青少年籃球聯賽): U9 (27), U11A (28), U11B (31),
-  U13 (26), U15 (30) — 27 teams, 61 games.
+  U13 (26), U15 (30) — 27 teams, 63 games.
 * **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
   U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
 
-Combined: 51 teams, 671 players, 136 games, 3,233 player-game box-score rows.
+Combined: 61 teams, 796 players, 140 games, 3,329 player-game box-score rows.
 
-Season 33 has only just started, so it has two groups today — add more by appending
-their ids to the season-33 loop in `start.sh` (see *Re-scraping / adding more data*).
+Season 33 has only just started, so most of its seven divisions have played nothing
+yet — a group is scraped whether or not it has results, so the dashboard's group
+switcher mirrors the league's division list instead of silently dropping the quiet
+ones (see *Re-scraping / adding more data*).
 
 The schema and scraper are parameterised, so other groups/seasons can be added with one command.
 
@@ -52,7 +56,7 @@ A zero-dependency web dashboard over the database:
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 - **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
 - **Open Graph / share previews**: `og:` + `twitter:` meta tags so links shared on WhatsApp/Telegram/etc. show a proper title and description. **Deliberately no preview image** — the cards are meant to be compact text (`twitter:card` is `summary`, not `summary_large_image`), the only available image was a generic league banner that would stand in for a specific game, and a thumbnail always dominates a WhatsApp message. `make_og.py` (Pillow, not stdlib, run by hand) and `og.png` are kept but currently unreferenced, so the banner can return by restoring two `og:image` / `twitter:image` lines. The *site-level* card is static — link-preview crawlers don't run JS and a `#hash` is never sent to the server — but every game, team and player also gets its own pastable link (next bullet).
-- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 825 = 136 games + 51 teams + 626 players + 12 season/group pages).
+- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 859 = 140 games + 61 teams + 641 players + 17 season/group pages).
 - **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `dashboard/index.html`.
 
 ```bash

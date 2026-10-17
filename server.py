@@ -183,8 +183,6 @@ QUERIES = {
                    ELSE 99 END, l.rank""",
     "seasons": "SELECT season_id, name FROM seasons ORDER BY season_id",
     "groups": """SELECT g.season_id, g.group_id, g.name FROM groups g
-                 WHERE EXISTS (SELECT 1 FROM season_teams st
-                               WHERE st.season_id = g.season_id AND st.group_id = g.group_id)
                  ORDER BY g.season_id, g.group_id""",
 }
 
@@ -218,8 +216,13 @@ def standings_rows(conn, season, group):
 
 def meta_payload(conn, db_path=DB_PATH):
     counts = {r["k"]: r["v"] for r in query(conn, "meta")}
+    # Every *registered* (season, group), not just the ones that already have
+    # fixtures. A division the league has opened but not yet scheduled (season
+    # 33's U15 girls: teams registered later, no games yet) would otherwise be
+    # invisible in the dashboard while still being listed on the league site —
+    # which is exactly how the five new season-33 divisions went missing.
     combos = [{"season": s, "group": g} for s, g in
-              conn.execute("SELECT DISTINCT season_id, group_id FROM season_teams ORDER BY 1, 2")]
+              conn.execute("SELECT season_id, group_id FROM groups ORDER BY 1, 2")]
     row = conn.execute(
         "SELECT MIN(game_date), MAX(game_date) FROM games WHERE game_date IS NOT NULL").fetchone()
     # "data refresh" time: prefer the timestamp stored by the refresh pipeline

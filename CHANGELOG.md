@@ -7,6 +7,16 @@ Format follows deployed versions; each entry lists the user-visible changes.
 - Data refresh 2026-10-17: 139 games, 3351 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 138 unchanged.
 - Data refresh 2026-10-14: 139 games, 3329 box-score rows (seasons 31, 32, 33). 3 new, 0 updated, 0 removed, 136 unchanged.
 - Data refresh 2026-10-11: 136 games, 3329 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 135 unchanged.
+- **All seven season-33 Youth Girls divisions now appear** — the league site lists
+  U9 A (25), U9 B (26), U11 A (11), U11 B (27), U11 C (28), U13 (16) and U15 (29),
+  but the refresh only scraped 11 and 16, so five divisions whose teams were
+  already registered never showed up in the dashboard — no matter how often the
+  daily refresh ran. All seven are scraped now, played or not: U9 A has one
+  fixture, U9 B / U11 B / U11 C have none yet, and U15 has no teams at all. The
+  export also stopped deriving the group list from played fixtures, so a division
+  the league has opened but not yet scheduled still gets a page (an explicit
+  `No data` table) instead of disappearing from the switcher. Share pages go from
+  825 to 859 (17 season+group pages).
 - **The generated site is no longer committed** — `docs/` is build output
   (~2,000 files: the JSON the dashboard fetches plus one share page per game,
   team, player and standings table), so it is gitignored and published as a
@@ -27,10 +37,10 @@ Format follows deployed versions; each entry lists the user-visible changes.
   `#/players/<id>/<season>/<group>` still works. Compare links carry the context
   too, since their pickers list one season's group, and PostHog page paths strip
   the query so `/standings` does not become one row per season visited.
-- **One share page per season+group** — `groups/<season>/<group>/` (12 pages)
+- **One share page per season+group** — `groups/<season>/<group>/` (17 today)
   whose card names the top of that table, e.g. `1. 永青 2-0 · 2. 林文燦 1-1 ·
   3. Dreams Team U11 0-1 · 5 teams · 第33屆驍籃青少年籃球聯賽`, so a standings
-  link previews the table instead of the generic league card. 825 share pages in
+  link previews the table instead of the generic league card. 859 share pages in
   total. `write_share` now derives how far to climb out of a stub from the id it
   is handed (`../../` for `games/20863/`, `../../../` for `groups/33/11/`); the
   first cut hardcoded `../../`, which sent a group link to a directory listing.
