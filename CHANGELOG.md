@@ -4,6 +4,17 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **A stale past-season table no longer blocks the daily refresh** — `validate.py`
+  held *every* season's 分組表 to a strict comparison with the computed team
+  records whenever the two agreed on games played, so once the league's own table
+  drifted for a finished season the refresh aborted and published nothing (three
+  scheduled refreshes failed on 2026-10-18). Strictness now applies to the current
+  season only; earlier seasons report the same comparison as a warning. The trigger
+  was season 32 · YOUTH GIRLS U15, whose table had half-applied the two 10-10
+  fixtures — a win added for Pusion U15Girls B and a loss for Soar U15 Girls, but
+  not the matching rows for their opponents — so three teams disagreed with the
+  league's own results even though the schedule holds exactly the 8 fixtures the
+  games table holds.
 - Data refresh 2026-10-18: 140 games, 3351 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 139 unchanged.
 - **The site opens on season 33 · YOUTH GIRLS U13** — a bare visit used to land on
   season 32 · U13 (group 26), the season the dashboard was born in. The landing

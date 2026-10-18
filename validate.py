@@ -95,16 +95,21 @@ def main():
             LEFT JOIN v_team_season_totals v
               ON v.team_id = stn.team_id AND v.season_id = stn.season_id AND v.group_id = stn.group_id
             ORDER BY stn.season_id, stn.group_id""").fetchall()
-        # The site's season-31 standings are frozen first-leg snapshots, so they
-        # only reconcile with the games table when the standings volume (sum of GP)
-        # equals the volume of recorded games for that group. Strict-compare those
-        # groups; warn on groups whose official table is a partial snapshot.
+        # The league stops maintaining a season's table once the season ends, and
+        # it sometimes half-applies a result (the winner's row moves, the loser's
+        # does not). So only the current season is held to a strict comparison;
+        # past seasons are reported as warnings.
+        #
+        # Even in the current season a table can be a partial first-leg snapshot,
+        # so a group is only compared when the standings volume (sum of GP) equals
+        # the volume of recorded games for that group.
         from collections import defaultdict
         vol = defaultdict(lambda: [0, 0])
         for r in rows:
             vol[(r["season_id"], r["group_id"])][0] += r["gp"] or 0
             vol[(r["season_id"], r["group_id"])][1] += r["vgp"] or 0
-        strict = {k for k, (s, v) in vol.items() if s == v}
+        current = c.execute("SELECT MAX(season_id) FROM games").fetchone()[0]
+        strict = {k for k, (s, v) in vol.items() if s == v and k[0] == current}
         for r in rows:
             st = (r["gp"], r["wins"], r["losses"], r["forfeits"])
             cmp_ = (r["vgp"], r["vwins"], r["vlosses"], r["vforfeits"])
@@ -119,6 +124,8 @@ def main():
                 if key in strict:
                     bad += 1
                     fail(msg)
+                elif vol[key][0] == vol[key][1]:
+                    warn(msg + " [past season: official table no longer kept in sync]")
                 else:
                     warn(msg + " [official table is a partial/frozen snapshot]")
         # teams with games but missing from standings

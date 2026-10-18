@@ -265,7 +265,7 @@ Run after any scrape to verify the database:
 |---|---|
 | Box-score sums | Per-team PTS totals equal official game scores (every completed game) |
 | Quarter sums | Q1–OT totals equal final scores |
-| Standings | Computed team records (`v_team_season_totals`) match the official 分組表 |
+| Standings | Computed team records (`v_team_season_totals`) match the official 分組表 — a hard failure for the current season, a warning for earlier ones (the league stops maintaining a table once its season ends) |
 | Forfeit games | All box rows are DNP (0:00); scores present |
 | Not-played games | No box rows; NULL scores |
 | DNP rule | Season stats count exactly the games with minutes > 0 |
