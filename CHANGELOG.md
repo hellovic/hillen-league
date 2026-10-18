@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- Data refresh 2026-10-19: 140 games, 3392 box-score rows (seasons 31, 32, 33). 0 new, 2 updated, 0 removed, 138 unchanged.
 - **A stale past-season table no longer blocks the daily refresh** — `validate.py`
   held *every* season's 分組表 to a strict comparison with the computed team
   records whenever the two agreed on games played, so once the league's own table
