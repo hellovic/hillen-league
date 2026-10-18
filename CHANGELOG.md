@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- Data refresh 2026-10-18: 140 games, 3351 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 139 unchanged.
 - **The site opens on season 33 · YOUTH GIRLS U13** — a bare visit used to land on
   season 32 · U13 (group 26), the season the dashboard was born in. The landing
   season/group is now served by `/api/meta` (`default_season` / `default_group`)
