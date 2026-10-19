@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **Season and Group pickers are always visible on phones** — the compact header keeps both selects side by side (labels above each) instead of hiding them behind a filter chip, so a season or group change is one selection. Header height is 186 px at 390×844 (was 243 px before the mobile pass). Group options shorten to `U11 A` on phones; the full division name stays in the tooltip.
 - **The published site is now the React dashboard** — `server.py --export docs`
   builds `react-dashboard/` with Vite and writes one inline data bundle
   (`league-data.js`, ≈3.1 MB raw / ≈270 KB gzipped) in place of the ~1,800

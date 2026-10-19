@@ -373,49 +373,39 @@ const pickers = await evaluate(`(() => {
 check("season picker shows the short label", pickers.text === "33 · 第33屆驍籃" && !pickers.text.includes("青少年"), `${pickers.text} (title: ${pickers.full})`);
 check("group picker keeps the wider box on desktop", pickers.groupW > pickers.seasonW + 20, `season ${pickers.seasonW}px / group ${pickers.groupW}px`);
 
-// Compact phone header (UX-14): brand+theme row and search+filter row, so the
-// header costs ~113 px instead of the design's 243 px.
+// Phone header (owner decision, 2026-10-19): the season and group pickers stay
+// visible side by side — no popup — so one selection changes the scope.
 await setViewport(390, 844, true);
-await open("/season/33");
+await open("/standings");
 const phoneHeader = await evaluate(`(() => {
   const h = document.querySelector(".topbar");
-  const chip = document.querySelector("#filter-toggle");
-  return { height: Math.round(h.getBoundingClientRect().height), chip: chip ? chip.innerText.replace(/\\s+/g, " ").trim() : null, compact: h.classList.contains("compact") };
+  const selects = [...document.querySelectorAll(".controls select")];
+  return {
+    height: Math.round(h.getBoundingClientRect().height),
+    compact: h.classList.contains("compact"),
+    popup: !!document.querySelector("#filter-toggle") || !!document.querySelector("#filter-panel"),
+    selects: selects.map((s) => ({
+      id: s.id,
+      h: Math.round(s.getBoundingClientRect().height),
+      w: Math.round(s.getBoundingClientRect().width),
+      label: (s.selectedOptions[0] ? s.selectedOptions[0].innerText : "").trim(),
+    })),
+  };
 })()`);
-check("phone header is compact and under 130 px", phoneHeader.compact && phoneHeader.height <= 130, `${phoneHeader.height}px header`);
-check("phone filter chip names the season scope", /S33/.test(phoneHeader.chip || "") && /(U13|All groups)/.test(phoneHeader.chip || ""), phoneHeader.chip || "missing");
-await evaluate(`document.querySelector("#filter-toggle").click()`);
-await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel");
-check("phone filter panel opens on tap", true, await evaluate(`document.querySelector("#filter-panel").getBoundingClientRect().height + "px panel"`));
+check("phone header is compact and under 200 px", phoneHeader.compact && phoneHeader.height <= 200, `${phoneHeader.height}px header`);
+check("phone header shows both pickers without a popup",
+  !phoneHeader.popup && phoneHeader.selects.length === 2 && phoneHeader.selects.every((s) => s.h >= 44),
+  phoneHeader.selects.map((s) => `${s.id} ${s.w}px "${s.label}"`).join(", "));
 
-// Changing group from the phone panel updates the chip, then closes itself.
-// The season overview deliberately has no group picker (m02206), so this runs
-// on a group-scoped page.
-await open("/standings");
-// The previous check may have left the panel open; normalise, then open it.
-if (await evaluate(`!document.querySelector("#filter-panel").hidden`)) {
-  await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
-  await waitFor(`document.querySelector("#filter-panel").hidden`, "filter panel reset");
-}
-await evaluate(`document.querySelector("#filter-toggle").click()`);
-await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel on standings");
+// One change applies immediately: no panel, no Apply button.
 await evaluate(`(() => {
   const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
   const sel = document.querySelector("#group-select");
   set.call(sel, "11");
   sel.dispatchEvent(new Event("change", { bubbles: true }));
 })()`);
-await waitFor(`/U11/.test(document.querySelector("#filter-toggle").innerText)`, "filter chip follows the group");
-check("phone filter panel applies a group and closes",
-  (await evaluate(`document.querySelector("#filter-panel").hidden`)) === true,
-  await evaluate(`document.querySelector("#filter-toggle").innerText.replace(/\\s+/g, " ").trim()`));
-
-// Escape closes the disclosure (reopen first).
-await evaluate(`document.querySelector("#filter-toggle").click()`);
-await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel reopened");
-await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
-await sleep(150);
-check("Escape closes the phone filter panel", (await evaluate(`document.querySelector("#filter-panel").hidden`)) === true);
+await waitFor(`/U11/.test(document.querySelector(".eyebrow").innerText)`, "group applies");
+check("phone group picker applies on a single change", true, await evaluate(`document.querySelector(".eyebrow").innerText.trim()`));
 
 // ------------------------------------------------ UX audit pass (2026-10-19)
 // UX-01 (owner decision, 2026-10-19): the season overview covers EVERY group in
@@ -428,14 +418,14 @@ const scope = await evaluate(`(() => ({
   current: document.querySelectorAll(".season-card[aria-current='true']").length,
   cards: document.querySelectorAll(".season-card").length,
   stats: (document.querySelector(".season-stats")?.innerText || "").replace(/\\s+/g, " "),
-  chip: (document.querySelector("#filter-toggle")?.innerText || "").replace(/\\s+/g, " ").trim(),
+  pill: (document.querySelector(".all-groups-pill")?.innerText || "").replace(/\\s+/g, " ").trim(),
   groupSelect: !!document.querySelector("#group-select"),
 }))()`);
 check("season overview is labelled as all groups", scope.eyebrow === "ALL GROUPS · SEASON 33", scope.eyebrow);
 check("season overview totals cover the whole season", /7\s*group/i.test(scope.stats) && /24\s*teams/i.test(scope.stats) && /6\s*games/i.test(scope.stats) && /5\s*played/i.test(scope.stats), scope.stats);
 check("season overview mixes results from every group", scope.latest.includes("培正G u9") && scope.latest.includes("Arouse U13"), scope.latest.slice(0, 90));
 check("season overview lists every group without marking one current", scope.cards === 7 && scope.current === 0, `${scope.cards} cards, ${scope.current} current`);
-check("phone header names the all-groups scope and hides the group picker", /All groups/.test(scope.chip) && !scope.groupSelect, scope.chip);
+check("phone header names the all-groups scope and hides the group picker", /all groups/i.test(scope.pill) && !scope.groupSelect, scope.pill);
 
 // Desktop: the group picker is replaced by a static marker, so the control can
 // never suggest that the overview is filtered.
@@ -607,7 +597,7 @@ check("comparison fits a 320 px phone", compareNarrow.overflow <= 1 && compareNa
 // A season link in the path must move the header pickers with it.
 await setViewport(390, 844, true);
 await open("/season/31");
-check("direct season link updates the header pickers", (await evaluate(`document.querySelector("#filter-toggle").innerText`)).includes("S31"), await evaluate(`document.querySelector("#filter-toggle").innerText.replace(/\\s+/g, " ").trim()`));
+check("direct season link updates the header pickers", (await evaluate(`document.querySelector("#season-select").value`)) === "31", await evaluate(`document.querySelector("#season-select").selectedOptions[0].innerText.trim()`));
 
 // UX-21 acceptance: nothing may scroll sideways at the narrowest supported width.
 const narrowOverflows = [];
