@@ -888,11 +888,11 @@ async function renderSeason(view, seasonId) {
         ${lead}
       </a>`;
   }).join("");
-  const latest = (sp.latest_games || []).map(g => {
+  /* One row per game. `later` marks the upcoming list, where the clock takes the
+   * place of the score and a "Scheduled" tag would only repeat the heading. */
+  const gameRow = (g, later) => {
     const done = g.home_score != null && g.away_score != null;
-    const why = g.status === "forfeit" ? "Forfeit"
-      : g.status === "not_played" ? "Not played"
-        : done ? "" : "Scheduled";
+    const why = g.status === "forfeit" ? "Forfeit" : done || later ? "" : "Not played";
     return `<a class="game-row" href="#/games/${g.event_id}">
         <div class="gr-top">
           <span class="gr-when">${esc(fmtDate(g.game_date))}</span>
@@ -901,11 +901,20 @@ async function renderSeason(view, seasonId) {
         </div>
         <div class="gr-match">
           <span class="gr-team home${done && g.home_score > g.away_score ? " win" : ""}">${esc(g.home_name)}</span>
-          <span class="gr-score">${done ? `${g.home_score}–${g.away_score}` : "vs"}</span>
+          ${done
+            ? `<span class="gr-score">${g.home_score}–${g.away_score}</span>`
+            : `<span class="gr-score gr-time">${esc(g.start_time || "vs")}</span>`}
           <span class="gr-team away${done && g.away_score > g.home_score ? " win" : ""}">${esc(g.away_name)}</span>
         </div>
       </a>`;
-  }).join("");
+  };
+  const played = (sp.latest_games || []).map(g => gameRow(g, false)).join("");
+  const upcoming = (sp.upcoming_games || []).map(g => gameRow(g, true)).join("");
+  /* A payload from an older build has neither field — say so instead of "no games" */
+  const rowsOr = (rows, field, empty) => rows || `<div class="empty">${
+    field === undefined
+      ? "This build's data has no game list — restart the server or rebuild the export"
+      : empty}</div>`;
   view.innerHTML = `
     <div class="view-head">
       <h2>${esc(sp.season_name)}</h2>
@@ -917,11 +926,12 @@ async function renderSeason(view, seasonId) {
     </div>
     <div class="grid-cards">${cards || '<div class="empty">No groups</div>'}</div>
     <div class="card results">
-      <h3>Latest results</h3>
-      ${latest || `<div class="empty">${
-        sp.latest_games === undefined
-          ? "This build's data has no results list — restart the server or rebuild the export"
-          : "No games played yet"}</div>`}
+      <h3>Latest games played</h3>
+      ${rowsOr(played, sp.latest_games, "No games played yet")}
+    </div>
+    <div class="card results">
+      <h3>Upcoming games</h3>
+      ${rowsOr(upcoming, sp.upcoming_games, "No upcoming games scheduled")}
     </div>`;
   setTitle(sp.season_name);
 }

@@ -207,9 +207,21 @@ QUERIES = {
         JOIN teams  ht ON ht.team_id = g.home_team_id
         JOIN teams  at ON at.team_id = g.away_team_id
         JOIN groups gr ON gr.group_id = g.group_id AND gr.season_id = g.season_id
-        WHERE g.season_id = ? AND g.status <> 'scheduled'
+        WHERE g.season_id = ? AND g.status IN ('completed', 'forfeit')
         ORDER BY g.game_date DESC, COALESCE(g.start_time, '') DESC, g.event_id DESC
-        LIMIT 10""",
+        LIMIT 8""",
+    "season_upcoming_games": """
+        SELECT g.event_id, g.game_date, g.start_time, g.status,
+               g.group_id, gr.name AS group_name,
+               ht.name AS home_name, at.name AS away_name,
+               g.home_score, g.away_score
+        FROM games g
+        JOIN teams  ht ON ht.team_id = g.home_team_id
+        JOIN teams  at ON at.team_id = g.away_team_id
+        JOIN groups gr ON gr.group_id = g.group_id AND gr.season_id = g.season_id
+        WHERE g.season_id = ? AND g.status = 'scheduled'
+        ORDER BY g.game_date, COALESCE(g.start_time, ''), g.event_id
+        LIMIT 5""",
     "season_teams_total": """
         SELECT COUNT(DISTINCT team_id) AS teams FROM season_teams WHERE season_id = ?""",
 }
@@ -335,6 +347,8 @@ def season_payload(conn, season):
         })
     latest = [dict(r, group_short=group_short(r["group_name"]))
               for r in query(conn, "season_latest_games", (season,))]
+    upcoming = [dict(r, group_short=group_short(r["group_name"]))
+                for r in query(conn, "season_upcoming_games", (season,))]
     total = query(conn, "season_games_total", (season,))[0]
     return {
         "season_id": season,
@@ -349,6 +363,7 @@ def season_payload(conn, season):
         },
         "groups": groups,
         "latest_games": latest,
+        "upcoming_games": upcoming,
     }
 
 
