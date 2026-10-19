@@ -219,6 +219,7 @@ export default function App() {
         <Topbar
           ctx={ctx}
           theme={theme}
+          allGroups={view === "season"}
           onToggleTheme={toggleTheme}
           onSeasonChange={changeSeason}
           onGroupChange={changeGroup}

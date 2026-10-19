@@ -3,6 +3,7 @@ import { api, groupName } from "../data.js";
 import { csvDownload, setTitle, sortRows } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import SortTable from "../components/SortTable.jsx";
+import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 
 const KEYS = [
   { key: "team_name", label: "Team" },
@@ -18,6 +19,9 @@ const KEYS = [
 
 export default function TeamsView({ ctx }) {
   const [sort, setSort] = useState(null);
+  /* UX-05/UX-21: phones default to Team / GP / W / L / ± so the table fits; the
+   * disclosure restores PF, PA and the staff columns. */
+  const [allCols, setAllCols] = useState(false);
   const teams = api("teams", ctx);
 
   useEffect(() => {
@@ -40,6 +44,12 @@ export default function TeamsView({ ctx }) {
         <div className="toolbar">
           <div className="sub">{teams.length} teams · season {ctx.season}</div>
           <CsvButton onDownload={downloadCsv} />
+          <MobileColumnsToggle
+            controls="teams-table"
+            expanded={allCols}
+            onToggle={() => setAllCols((v) => !v)}
+            label="Full stats"
+          />
         </div>
       </div>
       <div className="card">
@@ -49,12 +59,14 @@ export default function TeamsView({ ctx }) {
             rows={rows}
             tableId="t-teams"
             pin={1}
+            compact="teams"
+            compactExpanded={allCols}
             sort={sort}
             onSort={setSort}
             rowKey={(t) => t.team_id}
             rowHref={(t) => `#/teams/${t.team_id}`}
             renderRow={(t) => [
-              <td key="team"><a className="row-link" href={`#/teams/${t.team_id}`}>{t.team_name}</a></td>,
+              <td key="team"><a className="row-link nm" title={t.team_name} href={`#/teams/${t.team_id}`}>{t.team_name}</a></td>,
               <td className="num" key="gp">{t.gp}</td>,
               <td className="num" key="w">{t.wins}</td>,
               <td className="num" key="l">{t.losses}</td>,

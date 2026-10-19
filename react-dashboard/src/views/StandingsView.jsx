@@ -15,6 +15,7 @@ import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import SortTable from "../components/SortTable.jsx";
 import GameStatus from "../components/GameStatus.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
+import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 
 const KEYS = [
   { key: "pos", label: "#", num: true },
@@ -34,6 +35,9 @@ const KEYS = [
  * results. */
 export default function StandingsView({ ctx }) {
   const [sort, setSort] = useState(null);
+  /* UX-05/UX-21: phones get # / Team / W / L / Pts by default (the eight-column
+   * table does not fit 320 px); the disclosure reveals GP, F and ±. */
+  const [allCols, setAllCols] = useState(false);
   const [standings, teams, games] = [api("standings", ctx), api("teams", ctx), api("games", ctx)];
 
   useEffect(() => {
@@ -79,6 +83,12 @@ export default function StandingsView({ ctx }) {
           </div>
           <ShareButton kind="groups" id={`${ctx.season}/${ctx.group}`} />
           <CsvButton onDownload={downloadCsv} />
+          <MobileColumnsToggle
+            controls="st-table"
+            expanded={allCols}
+            onToggle={() => setAllCols((v) => !v)}
+            label="Full table"
+          />
         </div>
       </div>
       <div className="grid-2">
@@ -91,13 +101,19 @@ export default function StandingsView({ ctx }) {
                 rows={rows}
                 tableId="t-standings"
                 pin={2}
+                compact="standings"
+                compactExpanded={allCols}
                 sort={sort}
                 onSort={setSort}
                 rowKey={(s) => s.team_id}
                 rowHref={(s) => `#/teams/${s.team_id}`}
                 renderRow={(s) => [
                   <td className="num" key="pos">{s.pos ?? s.rank}</td>,
-                  <td key="team"><a className="row-link" href={`#/teams/${s.team_id}`}>{s.team_name}</a></td>,
+                  <td key="team">
+                    <a className="row-link nm" title={s.team_name} href={`#/teams/${s.team_id}`}>
+                      {s.team_name}
+                    </a>
+                  </td>,
                   <td className="num" key="gp">{s.gp}</td>,
                   <td className="num" key="w">{s.wins}</td>,
                   <td className="num" key="l">{s.losses}</td>,
@@ -122,7 +138,7 @@ export default function StandingsView({ ctx }) {
             {resolved.length ? (
               teams.map((t) => (
                 <div className="bar-row" key={t.team_id}>
-                  <span className="bl"><a className="row-link" href={`#/teams/${t.team_id}`}>{t.team_name}</a></span>
+                  <span className="bl"><a className="row-link nm" title={t.team_name} href={`#/teams/${t.team_id}`}>{t.team_name}</a></span>
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: `${Math.max((t.pts_for / maxPf) * 100, 2)}%` }} />
                   </div>

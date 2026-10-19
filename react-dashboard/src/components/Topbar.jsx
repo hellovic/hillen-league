@@ -13,7 +13,7 @@ function shortGroup(seasonId, groupId) {
     .replace(/^U(\d+)\s+GROUP\s+([A-Z])$/i, "U$1 $2");
 }
 
-export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
+export default function Topbar({ ctx, theme, allGroups = false, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
   const isPhone = useIsPhone();
   const groups = seasonGroups(ctx.season);
   const themeLabel = theme === "light" ? "Dark mode" : "Light mode";
@@ -60,7 +60,9 @@ export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGr
           <div>
             <h1>Hillen League</h1>
             <p id="meta-line" className="meta-line">
-              {`${seasonName(ctx.season)} · ${groupName(ctx.season, ctx.group) || "Group " + ctx.group}`}
+              {allGroups
+                ? `${seasonName(ctx.season)} · All groups`
+                : `${seasonName(ctx.season)} · ${groupName(ctx.season, ctx.group) || "Group " + ctx.group}`}
             </p>
           </div>
         </div>
@@ -86,7 +88,9 @@ export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGr
               onClick={() => setFiltersOpen((v) => !v)}
             >
               <span className="chip-season">S{ctx.season}</span>
-              <span className="chip-group">{shortGroup(ctx.season, ctx.group)}</span>
+              <span className="chip-group">
+                {allGroups ? "All groups" : shortGroup(ctx.season, ctx.group)}
+              </span>
               <span className="chip-caret" aria-hidden="true">▾</span>
             </button>
             <div
@@ -107,14 +111,18 @@ export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGr
                   {seasonOptions}
                 </select>
               </label>
-              <label htmlFor="group-select">
-                Group
-                <select id="group-select" value={ctx.group} onChange={(e) => onGroupChange(+e.target.value)}>
-                  {groupOptions}
-                </select>
-              </label>
+              {allGroups ? (
+                <p className="filter-note">The overview covers every group in this season.</p>
+              ) : (
+                <label htmlFor="group-select">
+                  Group
+                  <select id="group-select" value={ctx.group} onChange={(e) => onGroupChange(+e.target.value)}>
+                    {groupOptions}
+                  </select>
+                </label>
+              )}
               <button type="button" className="filter-done" onClick={() => setFiltersOpen(false)}>
-                Show {shortGroup(ctx.season, ctx.group)}
+                {allGroups ? "Show season" : `Show ${shortGroup(ctx.season, ctx.group)}`}
               </button>
             </div>
           </div>
@@ -130,7 +138,9 @@ export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGr
         <div>
           <h1>Hillen League</h1>
           <p id="meta-line" className="meta-line">
-            {`${seasonName(ctx.season)} · ${groupName(ctx.season, ctx.group) || "Group " + ctx.group}`}
+            {allGroups
+              ? `${seasonName(ctx.season)} · All groups`
+              : `${seasonName(ctx.season)} · ${groupName(ctx.season, ctx.group) || "Group " + ctx.group}`}
           </p>
         </div>
       </div>
@@ -159,12 +169,18 @@ export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGr
             {seasonOptions}
           </select>
         </label>
-        <label htmlFor="group-select">
-          Group
-          <select id="group-select" value={ctx.group} onChange={(e) => onGroupChange(+e.target.value)}>
-            {groupOptions}
-          </select>
-        </label>
+        {allGroups ? (
+          <span className="all-groups-pill" title="This page shows every group in the season">
+            All groups
+          </span>
+        ) : (
+          <label htmlFor="group-select">
+            Group
+            <select id="group-select" value={ctx.group} onChange={(e) => onGroupChange(+e.target.value)}>
+              {groupOptions}
+            </select>
+          </label>
+        )}
       </div>
     </header>
   );

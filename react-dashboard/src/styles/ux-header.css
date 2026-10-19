@@ -186,3 +186,26 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Season overview: the page is season-wide, so the header shows a static scope
+ * marker instead of a group picker that would do nothing here. */
+body.orange .topbar .all-groups-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+body.orange .filter-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}

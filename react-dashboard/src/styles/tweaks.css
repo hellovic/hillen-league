@@ -274,10 +274,6 @@ body.orange .player-side .card:last-child {
     padding-left: 8px;
     padding-right: 8px;
   }
-  body.orange #t-teams th:nth-child(n + 8),
-  body.orange #t-teams td:nth-child(n + 8) {
-    display: none;
-  }
 }
 
 /* The player points chart is now full-width; cap it so a single-game series does

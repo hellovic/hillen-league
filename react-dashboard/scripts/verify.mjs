@@ -164,7 +164,9 @@ check("per-view document title", (await evaluate("document.title")).includes("YO
 // so the router has to refresh its own state (App.jsx syncUrl → setRoute).
 await open("/season/33");
 const startSeason = await evaluate(`document.querySelector("#season-select").value`);
-const startGroup = await evaluate(`document.querySelector("#group-select").value`);
+// The season-wide overview renders no group picker; remember the group only if
+// one exists (it does on the group-scoped pages used later).
+const startGroup = await evaluate(`(() => { const sel = document.querySelector("#group-select"); return sel ? sel.value : null; })()`);
 const overviewBefore = await evaluate(`document.querySelector("#view .season-stats")?.innerText.replace(/\\s+/g, " ")`);
 const switchedTo = await evaluate(`(() => {
   const sel = document.querySelector("#season-select");
@@ -179,7 +181,7 @@ const overviewAfter = await evaluate(`document.querySelector("#view .season-stat
 check("season selector re-renders the overview", !!overviewAfter && overviewAfter !== overviewBefore, `${overviewBefore} -> ${overviewAfter}`);
 await evaluate(`(() => { const sel = document.querySelector("#season-select"); sel.value = ${JSON.stringify(startSeason)}; sel.dispatchEvent(new Event("change", { bubbles: true })); })()`);
 await waitFor(`document.documentElement.dataset.route === "season/${startSeason}"`, "season restored");
-await evaluate(`(() => { const sel = document.querySelector("#group-select"); if ([...sel.options].some((o) => o.value === ${JSON.stringify(startGroup)})) { sel.value = ${JSON.stringify(startGroup)}; sel.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+await evaluate(`(() => { const sel = document.querySelector("#group-select"); if (!sel) return; if ([...sel.options].some((o) => o.value === ${JSON.stringify(startGroup)})) { sel.value = ${JSON.stringify(startGroup)}; sel.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
 
 await open("/standings");
 await evaluate(`document.querySelector('th[data-key="team_name"]').click()`);
@@ -381,12 +383,22 @@ const phoneHeader = await evaluate(`(() => {
   return { height: Math.round(h.getBoundingClientRect().height), chip: chip ? chip.innerText.replace(/\\s+/g, " ").trim() : null, compact: h.classList.contains("compact") };
 })()`);
 check("phone header is compact and under 130 px", phoneHeader.compact && phoneHeader.height <= 130, `${phoneHeader.height}px header`);
-check("phone filter chip names season and group", /S33/.test(phoneHeader.chip || "") && /U13/.test(phoneHeader.chip || ""), phoneHeader.chip || "missing");
+check("phone filter chip names the season scope", /S33/.test(phoneHeader.chip || "") && /(U13|All groups)/.test(phoneHeader.chip || ""), phoneHeader.chip || "missing");
 await evaluate(`document.querySelector("#filter-toggle").click()`);
 await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel");
 check("phone filter panel opens on tap", true, await evaluate(`document.querySelector("#filter-panel").getBoundingClientRect().height + "px panel"`));
 
 // Changing group from the phone panel updates the chip, then closes itself.
+// The season overview deliberately has no group picker (m02206), so this runs
+// on a group-scoped page.
+await open("/standings");
+// The previous check may have left the panel open; normalise, then open it.
+if (await evaluate(`!document.querySelector("#filter-panel").hidden`)) {
+  await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await waitFor(`document.querySelector("#filter-panel").hidden`, "filter panel reset");
+}
+await evaluate(`document.querySelector("#filter-toggle").click()`);
+await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel on standings");
 await evaluate(`(() => {
   const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
   const sel = document.querySelector("#group-select");
@@ -406,21 +418,37 @@ await sleep(150);
 check("Escape closes the phone filter panel", (await evaluate(`document.querySelector("#filter-panel").hidden`)) === true);
 
 // ------------------------------------------------ UX audit pass (2026-10-19)
-// UX-01: the season landing page is scoped to the selected group.
+// UX-01 (owner decision, 2026-10-19): the season overview covers EVERY group in
+// the season. It is not bound to the header's group picker; group pages are.
 await setViewport(390, 844, true);
-await open("/season/33?season=33&group=16");
+await open("/season/33");
 const scope = await evaluate(`(() => ({
   eyebrow: document.querySelector(".scope-eyebrow")?.innerText.trim(),
   latest: (document.querySelector(".results")?.innerText || "").replace(/\\s+/g, " "),
   current: document.querySelectorAll(".season-card[aria-current='true']").length,
-  currentHref: document.querySelector(".season-card[aria-current='true']")?.getAttribute("href") || "",
-  allGames: document.querySelectorAll(".results .section-head a").length ? document.querySelector(".results .section-head a").getAttribute("href") : "",
+  cards: document.querySelectorAll(".season-card").length,
   stats: (document.querySelector(".season-stats")?.innerText || "").replace(/\\s+/g, " "),
+  chip: (document.querySelector("#filter-toggle")?.innerText || "").replace(/\\s+/g, " ").trim(),
+  groupSelect: !!document.querySelector("#group-select"),
 }))()`);
-check("season overview names the selected group", scope.eyebrow === "YOUTH GIRLS U13 · SEASON 33", scope.eyebrow);
-check("season overview lists only the selected group's results", scope.latest.includes("Arouse U13") && !scope.latest.includes("培正G u9"), scope.latest.slice(0, 80));
-check("season overview flags exactly one current group in the group list", scope.current === 1 && scope.currentHref.includes("season=33&group=16"), scope.currentHref);
-check("“All games” keeps the overview's group scope", scope.allGames.includes("season=33&group=16"), scope.allGames);
+check("season overview is labelled as all groups", scope.eyebrow === "ALL GROUPS · SEASON 33", scope.eyebrow);
+check("season overview totals cover the whole season", /7\s*group/i.test(scope.stats) && /24\s*teams/i.test(scope.stats) && /6\s*games/i.test(scope.stats) && /5\s*played/i.test(scope.stats), scope.stats);
+check("season overview mixes results from every group", scope.latest.includes("培正G u9") && scope.latest.includes("Arouse U13"), scope.latest.slice(0, 90));
+check("season overview lists every group without marking one current", scope.cards === 7 && scope.current === 0, `${scope.cards} cards, ${scope.current} current`);
+check("phone header names the all-groups scope and hides the group picker", /All groups/.test(scope.chip) && !scope.groupSelect, scope.chip);
+
+// Desktop: the group picker is replaced by a static marker, so the control can
+// never suggest that the overview is filtered.
+await setViewport(1440, 1000, false);
+await open("/season/33");
+const scopeDesk = await evaluate(`({
+  groupSelect: !!document.querySelector("#group-select"),
+  pill: (document.querySelector(".all-groups-pill")?.innerText || "").trim(),
+  meta: (document.querySelector("#meta-line")?.innerText || "").trim(),
+})`);
+check("desktop overview swaps the group picker for an All groups marker", !scopeDesk.groupSelect && /all groups/i.test(scopeDesk.pill) && /All groups/.test(scopeDesk.meta), `${scopeDesk.pill} / ${scopeDesk.meta}`);
+await setViewport(390, 844, true);
+await open("/season/33");
 
 // UX-03: groups with no played games must not show a fabricated leader.
 const cards = await evaluate(`(() => {
@@ -493,6 +521,57 @@ check("phone column toggle is a 44 px disclosure", phoneCols.toggleH >= 44, phon
 await evaluate(`document.querySelector(".table-cols-toggle").click()`);
 await waitFor(`document.querySelector("#t-players").closest(".card").classList.contains("scrollable")`, "expanded table becomes scrollable");
 check("expanded phone table says that it scrolls", (await evaluate(`(() => { const hint = document.querySelector(".table-scroll-hint"); return !!hint && getComputedStyle(hint).display !== "none" && hint.innerText.includes("Swipe"); })()`)) === true);
+
+// UX-05 / UX-21: standings on a phone keeps Points visible, and long club names
+// must never push the card (or the page) into a sideways scroll.
+await setViewport(320, 640, true);
+await open("/standings?season=33&group=11");
+const phoneSt = await evaluate(`(() => {
+  const ths = [...document.querySelectorAll("#t-standings thead th")];
+  const card = document.querySelector("#st-table").closest(".card");
+  return {
+    visible: ths.filter((th) => th.getClientRects().length > 0).map((th) => th.innerText.trim()),
+    total: ths.length,
+    cardOverflow: card.scrollWidth - card.clientWidth,
+    pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  };
+})()`);
+check("phone standings keeps points visible without sideways scroll", phoneSt.visible.some((t) => /^pts$/i.test(t)) && phoneSt.visible.length <= 6 && phoneSt.cardOverflow <= 1 && phoneSt.pageOverflow <= 1, `${phoneSt.visible.join(",")} / card ${phoneSt.cardOverflow}px / page ${phoneSt.pageOverflow}px`);
+await evaluate(`document.querySelector(".table-cols-toggle").click()`);
+await sleep(150);
+const expandedSt = await evaluate(`(() => { const ths = [...document.querySelectorAll("#t-standings thead th")]; return ths.filter((th) => th.getClientRects().length > 0).length; })()`);
+check("phone standings disclosure reveals every column", expandedSt === phoneSt.total, `${expandedSt}/${phoneSt.total}`);
+await evaluate(`document.querySelector(".table-cols-toggle").click()`);
+await sleep(100);
+for (const w of [375, 390]) {
+  await setViewport(w, 700, true);
+  await open("/season/33");
+  await open("/standings?season=33&group=11");
+  const m = await evaluate(`(() => { const card = document.querySelector("#st-table").closest(".card"); return { card: card.scrollWidth - card.clientWidth, page: document.documentElement.scrollWidth - document.documentElement.clientWidth }; })()`);
+  check(`standings fit a ${w} px phone with long club names`, m.card <= 1 && m.page <= 1, `card ${m.card}px / page ${m.page}px`);
+}
+
+// Teams: same phone budget — PF/PA and the staff columns sit behind the
+// "Full stats" disclosure, so the table never scrolls sideways on a phone.
+await setViewport(320, 640, true);
+await open("/season/33");
+await open("/teams?season=33&group=11");
+const phoneTeams = await evaluate(`(() => {
+  const ths = [...document.querySelectorAll("#t-teams thead th")];
+  const card = document.querySelector("#teams-table").closest(".card");
+  return {
+    visible: ths.filter((th) => th.getClientRects().length > 0).map((th) => th.innerText.trim()),
+    total: ths.length,
+    cardOverflow: card.scrollWidth - card.clientWidth,
+    pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  };
+})()`);
+check("phone teams table fits without sideways scroll", phoneTeams.visible.length >= 4 && phoneTeams.visible.length <= 6 && phoneTeams.cardOverflow <= 1 && phoneTeams.pageOverflow <= 1, `${phoneTeams.visible.join(",")} / card ${phoneTeams.cardOverflow}px`);
+await evaluate(`document.querySelector(".table-cols-toggle").click()`);
+await sleep(150);
+const expandedTeams = await evaluate(`(() => { const ths = [...document.querySelectorAll("#t-teams thead th")]; return ths.filter((th) => th.getClientRects().length > 0).length; })()`);
+check("phone teams disclosure reveals the full table", expandedTeams === phoneTeams.total, `${expandedTeams}/${phoneTeams.total}`);
+await evaluate(`document.querySelector(".table-cols-toggle").click()`);
 
 // aria-sort must describe the active sort both ways.
 await setViewport(1440, 1000, false);

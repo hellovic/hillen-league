@@ -1,25 +1,15 @@
 import { useEffect } from "react";
-import { api, groupAgeSort, groupName, scopeLabel, seasonGroups } from "../data.js";
-import {
-  contextHash,
-  fmtDate,
-  gameStatus,
-  hasResult,
-  seasonHash,
-  setTitle,
-  scoreText,
-  sortByKickoff,
-} from "../utils.js";
+import { api, groupAgeSort } from "../data.js";
+import { fmtDate, hasResult, scoreText, seasonHash, setTitle } from "../utils.js";
 import GameStatus from "../components/GameStatus.jsx";
-import ScopeEmpty from "../components/ScopeEmpty.jsx";
 
-/* Landing page for one season, scoped to one group (UX-01).
+/* Season overview: the whole league at a glance.
  *
- * The page answers "what is happening in MY group right now": the four totals,
- * the latest results and the next fixtures are all read from
- * the current season/group, not the whole season. The group cards below are
- * navigation — each one switches the whole dashboard to that group, which is
- * why this section is labelled as a directory rather than as season content. */
+ * This page is deliberately NOT bound to the selected group: it answers "what
+ * is happening in Season N" across every division. The group cards at the
+ * bottom are the drill-down — each one switches the dashboard to that group —
+ * and the eyebrow says ALL GROUPS so the scope can never be mistaken for the
+ * header's group picker (which only governs the group-scoped pages). */
 
 const shortGroupName = (name) =>
   String(name || "")
@@ -36,20 +26,10 @@ export default function SeasonView({ ctx, seasonId }) {
     error = e;
   }
 
-  /* The URL can name a season the stored context knows nothing about (e.g. a
-   * hand-typed #/season/31 while the context is still 33/16); fall back to the
-   * first group of *this* season so every label and list agrees. */
-  const metaGroups = seasonGroups(season);
-  const group = metaGroups.some((g) => g.group_id === ctx.group)
-    ? ctx.group
-    : metaGroups[0]?.group_id ?? null;
-  const gname = group != null ? groupName(season, group) : "";
-  const scopeCtx = { season, group: group ?? ctx.group };
-
   useEffect(() => {
-    if (sp) setTitle(gname || sp.season_name, "Season " + season);
+    if (sp) setTitle(sp.season_name, "Season " + season);
     else setTitle("No such season");
-  }, [gname, season, sp && sp.season_name]);
+  }, [season, sp && sp.season_name]);
 
   if (error) {
     const seasons = (window.LEAGUE_DATA?.meta?.seasons) || [];
@@ -66,29 +46,10 @@ export default function SeasonView({ ctx, seasonId }) {
     );
   }
 
-  /* All per-group reads use the canonical payloads; season_payload()'s
-   * `latest_games` / `upcoming_games` are season-wide, so they cannot answer a
-   * group-scoped question. */
-  let games = [];
-  let teams = [];
-  if (group != null) {
-    try {
-      games = api("games", scopeCtx) || [];
-      teams = api("teams", scopeCtx) || [];
-    } catch (e) {
-      games = [];
-      teams = [];
-    }
-  }
-
-  const resolved = games.filter(hasResult);
-  const latest = sortByKickoff(resolved, "desc").slice(0, 5);
-  /* Unplayed fixtures are skipped (the league does not make them up), so they
-   * are not competition games: `competition` keeps Played + Remaining = Games. */
-  const competition = games.filter((g) => gameStatus(g).code !== "skipped");
-  const upcoming = sortByKickoff(
-    games.filter((g) => gameStatus(g).code === "upcoming")
-  );
+  const t = sp.totals || {};
+  const latest = (sp.latest_games || []).slice(0, 5);
+  const upcoming = sp.upcoming_games || [];
+  const groups = [...(sp.groups || [])].sort(groupAgeSort);
 
   const gamesFor = (gid) => {
     try {
@@ -101,16 +62,14 @@ export default function SeasonView({ ctx, seasonId }) {
   const row = (g) => (
     <a className="game-row" href={`#/games/${g.event_id}`} key={g.event_id}>
       <div className="gr-top">
-        <span className="gr-when">
-          {fmtDate(g.game_date)}
-          {hasResult(g) || !g.start_time ? "" : ` · ${g.start_time}`}
-        </span>
+        <span className="gr-when">{fmtDate(g.game_date)}</span>
+        {g.group_short ? <span className="gr-group">{g.group_short}</span> : null}
         <GameStatus game={g} className="gr-status" />
       </div>
       <div className="gr-match">
         <span className="gr-team home">{g.home_name}</span>
         <strong className="gr-score od-nowrap">
-          {hasResult(g) ? scoreText(g) : "vs"}
+          {hasResult(g) ? scoreText(g) : g.start_time || "vs"}
         </strong>
         <span className="gr-team away">{g.away_name}</span>
       </div>
@@ -118,31 +77,24 @@ export default function SeasonView({ ctx, seasonId }) {
     </a>
   );
 
-  /* Played = fixtures with a recorded result (final or forfeit), so the strip
-   * always adds up: Played + Remaining = Games. */
+  /* Season-wide totals (server-side counts), not a single group's numbers. */
   const stats = [
-    [teams.length, "Teams"],
-    [competition.length, "Games"],
-    [resolved.length, "Played"],
-    [upcoming.length, "Remaining"],
+    [t.groups ?? groups.length, "Group"],
+    [t.teams ?? 0, "Teams"],
+    [t.games ?? 0, "Games"],
+    [t.played ?? 0, "Played"],
   ];
-
-  const groups = [...(sp.groups || [])].sort(groupAgeSort);
 
   return (
     <>
       <header className="scope-head">
-        <p className="scope-eyebrow">{scopeLabel(season, group)}</p>
+        <p className="scope-eyebrow">{`ALL GROUPS · SEASON ${season}`}</p>
         <div className="scope-row">
-          <h2 className="scope-title">Group overview</h2>
-          <a className="text-link scope-jump" href={contextHash("standings", scopeCtx)}>
-            Standings ↗
-          </a>
+          <h2 className="scope-title">{sp.season_name}</h2>
         </div>
-        <p className="scope-sub">{sp.season_name}</p>
       </header>
 
-      <section className="season-stats" aria-label="Group totals">
+      <section className="season-stats" aria-label="Season totals">
         {stats.map(([n, label]) => (
           <div className="od-stat" key={label}>
             <strong>{n}</strong>
@@ -158,17 +110,11 @@ export default function SeasonView({ ctx, seasonId }) {
               <div>
                 <h3>Latest results</h3>
               </div>
-              <a href={contextHash("games", scopeCtx)} className="text-link">All games ↗</a>
             </div>
             {latest.length ? (
               latest.map(row)
             ) : (
-              <ScopeEmpty
-                title="No completed games yet"
-                text="Results appear here after this group's first final."
-                href={contextHash("games", scopeCtx)}
-                linkLabel="View fixtures ↗"
-              />
+              <p className="scope-note">No completed games yet in this season.</p>
             )}
           </section>
 
@@ -178,25 +124,11 @@ export default function SeasonView({ ctx, seasonId }) {
               <span className="small-dot" aria-hidden="true" />
             </div>
             {upcoming.length ? (
-              upcoming.map(row)
+              upcoming.slice(0, 5).map(row)
             ) : (
-              <p>
-                No upcoming fixtures.{" "}
-                <a className="scope-inline-link" href={contextHash("games", scopeCtx)}>
-                  All games ↗
-                </a>
-              </p>
+              <p>No upcoming games scheduled.</p>
             )}
           </section>
-
-          <div className="source-note">
-            <span className="source-mark">HL</span>
-            <p>
-              Built around the game.
-              <br />
-              <span>Hillen Youth Girls Basketball League</span>
-            </p>
-          </div>
         </aside>
 
         <section className="division-section" aria-labelledby="groups-heading">
@@ -207,26 +139,20 @@ export default function SeasonView({ ctx, seasonId }) {
             <span className="count-tag">{groups.length} groups</span>
           </div>
           <p className="scope-note">
-            Browse the divisions — opening a group switches the whole dashboard to it. Showing{" "}
-            <b>{gname || "this group"}</b>.
+            Every division in the season — open one to switch the dashboard to it.
           </p>
           <div className="grid-cards">
             {groups.map((g) => {
               const age = (g.name.match(/U\d+/) || ["—"])[0];
               const label = g.name.match(/GROUP (.+)/)?.[0] || "YOUTH GIRLS";
-              const gGames = gamesFor(g.group_id);
-              const gResolved = gGames.filter(hasResult);
-              const current = g.group_id === group;
+              const gResolved = gamesFor(g.group_id).filter(hasResult);
               const empty = !g.teams;
               const leader = !empty && g.played > 0 ? g.leader : null;
               return (
                 <a
-                  className={`card season-card${current ? " is-current" : ""}${
-                    empty ? " is-empty" : ""
-                  }`}
+                  className={`card season-card${empty ? " is-empty" : ""}`}
                   key={g.group_id}
                   href={`#/standings?season=${season}&group=${g.group_id}`}
-                  aria-current={current ? "true" : undefined}
                 >
                   <div className="od-row division-top">
                     <span className="division-age">{age}</span>
@@ -234,7 +160,6 @@ export default function SeasonView({ ctx, seasonId }) {
                     <span className="division-arrow" aria-hidden="true">↗</span>
                   </div>
                   <h3>{shortGroupName(g.name)}</h3>
-                  {current ? <span className="scope-tag">Current group</span> : null}
                   <p className="season-size">
                     {`${g.teams} teams · ${gResolved.length} played`}
                   </p>
