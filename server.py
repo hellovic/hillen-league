@@ -757,6 +757,12 @@ def export_static(out_dir, db_path=DB_PATH):
         idx = os.path.join(out_dir, "index.html")
         with open(idx, encoding="utf-8") as f:
             html = f.read()
+        # The site runs under a subpath on GitHub Pages (/hillen-league/), so every
+        # URL must be relative. Vite rewrites `./league-data.js` only when the file
+        # exists in public/ — a CI checkout has no data snapshot there (it is
+        # generated, and git-ignored), so force the relative form server-side
+        # instead of depending on that.
+        html = html.replace('src="/league-data.js', 'src="./league-data.js')
         # ./assets/… (JS + CSS), the loader script, and any fonts/images Vite emitted
         html = re.sub(r'(\./assets/[^"\'?#\s]+)', lambda m: m.group(1) + "?v=" + stamp, html)
         html = re.sub(r'((?:\./|/)?league-data\.js)("|,)',
