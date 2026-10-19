@@ -30,3 +30,33 @@ body.orange .card table.data.best-table td.bst {
   font-weight: 600;
   letter-spacing: 0.6px;
 }
+
+/* Sticky stat-table headers (game box scores, players list, leaders, standings).
+ *
+ * base.css already declares `table.data th { position: sticky; top: 0 }`, but
+ * design.css makes every card that holds a table a horizontal scroll container
+ * (`.card:has(table) { overflow-x: auto }`). A sticky element is then positioned
+ * against the card's scrollport, which never scrolls vertically, so the header
+ * still scrolled away with the page.
+ *
+ * From 1280 px wide the widest table (players list, 919 px of content) fits its
+ * card (1030 px) without horizontal scrolling, so the card may go back to being
+ * a plain block and the header sticks to the top of the viewport. Below that the
+ * card keeps its horizontal scroll — a 16-column box score genuinely needs one on
+ * a 1024 px screen — and the header stays inline rather than sacrificing the
+ * column scroll.
+ *
+ * z-index: pinned identity columns are sticky at z-index 1/2, so the header row
+ * (3) and its pinned cell (4) have to sit above them. */
+@media (min-width: 1280px) {
+  body.orange .card:has(table) {
+    overflow: visible;
+  }
+  body.orange .card table.data thead th {
+    z-index: 3;
+  }
+  body.orange .card table.data.pin1 thead th:first-child,
+  body.orange .card table.data.pin2 thead th:nth-child(2) {
+    z-index: 4;
+  }
+}

@@ -30,6 +30,15 @@ Format follows deployed versions; each entry lists the user-visible changes.
   16 px accent orange to 10 px body text (white on dark, near-black on light), so
   the two point columns read first. Purely a style layer
   (`react-dashboard/src/styles/tweaks.css`); the design files stay untouched.
+- **Stat-table headers stay on screen while you scroll** — the Players list and
+  the game page's box-score columns (PTS, REB, AST…, and the 最佳表現 table) now
+  keep their title row pinned to the top of the window, so you can read a stat
+  without scrolling back up to learn which column is which. `base.css` already
+  declared the header sticky, but the design layer makes each table card a
+  horizontal scroll box, which pinned the header to the card instead of the
+  window. At ≥1280 px the widest table fits the card, so the card goes back to a
+  plain block and the header sticks; narrower screens keep the column scroll.
+  Scoped to `react-dashboard/src/styles/tweaks.css`, design files untouched.
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
   leader with its record, each linking to that group's standings. Two cards per row

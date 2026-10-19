@@ -56,9 +56,9 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
   global search with cross-group jumps, share-link copy, CSV downloads, theme
   persistence in `localStorage["courtside-theme"]`, chart palette switching.
 - `src/styles/tweaks.css` layers small product tweaks on top of the design
-  layer (currently the game page's 最佳表現 table, see deviation 6). It is the
-  only other rule-bearing file besides `desktop-fix.css`, and neither edits
-  `base.css` or `design.css`.
+  layer (currently the game page's 最佳表現 table and sticky table headers on
+  desktop, see deviations 6 and 7). It is the only other rule-bearing file
+  besides `desktop-fix.css`, and neither edits `base.css` or `design.css`.
 
 ## Deviations from the OD build (and why)
 
@@ -70,6 +70,7 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 | 4 | A few text runs are pixel-different by antialiasing only | JSX splits dynamic strings into several text nodes, so kerning across node boundaries differs by a fraction of a pixel. Normalised `innerText` and markup structure are identical to the OD build. |
 | 5 | “Copy link” copies the share-stub URL (`games/20863/`, `players/17864/`…), not `location.href` | The OD build copied the hash URL, which chat apps cannot preview (crawlers never see the fragment). The static export writes an OG stub per entity; copying that URL keeps the vanilla app's link-preview feature. |
 | 6 | 最佳表現 table: player names 13 px (was 16 px), stat labels 10 px in body-text colour (was 16 px accent orange) | Requested readability tweak on the game page — the PTS/2PT labels are captions between the two point columns and should not compete with them. Scoped rules live in `src/styles/tweaks.css`. |
+| 7 | At ≥1280 px the stat-table headers stick to the top of the viewport while the table scrolls; below 1280 px they scroll away with the table | `base.css` already declares `table.data th{position:sticky;top:0}`, but `design.css` turns every table card into a horizontal scroll container (`.card:has(table){overflow-x:auto}`), which defeats vertical sticky. At ≥1280 px the widest table fits its card without horizontal scrolling, so `tweaks.css` restores `overflow:visible`; narrower screens keep the column scroll (a 16-column box score needs it) and lose the sticky header. |
 
 Remove the `desktop-fix.css` import in `src/main.jsx` to get pixel parity with
 the OD build at every width, including its desktop quirks. The `tweaks.css` import is independent of
