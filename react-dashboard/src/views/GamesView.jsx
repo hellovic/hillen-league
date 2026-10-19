@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { api, groupName } from "../data.js";
-import { csvDownload, setTitle, sortRows } from "../utils.js";
+import { api, groupName, scopeLabel } from "../data.js";
+import { contextHash, csvDownload, gameStatus, hasResult, scoreText, setTitle, sortRows } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
 import SortTable from "../components/SortTable.jsx";
+import GameStatus from "../components/GameStatus.jsx";
+import ScopeEmpty from "../components/ScopeEmpty.jsx";
 
 const KEYS = [
   { key: "game_date", label: "Date" },
@@ -14,17 +16,15 @@ const KEYS = [
   { key: "status", label: "Status" },
 ];
 
-function StatusBadge({ status }) {
-  if (status === "completed") return <span className="badge w">played</span>;
-  if (status === "forfeit") return <span className="badge l">forfeit</span>;
-  if (status === "not_played") return <span className="badge np">not played</span>;
-  return <span className="badge np">scheduled</span>;
-}
-
+/* Every fixture of the selected season/group. Sorting uses the raw `status` and
+ * ISO date fields from the payload (never a rendered label); the Status column
+ * is the shared GameStatus badge, so "Result pending" (past, no score) is never
+ * confused with "Final" or "Scheduled". Missing scores stay em dashes. */
 export default function GamesView({ ctx }) {
   const [sort, setSort] = useState(null);
   const games = api("games", ctx);
-  const played = games.filter((g) => g.status === "completed");
+  const resolved = games.filter(hasResult);
+  const pending = games.filter((g) => gameStatus(g).code === "pending");
 
   useEffect(() => {
     setTitle(groupName(ctx.season, ctx.group), "Games", "Season " + ctx.season);
@@ -38,7 +38,7 @@ export default function GamesView({ ctx }) {
       ["Date", "Home", "Score", "Away", "Venue", "Status"],
       games.map((g) => [
         g.game_date, g.home_name,
-        g.status === "completed" ? `${g.home_score}-${g.away_score}` : "",
+        hasResult(g) ? `${g.home_score}-${g.away_score}` : "",
         g.away_name, g.venue, g.status,
       ])
     );
@@ -46,37 +46,50 @@ export default function GamesView({ ctx }) {
   return (
     <>
       <div className="view-head">
-        <h2>Games</h2>
+        <div className="view-head-copy">
+          <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
+          <h2>Games</h2>
+        </div>
         <div className="toolbar">
-          <div className="sub">{games.length} scheduled · {played.length} completed</div>
+          <div className="sub">
+            {games.length} fixtures · {resolved.length} played
+            {pending.length ? ` · ${pending.length} pending` : ""}
+          </div>
           <CsvButton onDownload={downloadCsv} />
         </div>
       </div>
       <div className="card">
-        <div id="games-table">
-          <SortTable
-            columns={KEYS}
-            rows={rows}
-            tableId="t-games"
-            pin={1}
-            sort={sort}
-            onSort={setSort}
-            rowKey={(g) => g.event_id}
-            rowHref={(g) => `#/games/${g.event_id}`}
-            renderRow={(g) => [
-              <td className="game-date-cell" key="date">
-                <CompactDate date={g.game_date} time={g.start_time || ""} />
-              </td>,
-              <td key="home"><a className="row-link" href={`#/teams/${g.home_team_id}`}>{g.home_name}</a></td>,
-              <td className="num mono" key="score">
-                {g.status === "completed" ? `${g.home_score} – ${g.away_score}` : "—"}
-              </td>,
-              <td key="away"><a className="row-link" href={`#/teams/${g.away_team_id}`}>{g.away_name}</a></td>,
-              <td key="venue">{g.venue || "—"}</td>,
-              <td key="status"><StatusBadge status={g.status} /></td>,
-            ]}
+        {games.length ? (
+          <div id="games-table">
+            <SortTable
+              columns={KEYS}
+              rows={rows}
+              tableId="t-games"
+              pin={1}
+              sort={sort}
+              onSort={setSort}
+              rowKey={(g) => g.event_id}
+              rowHref={(g) => `#/games/${g.event_id}`}
+              renderRow={(g) => [
+                <td className="game-date-cell" key="date">
+                  <CompactDate date={g.game_date} time={g.start_time || ""} />
+                </td>,
+                <td key="home"><a className="row-link" href={`#/teams/${g.home_team_id}`}>{g.home_name}</a></td>,
+                <td className="num mono" key="score">{scoreText(g)}</td>,
+                <td key="away"><a className="row-link" href={`#/teams/${g.away_team_id}`}>{g.away_name}</a></td>,
+                <td key="venue">{g.venue || "—"}</td>,
+                <td key="status"><GameStatus game={g} /></td>,
+              ]}
+            />
+          </div>
+        ) : (
+          <ScopeEmpty
+            title="No fixtures yet"
+            text="This group has no scheduled games in the bundle."
+            href={contextHash("standings", ctx)}
+            linkLabel="View standings ↗"
           />
-        </div>
+        )}
       </div>
     </>
   );

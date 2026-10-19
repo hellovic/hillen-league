@@ -1,10 +1,14 @@
 import { useEffect } from "react";
-import { api, groupName } from "../data.js";
-import { csvDownload, go, setTitle } from "../utils.js";
+import { api, groupName, scopeLabel } from "../data.js";
+import { contextHash, csvDownload, go, hasResult, setTitle } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
+import ScopeEmpty from "../components/ScopeEmpty.jsx";
 
 const ORDER = ["mvp", "pts", "ast", "reb", "fg3", "blk", "ft", "stl"];
 
+/* Group leaderboards. A group with no final/forfeit game has nothing to rank
+ * (the bundle would otherwise serve eight all-zero tables), so it gets one
+ * explanation and a link to the fixtures instead (UX-03 / UX-19). */
 export default function LeadersView({ ctx }) {
   let leaders = [];
   try {
@@ -12,16 +16,64 @@ export default function LeadersView({ ctx }) {
   } catch (e) {
     leaders = [];
   }
+  let teams = [];
+  let games = [];
+  try {
+    teams = api("teams", ctx) || [];
+    games = api("games", ctx) || [];
+  } catch (e) {
+    teams = [];
+    games = [];
+  }
+  const resolved = games.filter(hasResult);
 
   useEffect(() => {
     setTitle(groupName(ctx.season, ctx.group), "Leaders", "Season " + ctx.season);
   }, [ctx.season, ctx.group]);
 
-  if (!leaders.length) {
+  /* Empty group (no teams) and no-results group are different facts. */
+  if (!teams.length) {
     return (
       <>
-        <div className="view-head"><h2>Leaders</h2></div>
-        <div className="card"><div className="empty">No leaderboard data for this group.</div></div>
+        <div className="view-head">
+          <div className="view-head-copy">
+            <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
+            <h2>Leaders</h2>
+          </div>
+        </div>
+        <div className="card">
+          <ScopeEmpty
+            title="No teams in this group yet"
+            text="Leaderboards appear once the group is drawn and results are recorded."
+            href={"#/standings?season=" + ctx.season + "&group=" + ctx.group}
+            linkLabel="View standings ↗"
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (!resolved.length || !leaders.length) {
+    return (
+      <>
+        <div className="view-head">
+          <div className="view-head-copy">
+            <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
+            <h2>Leaders</h2>
+          </div>
+        </div>
+        <div className="card">
+          <ScopeEmpty
+            title={resolved.length ? "No leaderboards yet" : "No games played yet"}
+            text={
+              resolved.length
+                ? "This group has results but no leaderboard rows in the data bundle yet."
+                : "Leaderboards appear after the first final. Until then this group has no stats to rank."
+            }
+            href={contextHash("games", ctx)}
+            linkLabel="View fixtures ↗"
+          />
+        </div>
       </>
     );
   }
@@ -51,10 +103,13 @@ export default function LeadersView({ ctx }) {
   return (
     <>
       <div className="view-head">
-        <h2>Leaders</h2>
+        <div className="view-head-copy">
+          <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
+          <h2>Leaders</h2>
+        </div>
         <div className="toolbar">
           <div className="sub">
-            {cats.length} categories · season {ctx.season} · {groupName(ctx.season, ctx.group)}
+            {cats.length} categories · {resolved.length} played · {groupName(ctx.season, ctx.group)}
           </div>
           <CsvButton onDownload={downloadCsv} />
         </div>

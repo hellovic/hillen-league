@@ -34,7 +34,7 @@ acceptance test this design needs — **zero horizontal overflow at 390 px and
 on failure:
 
 ```
-31 checks, 31 passed, 0 failed
+54 checks, 54 passed, 0 failed
 ```
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
@@ -55,11 +55,12 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
   detail links), context adoption from detail payloads, sortable tables,
   global search with cross-group jumps, share-link copy, CSV downloads, theme
   persistence in `localStorage["courtside-theme"]`, chart palette switching.
-- `src/styles/tweaks.css` layers small product tweaks on top of the design
-  layer (currently the game page's 最佳表現 table, the sticky-header `.fit`
-  rule and the phone-only pinned header strip, see deviations 6, 7 and 11). It
-  is the only other rule-bearing file
-  besides `desktop-fix.css`, and neither edits `base.css` or `design.css`.
+- Three small product layers sit on top of the design, none of them editing
+  `base.css` or `design.css`: `src/styles/tweaks.css` (最佳表現 table, sticky
+  header `.fit` rule, phone-only pinned header strip — deviations 6, 7, 11),
+  `src/styles/ux-header.css` (compact phone header, deviation 13) and
+  `src/styles/ux-tables.css` + `ux-scope.css` (phone column budgets, scroll
+  hints, fixture status badges, scope headers — deviations 14-18).
 
 ## Deviations from the OD build (and why)
 
@@ -73,10 +74,16 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 | 6 | 最佳表現 table: player names 13 px (was 16 px), stat labels 10 px in body-text colour (was 16 px accent orange) | Requested readability tweak on the game page — the PTS/2PT labels are captions between the two point columns and should not compete with them. Scoped rules live in `src/styles/tweaks.css`. |
 | 7 | Stat-table headers stick to the top of the viewport while the table scrolls, whenever the table fits its card | `base.css` already declares `table.data th{position:sticky;top:0}`, but `design.css` turns every table card into a horizontal scroll container (`.card:has(table){overflow-x:auto}`), which defeats vertical sticky. `SortTable` measures `table.scrollWidth` against `card.clientWidth` and adds `.fit` to the card when the table fits; only then does `tweaks.css` restore `overflow:visible`, so a table that needs sideways scrolling keeps its scroll box and inline header instead of becoming a page-wide scrollbar. |
 | 8 | Player names in the pinned Player column are capped (9em on phones, 13em from 768 px) and ellipsized, with the full name in the link's `title`; Players-table gutters shrink to 8 px from 768 px | A group with long English names (e.g. “Sit Sung Ning Kitty”) widened the sticky column until it took most of a phone screen and pushed every stat out of reach. Clamping the link caps both the column and the table's intrinsic width. |
-| 9 | Phone bottom bar has six items — Overall, Standings, Games, Leaders, Compare, More (Teams, Players) — instead of four plus a three-item More menu | Requested navigation layout: the most-used views get a permanent slot, and Teams/Players move under More. Labels drop to 9 px and the grid to `repeat(6, …)` in `tweaks.css` so six labels still fit a 360 px screen; the desktop rail keeps all seven views. |
+| 9 | Phone bottom bar has six items — Overview, Standings, Games, Leaders, Compare, More (Teams, Players) — instead of four plus a three-item More menu | Requested navigation layout: the most-used views get a permanent slot, and Teams/Players move under More. Labels drop to 9 px and the grid to `repeat(6, …)` in `tweaks.css` so six labels still fit a 360 px screen; the desktop rail keeps all seven views. |
 | 10 | Season picker shows `33 · 第33屆驍籃` (and a full-name `title`) instead of the full league name, and its box is capped at 160 px on desktop / 152 px on phones so the Group picker keeps the rest of the row | Requested: the long season names squeezed the Group picker, whose names are the ones that must stay readable. The label is derived in `seasonShortName()` (`src/data.js`) by dropping the `青少年…` tail; below 380 px the picker type drops to 14 px so `YOUTH GIRLS U13` still fits next to it. |
 | 12 | Audit pass over every view (2026-10-19): scoreboard dash sits on the digits' optical centre; 最佳表現 客隊 header is right-aligned over its cells and the NIL placeholder is muted instead of accent-coloured; Standings latest results are full-width left-aligned and an unplayed fixture reads `Home — Away` instead of `— – —`; the player page pairs Per game with the radar and gives the points chart its own 760 px-capped card; Compare's player summary cards carry GP/PPG/RPG/APG; phone tables use 8 px side padding (the standings table fits its card again) and the Teams table hides Manager/Captain below 768 px so its ± column no longer clips | The desktop/phone screenshot audit found these as the only real alignment breaks; everything else matched the OD build. Table-density rules live at the bottom of `tweaks.css` next to the sticky-header block. |
 | 11 | On phones (and any window narrower than the table) the header row of a table that must scroll sideways is mirrored into a fixed strip pinned to the top of the screen, kept in sync with the card's horizontal scroll | `position: sticky` is resolved against the nearest scroll container; `design.css` makes the table card that container for sideways scrolling, so the header cannot follow the page. The strip is a portal inside `SortTable` (`thead-pin`), shown only while the real header is off-screen; it is `aria-hidden`, its cells are not focusable, and tapping it still sorts. Tables that fit their card keep the plain sticky header (deviation 7). |
+| 13 | Phone header is compact: brand + theme on one 40 px row, then search + a filter chip (`S33 U13`) that opens the two selects in a disclosure; header height 243 → 113 px at 375×667 | The brief measured 243 px before any content on a 375×667 phone. The chip carries the current scope at a glance, the panel closes on outside click / Escape / context change, and every control keeps a 44 px tap target. Desktop markup is unchanged. Rules in `ux-header.css`; component in `components/Topbar.jsx`. |
+| 14 | Overview is **group-scoped**: stats, Latest results, Results pending and Next on court all follow the selected group; the group cards become an explicit “All groups in Season N” browser with a `Current group` tag | The brief's UX-01: the page mixed all seven groups' results with a group picker, and “All games” then opened only one group. One scope now governs the page and every link out of it (`All games`, `Standings ↗`, each group card) carries the same `season`/`group`. |
+| 15 | Fixture states are modelled once: `Final`, `Forfeit`, `Result pending` (past `not_played`), `Scheduled`. Past fixtures without a score sit in a neutral “Results pending” card instead of being listed as results; a missing score renders `—`/`vs`, never `0` | Brief UX-02. `gameStatus()`/`todayHk()` live in `src/utils.js`; badges come from `components/GameStatus.jsx` (`{ game, className }`). “Played” counts final + forfeit so Played + Remaining equals Games. |
+| 16 | Empty states explain themselves: zero-play groups say “No games played yet” on Overview cards and replace the Leaders tables / points-for chart with an explanation plus a fixtures link; a zero-team group says “No teams entered yet” | Brief UX-03/UX-19: a group with no results used to render a `LEADING TEAM … 0W · 0L 0 pts` card and eight all-zero leaderboards. `components/ScopeEmpty.jsx` centralises the copy. |
+| 17 | Search ranks the current season+group first (exact → prefix → substring), then other groups of the season, then older seasons, and labels the dropdown `This group` / `Season N` / `Other seasons` | Brief UX-04: typing `Arouse` listed a season-31 player and two season-31 teams above the current `Arouse U13`. The ladder is documented in `searchMatches()`; the 30-result cap and cross-group adoption are unchanged. |
+| 18 | Phone tables default to a compact column set (Players Player/Team/GP/PPG/RPG/APG; box score #/Player/MIN/PTS/REB/AST; roster and game log likewise) with an “Advanced stats” / “Full box score” disclosure; expanded tables gain a “Swipe sideways for more columns →” hint and right-edge shadow; headers expose `aria-sort`; Compare tables fit 320 px and the radar is hidden on phones | Brief UX-05/UX-21/UX-18. Column budgets are CSS in `ux-tables.css`, the disclosure is `components/MobileColumnsToggle.jsx` (44 px, `aria-expanded`), and desktop keeps every column exactly as before (verified 0 px diff). |
 
 Remove the `desktop-fix.css` import in `src/main.jsx` to get pixel parity with
 the OD build at every width, including its desktop quirks. The `tweaks.css` import is independent of
@@ -168,7 +175,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 31 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 54 checks
 ```
 
 ## Syncing back to the Open Design project

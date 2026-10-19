@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { contextHash, go, seasonHash } from "../utils.js";
 
 /* Six bottom-bar destinations, in the order Vic asked for:
- * Overall · Standings · Games · Leaders · Compare · More (Teams, Players).
- * The desktop rail keeps all seven views; teams and players live under More. */
+ * Overview · Standings · Games · Leaders · Compare · More (Teams, Players).
+ * The desktop rail keeps all seven views; teams and players live under More.
+ * The first destination is called “Overview” on both breakpoints (UX-12). */
 const PRIMARY = [
-  ["season", "Overall"],
+  ["season", "Overview"],
   ["standings", "Standings"],
   ["games", "Games"],
   ["leaders", "Leaders"],

@@ -1,13 +1,54 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../data.js";
-import { contextQuery, csvDownload, fmtDate, go, resultOf, setTitle } from "../utils.js";
+import { contextQuery, csvDownload, fmtDate, resultOf, setTitle, sortRows } from "../utils.js";
 import { GroupedBars } from "../charts.jsx";
 import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
+import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
+import SortTable from "../components/SortTable.jsx";
 import { usePalette } from "../theme.jsx";
+
+const ROSTER_COLS = [
+  { key: "jersey_no", label: "#", num: true },
+  { key: "player_name", label: "Player" },
+  { key: "gp", label: "GP", num: true },
+  { key: "minutes", label: "MIN", num: true },
+  { key: "pts", label: "PTS", num: true },
+  { key: "reb", label: "REB", num: true },
+  { key: "ast", label: "AST", num: true },
+  { key: "stl", label: "ST", num: true },
+  { key: "blk", label: "BS", num: true },
+  { key: "tov", label: "TO", num: true },
+  { key: "pf", label: "PF", num: true },
+  { key: "eff", label: "EFF", num: true },
+  { key: "plus_minus", label: "+/-", num: true },
+];
+
+const RESULTS_COLS = [
+  { key: "game_date", label: "Date", sortable: false },
+  { key: "opponent", label: "Opponent", sortable: false },
+  { key: "result", label: "Result", sortable: false },
+  { key: "team_score", label: "Team", num: true, sortable: false },
+  { key: "opp_score", label: "Opp", num: true, sortable: false },
+  { key: "venue", label: "Venue", sortable: false },
+];
+
+const LEADER_COLS = [
+  { key: "player_name", label: "Player", sortable: false },
+  { key: "gp", label: "GP", num: true, sortable: false },
+  { key: "pts", label: "PTS", num: true, sortable: false },
+  { key: "reb", label: "REB", num: true, sortable: false },
+  { key: "ast", label: "AST", num: true, sortable: false },
+  { key: "stl", label: "ST", num: true, sortable: false },
+  { key: "eff", label: "EFF", num: true, sortable: false },
+];
 
 export default function TeamDetail({ ctx, id, onAdoptContext }) {
   const palette = usePalette();
+  const [allCols, setAllCols] = useState(false);
+  const [allResultCols, setAllResultCols] = useState(false);
+  const [allLeaderCols, setAllLeaderCols] = useState(false);
+  const [rosterSort, setRosterSort] = useState(null);
   let t = null;
   let err = null;
   try {
@@ -31,6 +72,33 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
   if (t.error) return <div className="empty">{t.error}</div>;
 
   const leaders = t.leaders.slice(0, 5);
+  /* The roster payload only carries jersey + name; join the group player rows so
+   * the phone roster can show per-player stats. Players who appear in the roster
+   * but not in this group's stats (e.g. moved age group) keep em-dashes. */
+  const statsById = new Map(api("players", ctx).map((p) => [p.player_id, p]));
+  const rosterRows = t.roster.map((p) => {
+    const s = statsById.get(p.player_id) || {};
+    return {
+      jersey_no: p.jersey_no,
+      player_id: p.player_id,
+      player_name: p.player_name,
+      gp: s.gp,
+      minutes: s.minutes,
+      pts: s.pts,
+      reb: s.reb,
+      ast: s.ast,
+      stl: s.stl,
+      blk: s.blk,
+      tov: s.tov,
+      pf: s.pf,
+      eff: s.eff,
+      plus_minus: s.plus_minus,
+    };
+  });
+  const rosterSorted = rosterSort
+    ? sortRows(rosterRows, rosterSort.key, rosterSort.dir)
+    : rosterRows;
+
   const trendGames = t.games
     .filter((x) => x.status === "completed")
     .sort((a, b) => a.game_date.localeCompare(b.game_date));
@@ -80,7 +148,7 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
       <a className="back" href="#/teams">← Teams</a>
       <div className="view-head">
         <h2>{t.team_name}</h2>
-        <div className="toolbar">
+        <div className="toolbar detail-actions">
           <div className="sub">{t.group_name || ""} · season {ctx.season}</div>
           <a className="csv-btn" href={`#/compare/t/${id}${contextQuery(ctx)}`}>⇄ Compare</a>
           <ShareButton kind="teams" id={id} />
@@ -140,80 +208,119 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
         <div className="card">
           <h3>Roster <span className="cn">隊員名單</span></h3>
           <CsvButton id="roster-csv" onDownload={rosterCsv} />
-          <table className="data">
-            <thead>
-              <tr><th className="num">#</th><th>Player</th></tr>
-            </thead>
-            <tbody>
-              {t.roster.map((p) => (
-                <tr key={p.player_id} tabIndex={0} data-href={`#/players/${p.player_id}`} onClick={(e) => {
-                  if (e.target.closest("a")) return;
-                  go(`#/players/${p.player_id}`);
-                }}>
-                  <td className="num mono">{p.jersey_no ?? "—"}</td>
-                  <td><a className="row-link" href={`#/players/${p.player_id}`}>{p.player_name}</a></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <MobileColumnsToggle
+            controls="t-roster"
+            expanded={allCols}
+            onToggle={() => setAllCols((v) => !v)}
+            label="Advanced stats"
+          />
+          <SortTable
+            columns={ROSTER_COLS}
+            rows={rosterSorted}
+            tableId="t-roster"
+            pin={1}
+            compact="roster"
+            compactExpanded={allCols}
+            sort={rosterSort}
+            onSort={(next) => setRosterSort(next)}
+            rowKey={(p) => p.player_id}
+            rowHref={(p) => `#/players/${p.player_id}`}
+            renderRow={(p) => {
+              const pm = p.plus_minus === undefined || p.plus_minus === null ? null : p.plus_minus;
+              return [
+                <td className="num mono" key="jersey">{p.jersey_no ?? "—"}</td>,
+                <td key="player">
+                  <a className="row-link nm" title={p.player_name} href={`#/players/${p.player_id}`}>{p.player_name}</a>
+                </td>,
+                <td className="num" key="gp">{p.gp ?? "—"}</td>,
+                <td className="num mono" key="min">{p.minutes === undefined || p.minutes === null ? "—" : p.minutes.toFixed(1)}</td>,
+                <td className="num" key="pts">{p.pts ?? "—"}</td>,
+                <td className="num" key="reb">{p.reb ?? "—"}</td>,
+                <td className="num" key="ast">{p.ast ?? "—"}</td>,
+                <td className="num" key="stl">{p.stl ?? "—"}</td>,
+                <td className="num" key="blk">{p.blk ?? "—"}</td>,
+                <td className="num" key="tov">{p.tov ?? "—"}</td>,
+                <td className="num" key="pf">{p.pf ?? "—"}</td>,
+                <td className="num" key="eff">{p.eff ?? "—"}</td>,
+                <td className={`num ${pm === null ? "" : pm >= 0 ? "winner" : "loser"}`} key="pm">
+                  {pm === null ? "—" : (pm > 0 ? "+" : "") + pm}
+                </td>,
+              ];
+            }}
+            emptyText="No roster"
+          />
         </div>
         <div className="card">
           <h3>Season leaders</h3>
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Player</th><th className="num">GP</th><th className="num">PTS</th><th className="num">REB</th>
-                <th className="num">AST</th><th className="num">ST</th><th className="num">EFF</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaders.map((p) => (
-                <tr key={p.player_id} tabIndex={0} data-href={`#/players/${p.player_id}`} onClick={(e) => {
-                  if (e.target.closest("a")) return;
-                  go(`#/players/${p.player_id}`);
-                }}>
-                  <td><a className="row-link" href={`#/players/${p.player_id}`}>{p.player_name}</a></td>
-                  <td className="num">{p.gp}</td><td className="num">{p.pts}</td><td className="num">{p.reb}</td>
-                  <td className="num">{p.ast}</td><td className="num">{p.stl}</td><td className="num">{p.eff}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <MobileColumnsToggle
+            controls="t-leaders"
+            expanded={allLeaderCols}
+            onToggle={() => setAllLeaderCols((v) => !v)}
+            label="More stats"
+          />
+          <SortTable
+            columns={LEADER_COLS}
+            rows={leaders}
+            tableId="t-leaders"
+            pin={1}
+            sortable={false}
+            compact="leaders"
+            compactExpanded={allLeaderCols}
+            rowKey={(p) => p.player_id}
+            rowHref={(p) => `#/players/${p.player_id}`}
+            renderRow={(p) => [
+              <td key="player">
+                <a className="row-link nm" title={p.player_name} href={`#/players/${p.player_id}`}>{p.player_name}</a>
+              </td>,
+              <td className="num" key="gp">{p.gp}</td>,
+              <td className="num" key="pts">{p.pts}</td>,
+              <td className="num" key="reb">{p.reb}</td>,
+              <td className="num" key="ast">{p.ast}</td>,
+              <td className="num" key="stl">{p.stl}</td>,
+              <td className="num" key="eff">{p.eff}</td>,
+            ]}
+            emptyText="No leaders"
+          />
         </div>
       </div>
 
       <div className="card">
         <h3>Results <span className="cn">賽程</span></h3>
         <CsvButton id="results-csv" onDownload={resultsCsv} />
-        <table className="data pin1">
-          <thead>
-            <tr>
-              <th>Date</th><th>Opponent</th><th>Result</th>
-              <th className="num">Team</th><th className="num">Opp</th><th>Venue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {t.games.length ? t.games.map((g) => {
-              const isHome = g.home_team_id === id;
-              const opp = isHome ? g.away_name : g.home_name;
-              const oppId = isHome ? g.away_team_id : g.home_team_id;
-              const r = resultOf(g, id);
-              return (
-                <tr key={g.event_id} tabIndex={0} data-href={`#/games/${g.event_id}`} onClick={(e) => {
-                  if (e.target.closest("a")) return;
-                  go(`#/games/${g.event_id}`);
-                }}>
-                  <td className="game-date-cell"><CompactDate date={g.game_date} /></td>
-                  <td>{isHome ? "vs" : "@"} <a className="row-link" href={`#/teams/${oppId}`}>{opp}</a></td>
-                  <td className={r.cls}>{r.text}</td>
-                  <td className="num mono">{isHome ? g.home_score : g.away_score}</td>
-                  <td className="num mono">{isHome ? g.away_score : g.home_score}</td>
-                  <td>{g.venue || "—"}</td>
-                </tr>
-              );
-            }) : <tr><td colSpan="6" className="empty">No games</td></tr>}
-          </tbody>
-        </table>
+        <MobileColumnsToggle
+          controls="t-team-results"
+          expanded={allResultCols}
+          onToggle={() => setAllResultCols((v) => !v)}
+          label="Scores & venue"
+        />
+        <SortTable
+          columns={RESULTS_COLS}
+          rows={t.games}
+          tableId="t-team-results"
+          pin={1}
+          sortable={false}
+          compact="results"
+          compactExpanded={allResultCols}
+          rowKey={(g) => g.event_id}
+          rowHref={(g) => `#/games/${g.event_id}`}
+          renderRow={(g) => {
+            const isHome = g.home_team_id === id;
+            const opp = isHome ? g.away_name : g.home_name;
+            const oppId = isHome ? g.away_team_id : g.home_team_id;
+            const r = resultOf(g, id);
+            return [
+              <td className="game-date-cell" key="date"><CompactDate date={g.game_date} /></td>,
+              <td key="opp">
+                {isHome ? "vs" : "@"} <a className="row-link" title={opp} href={`#/teams/${oppId}`}>{opp}</a>
+              </td>,
+              <td className={r.cls} key="result">{r.text}</td>,
+              <td className="num mono" key="pf">{isHome ? g.home_score : g.away_score}</td>,
+              <td className="num mono" key="pa">{isHome ? g.away_score : g.home_score}</td>,
+              <td key="venue">{g.venue || "—"}</td>,
+            ];
+          }}
+          emptyText="No games"
+        />
       </div>
     </>
   );

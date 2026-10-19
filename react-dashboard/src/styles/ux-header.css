@@ -1,0 +1,188 @@
+/* Compact phone header (UX-14).
+ *
+ * The design layer spends 243 px of a 375×667 screen before any content:
+ * brand row, then a full-width search, then two fully-labelled select rows.
+ * On phones we keep the same controls but fold them into two 44 px rows:
+ *   row 1  brand + theme toggle
+ *   row 2  search field + filter chip ("S33 · U13")
+ * The chip opens a small disclosure with the two selects, so the common case
+ * (read the page) costs ~112 px and the rare case (change group) costs one tap.
+ * Desktop markup and styling are untouched. */
+
+@media (max-width: 767px) {
+  body.orange .topbar.compact {
+    position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Row 1 ------------------------------------------------------------- */
+  body.orange .topbar.compact .brand {
+    gap: 10px;
+    min-width: 0;
+  }
+  body.orange .topbar.compact .logo {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  body.orange .topbar.compact .brand h1 {
+    font-size: 18px;
+    line-height: 1.2;
+    letter-spacing: -0.2px;
+  }
+  body.orange .topbar.compact .meta-line,
+  body.orange .topbar.compact .search-label {
+    display: none; /* the placeholder carries the search hint; saves a row */
+  }
+  body.orange .topbar.compact .theme-toggle {
+    margin: 0;
+    order: 0;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  /* Row 2 ------------------------------------------------------------- */
+  body.orange .topbar.compact .controls {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+  body.orange .topbar.compact .gsearch {
+    grid-column: auto;
+    min-width: 0;
+    position: relative;
+  }
+  body.orange .topbar.compact .gsearch input[type="search"] {
+    width: 100%;
+    max-width: 100%;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 12px;
+    font-size: 16px; /* ≥16 px avoids iOS Safari's zoom-on-focus */
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  body.orange .topbar.compact .global-results {
+    left: 0;
+    right: auto;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(340px, calc(100vh - 200px));
+  }
+
+  /* Filter chip + disclosure ----------------------------------------- */
+  body.orange .topbar.compact .filter-wrap {
+    position: relative;
+    flex: none;
+  }
+  body.orange .topbar.compact .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    max-width: 168px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  body.orange .topbar.compact .filter-chip[aria-expanded="true"] {
+    border-color: var(--accent);
+  }
+  body.orange .topbar.compact .filter-chip .chip-season {
+    color: var(--muted);
+  }
+  body.orange .topbar.compact .filter-chip .chip-group {
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.orange .topbar.compact .filter-chip .chip-caret {
+    color: var(--muted);
+    font-size: 10px;
+  }
+  body.orange .topbar.compact .filter-panel {
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 8px);
+    right: 0;
+    width: min(330px, calc(100vw - 24px));
+    padding: 12px;
+    display: grid;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.85);
+  }
+  body.orange .topbar.compact .filter-panel[hidden] {
+    display: none;
+  }
+  body.orange .topbar.compact .filter-panel label {
+    display: grid;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  body.orange .topbar.compact .filter-panel select {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+    background: var(--bg2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0 10px;
+  }
+  body.orange .topbar.compact .filter-panel .filter-done {
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--bg);
+    background: var(--accent);
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  [data-theme="light"] body.orange .topbar.compact .filter-panel {
+    box-shadow: 0 18px 44px -22px rgba(20, 30, 60, 0.45);
+  }
+}
+
+/* Detail headers (game / team / player) carry a sub line plus one or two
+ * actions. On a phone let the sub line own its row and keep the actions in a
+ * single row, instead of wrapping the second button onto an orphan line. */
+@media (max-width: 767px) {
+  body.orange .view-head .toolbar.detail-actions {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    align-items: center;
+    gap: 8px;
+  }
+  body.orange .view-head .toolbar.detail-actions > .sub {
+    grid-column: 1 / -1;
+  }
+}

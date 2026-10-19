@@ -238,7 +238,7 @@ const bottomBar = await evaluate(
   `[...document.querySelectorAll("#mobile-nav > button, #mobile-nav > details")].map((el) => el.querySelector("span").innerText.trim())`
 );
 check("six bottom-bar destinations, in Vic's order",
-  JSON.stringify(bottomBar) === JSON.stringify(["Overall", "Standings", "Games", "Leaders", "Compare", "More"]),
+  JSON.stringify(bottomBar) === JSON.stringify(["Overview", "Standings", "Games", "Leaders", "Compare", "More"]),
   bottomBar.join(" · "));
 await evaluate(`[...document.querySelectorAll("#mobile-nav [data-go]")].find((b) => b.dataset.go === "standings").click()`);
 await waitFor(`location.hash.startsWith("#/standings")`, "mobile nav navigation");
@@ -334,6 +334,11 @@ const pinStrip = (tableSel) => `(() => {
 await setViewport(390, 844, true);
 await open("/players?season=33&group=11");
 await waitFor(`document.querySelector("#group-select")?.value === "11"`, "group 11 picked on mobile");
+// The phone table defaults to five columns, which fit — the pinned header only
+// exists once "Advanced stats" makes the table wider than its card.
+await evaluate(`document.querySelector(".table-cols-toggle").click()`);
+await waitFor(`document.querySelector(".table-cols-toggle").getAttribute("aria-expanded") === "true"`, "advanced stats open");
+await sleep(250);
 await evaluate("window.scrollTo(0, 700)");
 await sleep(300);
 const phonePin = await evaluate(pinStrip("#t-players"));
@@ -341,13 +346,18 @@ check("players header pins to the top on a phone", phonePin.on && phonePin.top =
 
 await open("/games/20863");
 await waitFor(`!!document.querySelector("#t-box-1595")`, "game box score rendered");
+await evaluate(`document.querySelector('[aria-controls="t-box-1595"]').click()`);
+await waitFor(`document.querySelector('[aria-controls="t-box-1595"]').getAttribute("aria-expanded") === "true"`, "full box score open");
+await sleep(250);
 await evaluate("window.scrollTo(0, 1500)");
 await sleep(300);
 const gamePin = await evaluate(pinStrip("#t-box-1595"));
 check("game box-score header pins to the top on a phone", gamePin.on && gamePin.top === 0 && gamePin.aligned && gamePin.overflow <= 1, `top ${gamePin.top}, aligned ${gamePin.aligned}, ${gamePin.overflow}px overflow`);
 
-// Season picker: the label is shortened ("33 · 第33屆驍籃") and the box is
-// narrower than the Group box, which keeps the long group names readable.
+// Season picker: on a desktop the label is shortened ("33 · 第33屆驍籃") and the
+// box is narrower than the Group box, which keeps the long group names readable.
+await setViewport(1440, 1000, false);
+await open("/standings");
 const pickers = await evaluate(`(() => {
   const s = document.querySelector("#season-select");
   const g = document.querySelector("#group-select");
@@ -359,7 +369,173 @@ const pickers = await evaluate(`(() => {
   };
 })()`);
 check("season picker shows the short label", pickers.text === "33 · 第33屆驍籃" && !pickers.text.includes("青少年"), `${pickers.text} (title: ${pickers.full})`);
-check("group picker keeps the wider box on a phone", pickers.groupW > pickers.seasonW + 20, `season ${pickers.seasonW}px / group ${pickers.groupW}px`);
+check("group picker keeps the wider box on desktop", pickers.groupW > pickers.seasonW + 20, `season ${pickers.seasonW}px / group ${pickers.groupW}px`);
+
+// Compact phone header (UX-14): brand+theme row and search+filter row, so the
+// header costs ~113 px instead of the design's 243 px.
+await setViewport(390, 844, true);
+await open("/season/33");
+const phoneHeader = await evaluate(`(() => {
+  const h = document.querySelector(".topbar");
+  const chip = document.querySelector("#filter-toggle");
+  return { height: Math.round(h.getBoundingClientRect().height), chip: chip ? chip.innerText.replace(/\\s+/g, " ").trim() : null, compact: h.classList.contains("compact") };
+})()`);
+check("phone header is compact and under 130 px", phoneHeader.compact && phoneHeader.height <= 130, `${phoneHeader.height}px header`);
+check("phone filter chip names season and group", /S33/.test(phoneHeader.chip || "") && /U13/.test(phoneHeader.chip || ""), phoneHeader.chip || "missing");
+await evaluate(`document.querySelector("#filter-toggle").click()`);
+await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel");
+check("phone filter panel opens on tap", true, await evaluate(`document.querySelector("#filter-panel").getBoundingClientRect().height + "px panel"`));
+
+// Changing group from the phone panel updates the chip, then closes itself.
+await evaluate(`(() => {
+  const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+  const sel = document.querySelector("#group-select");
+  set.call(sel, "11");
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+})()`);
+await waitFor(`/U11/.test(document.querySelector("#filter-toggle").innerText)`, "filter chip follows the group");
+check("phone filter panel applies a group and closes",
+  (await evaluate(`document.querySelector("#filter-panel").hidden`)) === true,
+  await evaluate(`document.querySelector("#filter-toggle").innerText.replace(/\\s+/g, " ").trim()`));
+
+// Escape closes the disclosure (reopen first).
+await evaluate(`document.querySelector("#filter-toggle").click()`);
+await waitFor(`!document.querySelector("#filter-panel").hidden`, "filter panel reopened");
+await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+await sleep(150);
+check("Escape closes the phone filter panel", (await evaluate(`document.querySelector("#filter-panel").hidden`)) === true);
+
+// ------------------------------------------------ UX audit pass (2026-10-19)
+// UX-01: the season landing page is scoped to the selected group.
+await setViewport(390, 844, true);
+await open("/season/33?season=33&group=16");
+const scope = await evaluate(`(() => ({
+  eyebrow: document.querySelector(".scope-eyebrow")?.innerText.trim(),
+  latest: (document.querySelector(".results")?.innerText || "").replace(/\\s+/g, " "),
+  current: document.querySelectorAll(".season-card[aria-current='true']").length,
+  currentHref: document.querySelector(".season-card[aria-current='true']")?.getAttribute("href") || "",
+  allGames: document.querySelectorAll(".results .section-head a").length ? document.querySelector(".results .section-head a").getAttribute("href") : "",
+  stats: (document.querySelector(".season-stats")?.innerText || "").replace(/\\s+/g, " "),
+}))()`);
+check("season overview names the selected group", scope.eyebrow === "YOUTH GIRLS U13 · SEASON 33", scope.eyebrow);
+check("season overview lists only the selected group's results", scope.latest.includes("Arouse U13") && !scope.latest.includes("培正G u9"), scope.latest.slice(0, 80));
+check("season overview flags exactly one current group in the group list", scope.current === 1 && scope.currentHref.includes("season=33&group=16"), scope.currentHref);
+check("“All games” keeps the overview's group scope", scope.allGames.includes("season=33&group=16"), scope.allGames);
+
+// UX-03: groups with no played games must not show a fabricated leader.
+const cards = await evaluate(`(() => {
+  const all = [...document.querySelectorAll(".season-card")];
+  const withFakeLeader = all.filter((c) => c.innerText.includes("LEADING TEAM") && /0W · 0L/.test(c.innerText));
+  return {
+    cards: all.length,
+    fakeLeaders: withFakeLeader.length,
+    noGames: all.filter((c) => c.innerText.includes("No games played yet")).length,
+    noTeams: all.filter((c) => c.innerText.includes("No teams entered yet")).length,
+  };
+})()`);
+check("group cards hide leaders for groups that have not played", cards.fakeLeaders === 0 && cards.noGames >= 2 && cards.noTeams >= 1, `${cards.fakeLeaders} fake leaders, ${cards.noGames} no-games, ${cards.noTeams} no-teams`);
+
+// UX-02: fixtures without a score are labelled, never rendered as 0 – 0.
+await open("/games?season=33&group=16");
+const statuses = await evaluate(`(() => ({
+  final: document.querySelectorAll('[data-status="final"]').length,
+  pending: document.querySelectorAll('[data-status="pending"]').length,
+  pendingText: document.querySelector('[data-status="pending"]')?.innerText.trim(),
+  rows: [...document.querySelectorAll("#t-games tbody tr")].map((r) => r.innerText.replace(/\\s+/g, " ")),
+}))()`);
+check("past fixtures without a score are marked Result pending", statuses.pending === 1 && /result pending/i.test(statuses.pendingText || ""), statuses.pendingText);
+check("a pending fixture never shows a 0 score", statuses.final === 1 && !statuses.rows.some((r) => /Arouse U13\\s+0/.test(r)), statuses.rows.join(" | ").slice(0, 90));
+
+// UX-03: empty groups explain themselves instead of showing all-zero tables.
+await open("/standings?season=33&group=28");
+const zeroTable = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), bars: document.querySelectorAll(".bar-row").length })`);
+check("standings explain an empty group instead of a zero chart", zeroTable.text.includes("No games played yet") && zeroTable.bars === 0, `${zeroTable.bars} bar rows`);
+await open("/leaders?season=33&group=26");
+const zeroLeaders = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), tables: document.querySelectorAll("#view table.data").length })`);
+check("leaders explain an empty group instead of zero tables", zeroLeaders.text.includes("No games played yet") && zeroLeaders.text.includes("View fixtures") && zeroLeaders.tables === 0, zeroLeaders.tables + " tables");
+
+// UX-04: search ranks the current group first and labels the scope.
+await open("/season/33?season=33&group=16");
+await evaluate(`(() => {
+  const input = document.querySelector("#global-search");
+  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+  set.call(input, "Arouse");
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.focus();
+})()`);
+await sleep(400);
+const search = await evaluate(`(() => ({
+  first: document.querySelector("#global-results a")?.getAttribute("href") || "",
+  text: (document.querySelector("#global-results")?.innerText || "").replace(/\\s+/g, " "),
+  count: document.querySelectorAll("#global-results a").length,
+}))()`);
+check("search ranks the current group first", search.first.includes("teams/1595"), search.first);
+check("search labels result scope and caps the list", /THIS GROUP/i.test(search.text) && /OTHER SEASONS/i.test(search.text) && search.count <= 30, `${search.count} hits`);
+await evaluate(`document.querySelector("#global-search").blur()`);
+
+// UX-21 / UX-05: phone tables default to a compact readable column set and can
+// be expanded on demand; the disclosure is a full-height tap target.
+await open("/players?season=33&group=11");
+const phoneCols = await evaluate(`(() => {
+  const ths = [...document.querySelectorAll("#t-players thead th")];
+  const toggle = document.querySelector(".table-cols-toggle");
+  return {
+    visible: ths.filter((th) => th.getClientRects().length > 0).length,
+    total: ths.length,
+    toggleH: toggle ? Math.round(toggle.getBoundingClientRect().height) : 0,
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  };
+})()`);
+check("phone players table hides optional columns by default", phoneCols.visible >= 4 && phoneCols.visible <= 8 && phoneCols.overflow <= 1, phoneCols.visible + " of " + phoneCols.total + " columns visible");
+check("phone column toggle is a 44 px disclosure", phoneCols.toggleH >= 44, phoneCols.toggleH + "px");
+await evaluate(`document.querySelector(".table-cols-toggle").click()`);
+await waitFor(`document.querySelector("#t-players").closest(".card").classList.contains("scrollable")`, "expanded table becomes scrollable");
+check("expanded phone table says that it scrolls", (await evaluate(`(() => { const hint = document.querySelector(".table-scroll-hint"); return !!hint && getComputedStyle(hint).display !== "none" && hint.innerText.includes("Swipe"); })()`)) === true);
+
+// aria-sort must describe the active sort both ways.
+await setViewport(1440, 1000, false);
+await open("/players");
+await evaluate(`document.querySelector("#t-players thead th[data-key]").click()`);
+await sleep(200);
+const ariaSort = await evaluate(`(() => {
+  const ths = [...document.querySelectorAll("#t-players thead th")];
+  return {
+    active: ths.filter((th) => th.getAttribute("aria-sort") === "ascending" || th.getAttribute("aria-sort") === "descending").length,
+    none: ths.filter((th) => th.getAttribute("aria-sort") === "none").length,
+  };
+})()`);
+check("sortable headers expose aria-sort", ariaSort.active === 1 && ariaSort.none >= 5, `${ariaSort.active} active / ${ariaSort.none} none`);
+
+// UX-18: comparison content must fit a 320 px phone without panning.
+await setViewport(320, 568, true);
+await open("/compare/p/17864/15202?season=33&group=16"); // the pair lives in group 16
+await waitFor(`!!document.querySelector(".cmp-table")`, "comparison table");
+await sleep(150);
+const compareNarrow = await evaluate(`(() => {
+  const table = document.querySelector(".cmp-table");
+  const card = table?.closest(".card");
+  const content = card ? card.clientWidth - parseFloat(getComputedStyle(card).paddingLeft) - parseFloat(getComputedStyle(card).paddingRight) : 0;
+  return {
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    tableW: table ? Math.round(table.getBoundingClientRect().width) : 0,
+    content: Math.round(content),
+  };
+})()`);
+check("comparison fits a 320 px phone", compareNarrow.overflow <= 1 && compareNarrow.tableW <= compareNarrow.content + 1, `${compareNarrow.tableW}px table in ${compareNarrow.content}px card`);
+
+// A season link in the path must move the header pickers with it.
+await setViewport(390, 844, true);
+await open("/season/31");
+check("direct season link updates the header pickers", (await evaluate(`document.querySelector("#filter-toggle").innerText`)).includes("S31"), await evaluate(`document.querySelector("#filter-toggle").innerText.replace(/\\s+/g, " ").trim()`));
+
+// UX-21 acceptance: nothing may scroll sideways at the narrowest supported width.
+const narrowOverflows = [];
+for (const route of ROUTES) {
+  await open(route);
+  const width = await evaluate(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
+  if (width > 1) narrowOverflows.push(`${route} +${width}px`);
+}
+check("no horizontal overflow at 320 px", narrowOverflows.length === 0, narrowOverflows.join(", ") || "all " + ROUTES.length + " routes clean");
 
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 

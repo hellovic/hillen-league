@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../data.js";
 import { csvDownload, setTitle } from "../utils.js";
 import { ShareButton } from "../components/Buttons.jsx";
+import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
 
 const BOX_COLS = [
@@ -48,6 +49,8 @@ function sortVal(key, b) {
 
 export default function GameDetail({ ctx, id, onAdoptContext }) {
   const [teamSort, setTeamSort] = useState({});
+  /* Per-card "full box score" state: each team card expands independently. */
+  const [fullBox, setFullBox] = useState({});
   let g = null;
   let err = null;
   try {
@@ -175,12 +178,20 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
             CSV
           </button>
         </h3>
+        <MobileColumnsToggle
+          controls={`t-box-${tid}`}
+          expanded={!!fullBox[tid]}
+          onToggle={() => setFullBox((prev) => ({ ...prev, [tid]: !prev[tid] }))}
+          label="Full box score"
+        />
         <div id={`box-tbl-${tid}`}>
           <SortTable
             columns={boxColumns}
             rows={boxRows(tid)}
             tableId={`t-box-${tid}`}
             pin={2}
+            compact="box"
+            compactExpanded={!!fullBox[tid]}
             sort={teamSort[tid] || null}
             onSort={(next) => setTeamSort((prev) => ({ ...prev, [tid]: next }))}
             rowKey={(b) => b.player_id}
@@ -265,7 +276,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
       <a className="back" href="#/games">← Games</a>
       <div className="view-head">
         <h2 className="game-detail-heading">{g.group_name} · {g.game_date}</h2>
-        <div className="toolbar">
+        <div className="toolbar detail-actions">
           <div className="sub">{g.venue || ""} · {g.start_time || ""}–{g.end_time || ""}</div>
           <ShareButton kind="games" id={id} />
         </div>

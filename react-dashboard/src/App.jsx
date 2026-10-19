@@ -37,11 +37,25 @@ function validGroup(season, group) {
   return seasonGroups(season).some((g) => g.group_id === group);
 }
 
+function validSeason(season) {
+  return !!season && !!meta.seasons?.some((s) => s.season_id === season);
+}
+
+/* `#/season/31` names a season in the path, not in the query, and the header
+ * pickers must follow it: otherwise a shared season link renders season 31 while
+ * the chip/selects still say 33. */
+function routeSeasonId(parts) {
+  if (parts[0] !== "season") return null;
+  const id = +parts[1];
+  return validSeason(id) ? id : null;
+}
+
 function initialCtx() {
-  const { params } = parseHash();
+  const { parts, params } = parseHash();
   const qSeason = +params.get("season");
   const qGroup = +params.get("group");
-  const season = meta.seasons?.some((s) => s.season_id === qSeason) ? qSeason : DEFAULT_SEASON;
+  const pathSeason = routeSeasonId(parts);
+  const season = validSeason(qSeason) ? qSeason : pathSeason || DEFAULT_SEASON;
   const group = validGroup(season, qGroup)
     ? qGroup
     : validGroup(season, DEFAULT_GROUP)
@@ -86,10 +100,16 @@ export default function App() {
       const next = parseHash();
       const qSeason = +next.params.get("season");
       const qGroup = +next.params.get("group");
-      if (meta.seasons?.some((s) => s.season_id === qSeason)) {
+      const pathSeason = routeSeasonId(next.parts);
+      if (validSeason(qSeason)) {
         setCtx((prev) => ({
           season: qSeason,
           group: validGroup(qSeason, qGroup) ? qGroup : validGroup(qSeason, prev.group) ? prev.group : seasonGroups(qSeason)[0]?.group_id,
+        }));
+      } else if (pathSeason) {
+        setCtx((prev) => ({
+          season: pathSeason,
+          group: validGroup(pathSeason, prev.group) ? prev.group : seasonGroups(pathSeason)[0]?.group_id,
         }));
       }
       setRoute(next);

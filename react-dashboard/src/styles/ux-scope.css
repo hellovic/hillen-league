@@ -1,0 +1,326 @@
+/* UX-01 / UX-02 / UX-03 / UX-04 / UX-19 — scope, game status, empty states.
+ * Owned by the data-correctness workstream. Loaded last in src/main.jsx, so
+ * these rules win over design.css without editing the design layer.
+ *
+ * Class prefixes: scope-* (page/header/empty/result list), game-status* (the
+ * shared badge), view-head-copy (view heads that need a scope eyebrow) and
+ * gs-section (search-dropdown scope headings). */
+
+/* ---------------------------------------------------------------- UX-01 */
+/* Scope header: "YOUTH GIRLS U13 · SEASON 33" + group-scoped page title. The
+ * phone header hides .meta-line, so this is the only place the scope is named. */
+body.orange .scope-head {
+  margin: 0 0 20px;
+}
+body.orange .scope-eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+body.orange .scope-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+body.orange .scope-title {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+body.orange .scope-jump {
+  flex: none;
+}
+body.orange .scope-sub {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Views that add a scope eyebrow above their h2 (standings / games / leaders). */
+body.orange .view-head-copy {
+  min-width: 0;
+}
+body.orange .view-head-copy .eyebrow {
+  margin: 0 0 4px;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: var(--accent);
+}
+
+/* Current group marker in the all-groups directory (UX-01). */
+body.orange .season-card.is-current {
+  border-color: var(--accent);
+}
+body.orange .scope-tag {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  line-height: 1.6;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- UX-02 */
+/* Shared fixture badge. Normal-case text in the DOM; uppercased visually. */
+body.orange .game-status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+body.orange .game-status--final {
+  color: var(--text);
+}
+body.orange .game-status--forfeit {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+body.orange .game-status--pending {
+  border-style: dashed;
+}
+body.orange .game-status--upcoming {
+  padding-left: 0;
+  padding-right: 0;
+  border-color: transparent;
+  letter-spacing: 0.8px;
+}
+/* Row captions (season overview) push the badge to the right edge. */
+body.orange .gr-status {
+  margin-left: auto;
+  justify-self: end;
+}
+
+/* New result rows on the standings page: date + badge on line 1, the matchup
+ * on line 2 so a badge never squeezes team names on a 320 px screen. */
+body.orange .scope-result {
+  display: grid;
+  gap: 2px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+}
+body.orange .scope-result:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+body.orange .scope-result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+body.orange .scope-result-when {
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+body.orange .scope-result-match {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 4px;
+}
+body.orange .scope-result-team {
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+body.orange .scope-result-team.home {
+  text-align: left;
+}
+body.orange .scope-result-team.away {
+  text-align: right;
+}
+body.orange .scope-result-score {
+  font: 600 18px/1.3 var(--display);
+  white-space: nowrap;
+}
+@media (hover: hover) {
+  body.orange .scope-result:hover .scope-result-team {
+    color: var(--accent);
+  }
+}
+
+/* Pending card sits under "Latest results"; last row shares the card padding. */
+body.orange .scope-pending .game-row:last-child,
+body.orange .scope-pending .scope-result:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- UX-19 */
+body.orange .scope-empty {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 4px 0 2px;
+}
+body.orange .scope-empty-title {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text);
+}
+body.orange .scope-empty-text {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+body.orange .scope-inline-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* Explanatory line under a section heading ("These fixtures are in the past…"). */
+body.orange .scope-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+body.orange .scope-note b {
+  color: var(--text);
+}
+body.orange .scope-pending .scope-note {
+  margin-top: -8px;
+}
+
+/* ---------------------------------------------------------------- UX-04 */
+/* Scope headings inside the search dropdown. Plain block elements, never
+ * anchors, so the "#global-results a" result contract stays intact. */
+body.orange .gs-section {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px 5px;
+  border-top: 1px solid var(--line);
+  background: var(--card2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+body.orange .gs-section-group:first-child .gs-section {
+  border-top: 0;
+}
+
+/* ------------------------------------------------------------- phones */
+@media (max-width: 767px) {
+  body.orange .scope-head {
+    margin: 0 0 16px;
+  }
+  body.orange .scope-eyebrow {
+    font-size: var(--mobile-caption);
+    letter-spacing: 1.2px;
+  }
+  body.orange .scope-title {
+    font-size: 24px;
+    line-height: 1.3;
+  }
+  body.orange .scope-sub {
+    font-size: var(--mobile-detail);
+  }
+  body.orange .view-head-copy .eyebrow {
+    font-size: var(--mobile-caption);
+  }
+  body.orange .scope-empty-title {
+    font-size: var(--mobile-body);
+  }
+  body.orange .scope-empty-text,
+  body.orange .scope-inline-link {
+    font-size: var(--mobile-detail);
+  }
+  body.orange .scope-result-team {
+    font-size: var(--mobile-body);
+  }
+  body.orange .scope-result-score {
+    font-size: 20px;
+  }
+  body.orange .scope-result-when {
+    font-size: var(--mobile-caption);
+  }
+  body.orange .scope-note {
+    font-size: var(--mobile-detail);
+  }
+  body.orange .scope-tag {
+    margin-bottom: 4px;
+  }
+}
+
+/* Dropdown rows: chip + name on one line, the scope/context line under it, so
+ * long fixture names stay readable at 320 px instead of wrapping mid-row. */
+body.orange .gs-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 1px;
+  align-items: center;
+}
+body.orange .gs-item .gs-k {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+body.orange .gs-label {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  line-height: 1.3;
+}
+body.orange .gs-item .gs-sub {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.4;
+}

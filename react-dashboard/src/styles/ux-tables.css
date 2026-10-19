@@ -1,0 +1,354 @@
+/* UX-05 / UX-21 — mobile-first table presentation. Owned by the tables workstream. */
+
+/* ==========================================================================
+   1. Overflow affordance (shared, any width)
+   --------------------------------------------------------------------------
+   SortTable puts `.scrollable` on the card only while the table is wider than
+   the card's content box (and swaps back to `.fit` once it fits). The card
+   already scrolls locally — design.css gives `.card:has(table)` overflow-x:auto
+   — but a local scroll box with no cue looks like clipped content, so:
+     * a soft gradient on the card's right edge reads as "there is more", and
+     * a short hint under the table says so in words.
+   Both disappear with `.scrollable`; desktop cards that fit never get the
+   class, so desktop stays pixel-identical. */
+body.orange .card.scrollable {
+  background-image: linear-gradient(
+    to left,
+    rgba(0, 0, 0, .55),
+    rgba(0, 0, 0, .18) 8px,
+    rgba(0, 0, 0, 0) 24px
+  );
+  background-repeat: no-repeat;
+  background-position: right top;
+  background-size: 24px 100%;
+}
+[data-theme="light"] body.orange .card.scrollable {
+  background-image: linear-gradient(
+    to left,
+    rgba(20, 28, 45, .16),
+    rgba(20, 28, 45, .05) 8px,
+    rgba(20, 28, 45, 0) 20px
+  );
+}
+.table-scroll-hint { display: none; }
+body.orange .card.scrollable .table-scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: sticky;
+  left: 0;
+  width: max-content;
+  max-width: 100%;
+  margin: 10px 0 0;
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   2. Column-disclosure toggle (phones only)
+   --------------------------------------------------------------------------
+   Rendered by components/MobileColumnsToggle.jsx; it is a real <button> with
+   aria-expanded/aria-controls, a 44 px target and a caret. Hidden >=768 px so
+   desktop keeps the full tables it has today. */
+body.orange .table-cols-toggle { display: none; }
+
+@media (max-width: 767px) {
+  body.orange .table-cols-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    min-width: 44px;
+    margin: 4px 0 10px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body.orange .table-cols-toggle .table-cols-toggle-caret {
+    font-size: 10px;
+    line-height: 1;
+  }
+  body.orange .table-cols-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ==========================================================================
+   3. Compact tables on phones (>=768 px is untouched: full table, 16 px)
+   --------------------------------------------------------------------------
+   The default phone view keeps the columns that answer "who, for which team,
+   and how did they do" without a sideways pan. `[data-compact]` is emitted by
+   SortTable; `.cols-expanded` is added while the disclosure toggle is open.
+   Type and gutters tighten only for these tables so the core columns fit a
+   320 px screen; long names keep the existing a.nm ellipsis + title. */
+@media (max-width: 767px) {
+  body.orange .card table.data[data-compact] { font-size: 12.5px; }
+  body.orange .card table.data[data-compact] th {
+    font-size: 10px;
+    letter-spacing: .2px;
+    padding: 8px 4px;
+  }
+  body.orange .card table.data[data-compact] td {
+    padding: 8px 4px;
+    font-size: 12.5px;
+  }
+  body.orange .card table.data[data-compact] td.mono { font-size: 12px; }
+  body.orange .thead-pin table.data[data-compact] th {
+    font-size: 10px;
+    letter-spacing: .2px;
+    padding: 8px 4px;
+  }
+  body.orange .card table.data[data-compact] a.nm { max-width: 7em; }
+  body.orange .card table.data[data-compact] a.team-link {
+    display: inline-block;
+    max-width: 5.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+  body.orange .card table.data[data-compact] .game-date-cell {
+    width: 54px;
+    min-width: 54px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  body.orange .card table.data[data-compact] .game-date-cell .date-full,
+  body.orange .card table.data[data-compact] .game-date-cell .date-time { display: none; }
+}
+
+@media (max-width: 767px) {
+/* ---- Collapsed column sets (phones) ------------------------------------
+   Column numbers follow each cell array in the view. Header rules target the
+   real <thead>; tfoot rules (box score only) target the totals row, whose
+   child indexes differ because the first cell is a colSpan. */
+
+/* Players: Player, Team, GP, [PPG RPG APG] — hide MIN, PTS, SPG, BPG, EFF,
+   +/-, FG%, 3P%, eFG%, TS% (they stay in the CSV and behind the toggle). */
+body.orange table.data[data-compact="players"]:not(.cols-expanded) thead th:nth-child(4),
+body.orange table.data[data-compact="players"]:not(.cols-expanded) tbody td:nth-child(4),
+body.orange table.data[data-compact="players"]:not(.cols-expanded) thead th:nth-child(6),
+body.orange table.data[data-compact="players"]:not(.cols-expanded) tbody td:nth-child(6),
+body.orange table.data[data-compact="players"]:not(.cols-expanded) thead th:nth-child(n+9),
+body.orange table.data[data-compact="players"]:not(.cols-expanded) tbody td:nth-child(n+9) {
+  display: none;
+}
+
+/* Box score: #, Player, MIN, PTS, REB, AST — hide 2PT/3PT/FG/FT on the wide
+   side and ST/BS/TO/PF/EFF/+/- after AST. */
+body.orange table.data[data-compact="box"]:not(.cols-expanded) thead th:nth-child(n+4):nth-child(-n+7),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tbody td:nth-child(n+4):nth-child(-n+7),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) thead th:nth-child(n+11),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tbody td:nth-child(n+11) {
+  display: none;
+}
+/* Totals row: <td colSpan=3>Team total</td> then PTS REB AST ST BS TO PF EFF +/-
+   (MIN is blank and the shooting splits are blank too). Keep the label and the
+   three core totals; drop the shooting/turnover/eff columns that are not there. */
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(2),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(3),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(4),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(5),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(n+9) {
+  display: none;
+}
+
+/* Team roster: #, Player, GP, PTS, REB, AST — hide MIN, ST, BS, TO, PF, EFF, +/- */
+body.orange table.data[data-compact="roster"]:not(.cols-expanded) thead th:nth-child(4),
+body.orange table.data[data-compact="roster"]:not(.cols-expanded) tbody td:nth-child(4),
+body.orange table.data[data-compact="roster"]:not(.cols-expanded) thead th:nth-child(n+8),
+body.orange table.data[data-compact="roster"]:not(.cols-expanded) tbody td:nth-child(n+8) {
+  display: none;
+}
+
+/* Season leaders: Player, GP, PTS, REB, AST — hide ST and EFF. */
+body.orange table.data[data-compact="leaders"]:not(.cols-expanded) thead th:nth-child(n+6),
+body.orange table.data[data-compact="leaders"]:not(.cols-expanded) tbody td:nth-child(n+6) {
+  display: none;
+}
+
+/* Team results: Date, Opponent, Result — the result text already carries the
+   score ("W 47-26"), so Team/Opp/Venue are optional detail behind the toggle. */
+body.orange table.data[data-compact="results"]:not(.cols-expanded) thead th:nth-child(n+4),
+body.orange table.data[data-compact="results"]:not(.cols-expanded) tbody td:nth-child(n+4) {
+  display: none;
+}
+
+/* Player game log: Date, Opponent, MIN, PTS, REB, AST — hide Result, 2PT, 3PT,
+   FT, ST, BS, TO, PF, EFF, +/- */
+body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) thead th:nth-child(3),
+body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-child(3),
+body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) thead th:nth-child(n+6):nth-child(-n+8),
+body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-child(n+6):nth-child(-n+8),
+body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) thead th:nth-child(n+11),
+body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-child(n+11) {
+  display: none;
+}
+}
+
+/* Desktop roster keeps the two-column (# + Player) list it had before this
+   pass: the card sits in a half-width grid and the extra stat columns would
+   force a horizontal scroll box where desktop never had one. Phone-only stats
+   are joined for the compact table below 768 px. */
+@media (min-width: 768px) {
+  body.orange table.data[data-compact="roster"] thead th:nth-child(n+3),
+  body.orange table.data[data-compact="roster"] tbody td:nth-child(n+3) {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   4. Very narrow screens (320-374 px)
+   --------------------------------------------------------------------------
+   At 320 px the content box inside a .card is 246 px. The core players view
+   still needs five columns, so tighten name/team ellipsis and the numeric type
+   a little further. GP (allowed to be optional on phones) folds into the
+   toggle at this width only; 375 px+ shows it. */
+@media (max-width: 374px) {
+  body.orange .card table.data[data-compact] th,
+  body.orange .thead-pin table.data[data-compact] th {
+    font-size: 9.5px;
+    padding: 8px 3px;
+  }
+  body.orange .card table.data[data-compact] td {
+    padding: 8px 3px;
+  }
+  body.orange .card table.data[data-compact] td.mono { font-size: 11.5px; }
+  body.orange .card table.data[data-compact] a.nm { max-width: 5.4em; }
+  body.orange .card table.data[data-compact] a.team-link { max-width: 4.4em; }
+  body.orange .card table.data[data-compact="players"]:not(.cols-expanded) thead th:nth-child(3),
+  body.orange .card table.data[data-compact="players"]:not(.cols-expanded) tbody td:nth-child(3) {
+    display: none;
+  }
+  body.orange .card table.data[data-compact="gamelog"] a:not(.nm) {
+    display: inline-block;
+    max-width: 4.2em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+}
+
+/* ==========================================================================
+   5. Compare (UX-18) — narrow reading column, no lateral pan for core rows
+   ========================================================================== */
+
+/* Desktop keeps the comparison as-is; the stacked head-to-head is phone-only. */
+body.orange .compare-card .h2h-tag { display: none; }
+
+@media (max-width: 767px) {
+  /* The result column is nested one card deep inside the picker card. Trim
+     both paddings so the metric + both identities get the width, instead of
+     spending 40 px per side on the same dark surface. */
+  body.orange .card.compare-card { padding: 12px 10px; }
+  body.orange .card.compare-card > .compare-pickers { gap: 8px; }
+  body.orange .card.compare-card #cmp-result .card { padding: 14px 12px; }
+  body.orange .card.compare-card #cmp-result .grid-2 { gap: 10px; }
+  body.orange .card.compare-card #cmp-result > .grid-2 > .card { padding: 14px 12px; }
+
+  /* Season comparison: keep the 3-column table, but let the label and the two
+     player headers wrap and tighten the cells so stat + both values share one
+     screen. */
+  body.orange .card.compare-card .cmp-table th,
+  body.orange .card.compare-card .cmp-table td {
+    padding: 8px 4px;
+    font-size: 12.5px;
+  }
+  body.orange .card.compare-card .cmp-table th {
+    font-size: 11px;
+    letter-spacing: .1px;
+  }
+  body.orange .card.compare-card .cmp-table th:first-child,
+  body.orange .card.compare-card .cmp-table td:first-child {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  body.orange .card.compare-card .cmp-table th:nth-child(2),
+  body.orange .card.compare-card .cmp-table th:nth-child(3) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
+
+  /* Player head-to-head: one block per game; Date line, then one line per
+     player with the player's tag in front of their stat line. No pan, and
+     both identities stay attached to their numbers. */
+  body.orange .card.compare-card .h2h-player-table { display: block; }
+  body.orange .card.compare-card .h2h-player-table thead { display: none; }
+  body.orange .card.compare-card .h2h-player-table tbody,
+  body.orange .card.compare-card .h2h-player-table tr { display: block; }
+  body.orange .card.compare-card .h2h-player-table tr {
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  body.orange .card.compare-card .h2h-player-table tr:last-child { border-bottom: 0; }
+  body.orange .card.compare-card .h2h-player-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 2px 0;
+    border: 0;
+    white-space: normal;
+  }
+  body.orange .card.compare-card .h2h-player-table td.h2h-date {
+    display: block;
+    padding: 0 0 4px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  body.orange .card.compare-card .h2h-player-table .h2h-tag {
+    display: inline;
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-family: var(--display);
+    font-size: 10px;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+
+  /* Team head-to-head: 4 labeled rows per fixture, stacked. */
+  body.orange .card.compare-card .h2h-team-table thead { display: none; }
+  body.orange .card.compare-card .h2h-team-table tr {
+    display: block;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  body.orange .card.compare-card .h2h-team-table tr:last-child { border-bottom: 0; }
+  body.orange .card.compare-card .h2h-team-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 0;
+    border: 0;
+    white-space: normal;
+  }
+  body.orange .card.compare-card .h2h-team-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+  }
+
+  /* Radar: at this width the axis labels and legend drop below a readable
+     10 px-equivalent, and the season comparison table already carries the
+     same numbers as text. Hide the radar card on phones; desktop keeps it. */
+  body.orange .card.compare-radar-card { display: none; }
+}

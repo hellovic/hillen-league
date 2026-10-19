@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, groupName } from "../data.js";
 import { csvDownload, efgPct, setTitle, sortRows, tsPct } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
+import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
 
 const KEYS = [
@@ -29,6 +30,10 @@ export default function PlayersView({ ctx }) {
   /* default order is points desc, but no header marker until a click — same as
    the vanilla build, which sorts rows without touching state.sort */
   const [sort, setSort] = useState(null);
+  /* Phone column budget: the compact five/six-column view is the default, the
+   * toggle reveals the full 16 columns. CSS does the hiding (ux-tables.css), so
+   * desktop markup and width are unchanged. */
+  const [allCols, setAllCols] = useState(false);
 
   useEffect(() => {
     setTitle(groupName(ctx.season, ctx.group), "Players", "Season " + ctx.season);
@@ -86,12 +91,20 @@ export default function PlayersView({ ctx }) {
         </div>
       </div>
       <div className="card">
+        <MobileColumnsToggle
+          controls="t-players"
+          expanded={allCols}
+          onToggle={() => setAllCols((v) => !v)}
+          label="Advanced stats"
+        />
         <div id="players-table">
           <SortTable
             columns={KEYS}
             rows={rows}
             tableId="t-players"
             pin={1}
+            compact="players"
+            compactExpanded={allCols}
             sort={sort}
             onSort={(next) => setSort(next)}
             rowKey={(p) => p.player_id}
@@ -107,7 +120,7 @@ export default function PlayersView({ ctx }) {
                   </a>
                 </td>,
                 <td key="team">
-                  <a className="row-link" style={{ color: "var(--muted)" }} href={`#/teams/${p.team_id}`}>{p.team_name}</a>
+                  <a className="row-link team-link" title={p.team_name} style={{ color: "var(--muted)" }} href={`#/teams/${p.team_id}`}>{p.team_name}</a>
                 </td>,
                 <td className="num" key="gp">{p.gp}</td>,
                 <td className="num mono" key="min">{p.minutes.toFixed(1)}</td>,

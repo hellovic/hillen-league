@@ -89,7 +89,7 @@ function ComparePlayers({ pa, pb, palette }) {
       return `${mine > opp ? "W" : mine < opp ? "L" : "T"} ${entry.pts}pts ${entry.tot_reb}reb ${entry.ast}ast`;
     };
     return (
-      <table className="data">
+      <table className="data h2h-player-table">
         <thead>
           <tr>
             <th>Date</th>
@@ -100,9 +100,15 @@ function ComparePlayers({ pa, pb, palette }) {
         <tbody>
           {shared.map((id) => (
             <tr key={id} tabIndex={0} data-href={`#/games/${id}`} onClick={() => go(`#/games/${id}`)}>
-              <td>{gamesA.get(id).game_date}</td>
-              <td className="mono">{line(gamesA.get(id))}</td>
-              <td className="mono">{line(gamesB.get(id))}</td>
+              <td className="h2h-date">{gamesA.get(id).game_date}</td>
+              <td className="mono h2h-line">
+                <span className="h2h-tag">{pa.player_name}</span>
+                <span>{line(gamesA.get(id))}</span>
+              </td>
+              <td className="mono h2h-line">
+                <span className="h2h-tag">{pb.player_name}</span>
+                <span>{line(gamesB.get(id))}</span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -127,7 +133,7 @@ function ComparePlayers({ pa, pb, palette }) {
       </div>
       <div className="card">
         <h3>Season comparison</h3>
-        <table className="data">
+        <table className="data cmp-table">
           <thead>
             <tr><th>Stat</th><th className="num">{pa.player_name}</th><th className="num">{pb.player_name}</th></tr>
           </thead>
@@ -142,7 +148,7 @@ function ComparePlayers({ pa, pb, palette }) {
           </tbody>
         </table>
       </div>
-      <div className="card"><h3>Per-game profile <span className="cn">vs each other</span></h3>{radar}</div>
+      <div className="card compare-radar-card"><h3>Per-game profile <span className="cn">vs each other</span></h3>{radar}</div>
       <div className="grid-2">
         <div className="card"><h3>{pa.player_name} — points per game</h3>{ptsBars(pa)}</div>
         <div className="card"><h3>{pb.player_name} — points per game</h3>{ptsBars(pb)}</div>
@@ -204,7 +210,7 @@ function CompareTeams({ ta, tb, palette }) {
         <h3>Head-to-head <span className="cn">series</span></h3>
         {shared.length ? (
           <>
-            <table className="data">
+            <table className="data h2h-team-table">
               <thead>
                 <tr><th>Date</th><th>Score</th><th>Venue</th><th className="num">Winner</th></tr>
               </thead>
@@ -216,10 +222,10 @@ function CompareTeams({ ta, tb, palette }) {
                   const winner = aScore > bScore ? ta.team_name : bScore > aScore ? tb.team_name : "Draw";
                   return (
                     <tr key={x.event_id} tabIndex={0} data-href={`#/games/${x.event_id}`} onClick={() => go(`#/games/${x.event_id}`)}>
-                      <td>{x.game_date}</td>
-                      <td className="mono">{aScore} – {bScore}</td>
-                      <td>{x.venue || "—"}</td>
-                      <td>{winner}</td>
+                      <td data-label="Date">{x.game_date}</td>
+                      <td data-label="Score" className="mono">{aScore} – {bScore}</td>
+                      <td data-label="Venue">{x.venue || "—"}</td>
+                      <td data-label="Winner">{winner}</td>
                     </tr>
                   );
                 })}
@@ -311,7 +317,7 @@ export default function CompareView({ ctx, type, a, b }) {
         <h2>Compare</h2>
         <div className="sub">Season {ctx.season} · {gname}</div>
       </div>
-      <div className="card">
+      <div className="card compare-card">
         <div className="compare-pickers">
           <select id="cmp-type" value={kind} onChange={(e) => goCompare(e.target.value, null, null)}>
             <option value="p">Players</option>

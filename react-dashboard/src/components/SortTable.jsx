@@ -33,6 +33,13 @@ export default function SortTable({
   sortable = true,
   footer,
   emptyText = "No data",
+  /* Mobile column budget: `compact` is a data attribute picked up by
+   * ux-tables.css ("players", "box", "roster", "gamelog"). Columns are hidden
+   * with CSS rather than by changing `columns`, so desktop keeps every column
+   * and the caller's sort state stays untouched; `compactExpanded` reveals the
+   * full set again. */
+  compact,
+  compactExpanded = false,
 }) {
   const tableRef = useRef(null);
   const cardRef = useRef(null);
@@ -41,6 +48,9 @@ export default function SortTable({
   const fitRef = useRef(false);
   const [pinGeom, setPinGeom] = useState({ cols: [], width: 0 });
   const sorted = sort && sort.key ? sort : null;
+  const tableClass = `data${pin ? ` pin${pin}` : ""}${
+    compact && compactExpanded ? " cols-expanded" : ""
+  }`;
 
   const activate = useCallback(
     (col) => {
@@ -82,9 +92,9 @@ export default function SortTable({
     };
 
     const measure = () => {
-      card.classList.remove("fit");
+      card.classList.remove("fit", "scrollable");
       fitRef.current = table.scrollWidth <= card.clientWidth + 1;
-      if (fitRef.current) card.classList.add("fit");
+      card.classList.add(fitRef.current ? "fit" : "scrollable");
       /* Column geometry for the pinned copy. Measured here (not in an effect on
        * `rows`) because the widths also depend on the viewport: a table that is
        * stretched to its card on a desktop has wider columns than the same table
@@ -126,9 +136,9 @@ export default function SortTable({
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll);
       card.removeEventListener("scroll", onScroll);
-      card.classList.remove("fit");
+      card.classList.remove("fit", "scrollable");
     };
-  }, [rows]);
+  }, [rows, compact, compactExpanded]);
 
   /* Dragging the pinned strip sideways pans the real table (and the reverse is
    * handled above), so the header behaves like part of the table. */
@@ -153,6 +163,15 @@ export default function SortTable({
           role={clickable ? "button" : undefined}
           data-key={clickable ? col.key : undefined}
           className={cls || undefined}
+          aria-sort={
+            !clickable
+              ? undefined
+              : isSorted
+                ? sorted.dir === "asc"
+                  ? "ascending"
+                  : "descending"
+                : "none"
+          }
           onClick={clickable ? () => activate(col) : undefined}
           onKeyDown={
             clickable
@@ -173,7 +192,12 @@ export default function SortTable({
 
   return (
     <>
-      <table ref={tableRef} className={`data${pin ? ` pin${pin}` : ""}`} id={tableId}>
+      <table
+        ref={tableRef}
+        className={tableClass}
+        id={tableId}
+        data-compact={compact || undefined}
+      >
         <thead>
           <tr>{headCells(false)}</tr>
         </thead>
@@ -220,11 +244,13 @@ export default function SortTable({
         </tbody>
         {footer ? <tfoot>{footer}</tfoot> : null}
       </table>
+      <div className="table-scroll-hint">Swipe sideways for more columns →</div>
       {createPortal(
         <div className="thead-pin" ref={pinWrapRef} aria-hidden="true">
           <div className="thead-pin-scroll" ref={pinScrollRef} onScroll={onPinScroll}>
             <table
-              className={`data${pin ? ` pin${pin}` : ""}`}
+              className={tableClass}
+              data-compact={compact || undefined}
               style={{ width: pinGeom.width ? `${pinGeom.width}px` : undefined, tableLayout: "fixed" }}
             >
               <colgroup>

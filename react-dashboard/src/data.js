@@ -65,6 +65,14 @@ export function groupName(seasonId, groupId) {
   return g ? g.name : "";
 }
 
+/* Visible scope label: “YOUTH GIRLS U13 · SEASON 33”. Group names are stored
+ * without the season, so the season has to be appended for the label to mean
+ * anything when someone lands on a shared URL. */
+export function scopeLabel(seasonId, groupId) {
+  const name = groupName(seasonId, groupId);
+  return [name, `SEASON ${seasonId}`].filter(Boolean).join(" · ");
+}
+
 export function groupsForCombine(seasonId, groupId) {
   const groups = seasonGroups(seasonId);
   if (!groups.length) return groups;
@@ -104,11 +112,66 @@ export function buildSearchIndex() {
   return searchIndex;
 }
 
-export function searchMatches(idx, q) {
-  const needle = q.toLowerCase();
-  const out = [];
-  for (const p of idx.players) if (p.name.toLowerCase().includes(needle)) out.push({ kind: "player", label: p.name, sub: p.sub, href: p.href, season: p.season, group: p.group });
-  for (const t of idx.teams) if (t.name.toLowerCase().includes(needle)) out.push({ kind: "team", label: t.name, sub: t.sub, href: t.href, season: t.season, group: t.group });
-  for (const g of idx.games) if (g.name.toLowerCase().includes(needle) || g.sub.toLowerCase().includes(needle)) out.push({ kind: "game", label: g.name, sub: g.sub, href: g.href, season: g.season, group: g.group });
-  return out.slice(0, 30);
+/* Relevance order for the global search box (UX-04). Explicit and stable:
+ *
+ *   scope 0  the season + group the dashboard is currently showing
+ *   scope 1  other groups of the current season
+ *   scope 2  older (and any other) seasons
+ *
+ * and inside one scope tier:
+ *
+ *   quality 0  exact, case-insensitive name match
+ *   quality 1  name starts with the query
+ *   quality 2  name contains the query
+ *   quality 3  fixture sub-line contains the query (games only)
+ *
+ * Remaining ties: shorter name, then kind order team → player → game, then the
+ * index's own insertion order (season, group, payload order) so repeated
+ * keystrokes never reshuffle equal results. `ctx` is optional; without it every
+ * result lands in scope 2 and is ordered by match quality alone.
+ *
+ * `query=""` returns nothing (the box only searches from two characters up).
+ * The 30-result cap is a hard contract with the dropdown layout. */
+const KIND_ORDER = { team: 0, player: 1, game: 2 };
+
+export function searchMatches(idx, q, ctx = null) {
+  const needle = String(q || "").trim().toLowerCase();
+  if (!needle) return [];
+  const season = ctx?.season ?? null;
+  const group = ctx?.group ?? null;
+  const scored = [];
+  const consider = (kind, row, order, matchSub) => {
+    const name = String(row.name || "").toLowerCase();
+    let quality = -1;
+    if (name === needle) quality = 0;
+    else if (name.startsWith(needle)) quality = 1;
+    else if (name.includes(needle)) quality = 2;
+    else if (matchSub && String(row.sub || "").toLowerCase().includes(needle)) quality = 3;
+    if (quality < 0) return;
+    let scope = 2;
+    if (season != null) {
+      if (group != null && row.season === season && row.group === group) scope = 0;
+      else if (row.season === season) scope = 1;
+    }
+    scored.push({ kind, label: row.name, sub: row.sub, href: row.href, season: row.season, group: row.group, scope, quality, order });
+  };
+  idx.players.forEach((p, i) => consider("player", p, i, false));
+  idx.teams.forEach((t, i) => consider("team", t, i, false));
+  idx.games.forEach((g, i) => consider("game", g, i, true));
+  scored.sort(
+    (a, b) =>
+      a.scope - b.scope ||
+      a.quality - b.quality ||
+      a.label.length - b.label.length ||
+      KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
+      a.order - b.order
+  );
+  return scored.slice(0, 30).map(({ kind, label, sub, href, season: s, group: g }) => ({
+    kind,
+    label,
+    sub,
+    href,
+    season: s,
+    group: g,
+  }));
 }

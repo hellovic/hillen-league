@@ -9,6 +9,11 @@ import "./styles/design.css";
 import "./styles/desktop-fix.css";
 /* Small product tweaks on top of the design (e.g. the box-score caption sizes). */
 import "./styles/tweaks.css";
+/* UX workstreams from the 2026-10-19 mobile-first brief; each file is owned by one
+ * workstream so the imports stay stable while they are edited in parallel. */
+import "./styles/ux-header.css";
+import "./styles/ux-tables.css";
+import "./styles/ux-scope.css";
 
 import App from "./App.jsx";
 import { initAnalytics } from "./analytics.js";

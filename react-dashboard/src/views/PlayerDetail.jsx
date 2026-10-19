@@ -1,13 +1,35 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { api, groupName } from "../data.js";
-import { contextQuery, csvDownload, efgPct, fmtDate, go, pctStr, resultOf, setTitle, tsPct } from "../utils.js";
+import { contextQuery, csvDownload, efgPct, fmtDate, pctStr, resultOf, setTitle, tsPct } from "../utils.js";
 import { GroupedBars, RadarChart } from "../charts.jsx";
 import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
+import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
+import SortTable from "../components/SortTable.jsx";
 import { usePalette } from "../theme.jsx";
+
+const GAMELOG_COLS = [
+  { key: "game_date", label: "Date", sortable: false },
+  { key: "opponent", label: "Opponent", sortable: false },
+  { key: "result", label: "Result", sortable: false },
+  { key: "minutes", label: "MIN", num: true, sortable: false },
+  { key: "pts", label: "PTS", num: true, sortable: false },
+  { key: "fg2", label: "2PT", num: true, sortable: false },
+  { key: "fg3", label: "3PT", num: true, sortable: false },
+  { key: "ft", label: "FT", num: true, sortable: false },
+  { key: "tot_reb", label: "REB", num: true, sortable: false },
+  { key: "ast", label: "AST", num: true, sortable: false },
+  { key: "stl", label: "ST", num: true, sortable: false },
+  { key: "blk", label: "BS", num: true, sortable: false },
+  { key: "tov", label: "TO", num: true, sortable: false },
+  { key: "pf", label: "PF", num: true, sortable: false },
+  { key: "eff", label: "EFF", num: true, sortable: false },
+  { key: "plus_minus", label: "+/−", num: true, sortable: false },
+];
 
 export default function PlayerDetail({ ctx, id }) {
   const palette = usePalette();
+  const [allCols, setAllCols] = useState(false);
   let p = null;
   let err = null;
   try {
@@ -73,7 +95,7 @@ export default function PlayerDetail({ ctx, id }) {
       <a className="back" href="#/players">← Players</a>
       <div className="view-head">
         <h2>{p.player_name}</h2>
-        <div className="toolbar">
+        <div className="toolbar detail-actions">
           <div className="sub">
             <a className="row-link" href={`#/teams/${p.team_id}`}>{p.team_name}</a> · season {ctx.season}
           </div>
@@ -149,50 +171,51 @@ export default function PlayerDetail({ ctx, id }) {
       <div className="card">
         <h3>Game log <span className="cn">比賽表現</span></h3>
         <CsvButton id="gamelog-csv" onDownload={downloadCsv} />
-        <table className="data pin1">
-          <thead>
-            <tr>
-              <th>Date</th><th>Opponent</th><th>Result</th>
-              <th className="num">MIN</th><th className="num">PTS</th><th className="num">2PT</th><th className="num">3PT</th>
-              <th className="num">FT</th><th className="num">REB</th><th className="num">AST</th><th className="num">ST</th>
-              <th className="num">BS</th><th className="num">TO</th><th className="num">PF</th><th className="num">EFF</th><th className="num">+/−</th>
-            </tr>
-          </thead>
-          <tbody>
-            {p.games.length ? p.games.map((x) => {
-              const isHome = x.home_team_id === x.team_id;
-              const r = resultOf(x, x.team_id);
-              return (
-                <tr key={x.event_id} tabIndex={0} data-href={`#/games/${x.event_id}`} onClick={(e) => {
-                  if (e.target.closest("a")) return;
-                  go(`#/games/${x.event_id}`);
-                }}>
-                  <td className="game-date-cell"><CompactDate date={x.game_date} /></td>
-                  <td>
-                    {isHome ? "vs" : "@"}{" "}
-                    <a className="row-link" href={`#/teams/${isHome ? x.away_team_id : x.home_team_id}`}>{x.opponent}</a>
-                  </td>
-                  <td className={r.cls}>{r.text}</td>
-                  <td className="num mono">{x.minutes}</td>
-                  <td className="num mono">{x.pts}</td>
-                  <td className="num mono">{x.fgm - x.fg3m}-{x.fga - x.fg3a}</td>
-                  <td className="num mono">{x.fg3m}-{x.fg3a}</td>
-                  <td className="num mono">{x.ftm}-{x.fta}</td>
-                  <td className="num">{x.tot_reb}</td>
-                  <td className="num">{x.ast}</td>
-                  <td className="num">{x.stl}</td>
-                  <td className="num">{x.blk}</td>
-                  <td className="num">{x.tov}</td>
-                  <td className="num">{x.pf}</td>
-                  <td className="num">{x.eff}</td>
-                  <td className={`num ${x.plus_minus >= 0 ? "winner" : "loser"}`}>
-                    {x.plus_minus > 0 ? "+" : ""}{x.plus_minus}
-                  </td>
-                </tr>
-              );
-            }) : <tr><td colSpan="16" className="empty">No games</td></tr>}
-          </tbody>
-        </table>
+        <MobileColumnsToggle
+          controls="t-gamelog"
+          expanded={allCols}
+          onToggle={() => setAllCols((v) => !v)}
+          label="Full game log"
+        />
+        <SortTable
+          columns={GAMELOG_COLS}
+          rows={p.games}
+          tableId="t-gamelog"
+          pin={1}
+          sortable={false}
+          compact="gamelog"
+          compactExpanded={allCols}
+          rowKey={(x) => x.event_id}
+          rowHref={(x) => `#/games/${x.event_id}`}
+          renderRow={(x) => {
+            const isHome = x.home_team_id === x.team_id;
+            const r = resultOf(x, x.team_id);
+            return [
+              <td className="game-date-cell" key="date"><CompactDate date={x.game_date} /></td>,
+              <td key="opp">
+                {isHome ? "vs" : "@"}{" "}
+                <a className="row-link" title={x.opponent} href={`#/teams/${isHome ? x.away_team_id : x.home_team_id}`}>{x.opponent}</a>
+              </td>,
+              <td className={r.cls} key="result">{r.text}</td>,
+              <td className="num mono" key="min">{x.minutes}</td>,
+              <td className="num mono" key="pts">{x.pts}</td>,
+              <td className="num mono" key="2pt">{x.fgm - x.fg3m}-{x.fga - x.fg3a}</td>,
+              <td className="num mono" key="3pt">{x.fg3m}-{x.fg3a}</td>,
+              <td className="num mono" key="ft">{x.ftm}-{x.fta}</td>,
+              <td className="num" key="reb">{x.tot_reb}</td>,
+              <td className="num" key="ast">{x.ast}</td>,
+              <td className="num" key="stl">{x.stl}</td>,
+              <td className="num" key="blk">{x.blk}</td>,
+              <td className="num" key="tov">{x.tov}</td>,
+              <td className="num" key="pf">{x.pf}</td>,
+              <td className="num" key="eff">{x.eff}</td>,
+              <td className={`num ${x.plus_minus >= 0 ? "winner" : "loser"}`} key="pm">
+                {x.plus_minus > 0 ? "+" : ""}{x.plus_minus}
+              </td>,
+            ];
+          }}
+          emptyText="No games"
+        />
       </div>
     </>
   );
