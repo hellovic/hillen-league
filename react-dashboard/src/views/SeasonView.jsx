@@ -113,16 +113,9 @@ export default function SeasonView({ ctx, seasonId }) {
           </section>
         </aside>
 
-        <section className="division-section" aria-labelledby="groups-heading">
-          <div className="section-head">
-            <div>
-              <h3 id="groups-heading">All groups in Season {season}</h3>
-            </div>
-            <span className="count-tag">{groups.length} groups</span>
-          </div>
-          <p className="scope-note">
-            Every division in the season — open one to switch the dashboard to it.
-          </p>
+        {/* No section heading: the group cards are self-describing (each names
+          * its division) and the owner asked for the duplicate label to go. */}
+        <section className="division-section" aria-label={`All groups in Season ${season}`}>
           <div className="grid-cards">
             {groups.map((g) => {
               const age = (g.name.match(/(GIRLS?\s+)?U\d+/) || ["—"])[0].replace(/^GIRLS?\s+/i, "GIRLS ");
