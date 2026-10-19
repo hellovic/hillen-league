@@ -4,6 +4,15 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **Season overview is the landing page** — a bare visit now opens `#/season/33`,
+  a page per season listing every group as one card: teams, games played, the
+  leader with its record, and the top scorer, each linking to that group's
+  standings. The data comes from a new `season_payload()` in server.py, served as
+  `/api/season?season=` and exported as `data/season/<id>.json`, so the page costs
+  one request instead of one per group. Groups are listed in age order (the same
+  rule as the group switcher, now shared), an unknown season lists the seasons that
+  exist, and each season also gets a share page (`seasons/33/`) so the landing URL
+  previews properly: `7 groups · 24 teams · 6 games (5 played)`.
 - Data refresh 2026-10-19: 140 games, 3392 box-score rows (seasons 31, 32, 33). 0 new, 2 updated, 0 removed, 138 unchanged.
 - **A stale past-season table no longer blocks the daily refresh** — `validate.py`
   held *every* season's 分組表 to a strict comparison with the computed team

@@ -29,6 +29,8 @@ async function api(path, params = {}) {
     const v = (typeof window.HL_BUILD !== "undefined") ? "?v=" + window.HL_BUILD : "";
     const file = path === "meta"
       ? "data/meta.json"
+      : path === "season"
+      ? `data/season/${params.season ?? state.season}.json`
       : `data/${params.season ?? state.season}/${params.group ?? state.group}/${path}.json`;
     let r = await fetch(file + v);
     // Detail pages requested WITHOUT an explicit group may live in another
@@ -135,8 +137,9 @@ function shareButton(kind, id) {
   const what = kind === "games" ? "teams, date and score"
              : kind === "teams" ? "record and roster"
              : kind === "groups" ? "season standings"
+             : kind === "seasons" ? "groups and records"
              : "statistics";
-  const noun = kind === "groups" ? "group's" : `${kind.slice(0, -1)}'s`;
+  const noun = kind === "groups" || kind === "seasons" ? kind.slice(0, -1) + "'s" : `${kind.slice(0, -1)}'s`;
   // id is quoted: a group's id is a composite path ("33/11"), which would be read
   // as arithmetic if it were interpolated bare
   return `<button class="csv-btn" type="button"`
@@ -356,21 +359,27 @@ function setupGlobalSearch() {
 // seasons), so the dropdown lists the selected season's groups only. Defined at
 // module scope so the global-search click handler (cross-group navigation) can
 // re-sync the selectors after switching season/group.
+/* A season's groups in age order (U9 → U15, A before B). Shared by the group
+ * switcher and the season overview so both list a season's divisions the same
+ * way. */
+function groupAgeKey(name) {
+  const m = String(name || "").match(/U(\d+)([A-Za-z]?)/);
+  return m ? [+m[1], m[2] || ""] : [999, String(name || "")];
+}
+function groupAgeSort(a, b) {
+  const ka = groupAgeKey(a.name), kb = groupAgeKey(b.name);
+  return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
+}
+function seasonGroups(seasonId = state.season) {
+  return (state.meta.groups || []).filter(g => g.season_id === seasonId).sort(groupAgeSort);
+}
+
 function rebuildGroups() {
   const sel = document.getElementById("season-select");
   if (sel && sel.value !== String(state.season)) sel.value = String(state.season);
   const gsel = document.getElementById("group-select");
   if (!gsel) return;
-  const ageKey = (name) => {
-    const m = name.match(/U(\d+)([A-Za-z]?)/);
-    return m ? [+m[1], m[2] || ""] : [999, name];
-  };
-  const groups = (state.meta.groups || [])
-    .filter(g => g.season_id === state.season)
-    .sort((a, b) => {
-      const ka = ageKey(a.name), kb = ageKey(b.name);
-      return ka[0] - kb[0] || ka[1].localeCompare(kb[1], "en");
-    });
+  const groups = seasonGroups();
   if (!groups.some(g => g.group_id === state.group) && groups.length) {
     state.group = groups[0].group_id;
   }
@@ -412,9 +421,12 @@ async function init() {
   sel.addEventListener("change", () => { state.season = +sel.value; rebuildGroups(); syncUrl(); route(); });
   gsel.addEventListener("change", () => { state.group = +gsel.value; syncUrl(); route(); });
   // carry the current season/group into the tab link, so switching tabs — and the
-  // URL left in the address bar — keeps the context the visitor is looking at
+  // URL left in the address bar — keeps the context the visitor is looking at.
+  // The season tab carries no group, so it links to the season overview.
   document.querySelectorAll("#tabs button").forEach(b => {
-    b.addEventListener("click", () => { location.hash = contextHash(b.dataset.view); });
+    b.addEventListener("click", () => {
+      location.hash = b.dataset.view === "season" ? seasonHash() : contextHash(b.dataset.view);
+    });
   });
   window.addEventListener("hashchange", () => { trackPageview(); route(); });
   route();
@@ -504,11 +516,19 @@ const LIST_VIEWS = ["standings", "teams", "players", "games", "leaders"];
 /* The current context as a fragment query, e.g. "?season=33&group=11". */
 function contextQuery() { return `?season=${state.season}&group=${state.group}`; }
 function contextHash(view) { return `#/${view}${contextQuery()}`; }
+/* The season overview names its season in the path: it has no group context, and
+ * a bare "#/season" would not say which season is on screen. */
+function seasonHash(season = state.season) { return `#/season/${season}`; }
 /* Reflect the current context in the address bar so it is always copyable, but
  * without pushing a history entry: picking a season is a refinement of the page
  * you are on, not a navigation, so Back must not rewind through every season you
  * tried. Detail routes describe themselves and are left alone. */
 function syncUrl() {
+  if (state.view === "season") {
+    const want = seasonHash();
+    if (location.hash !== want) history.replaceState(null, "", want);
+    return;
+  }
   if (!LIST_VIEWS.includes(state.view)) return;
   const want = contextHash(state.view);
   if (location.hash !== want) history.replaceState(null, "", want);
@@ -528,6 +548,15 @@ async function withNotFound(view, fn) {
 }
 
 function route() {
+  // A bare visit — and a bare "#/season" — lands on the season overview, which is
+  // the site's landing page. Name the season in the URL so the address bar always
+  // describes what is on screen (and can be copied or shared).
+  if (state.meta) {
+    const h0 = location.hash;
+    if (!h0 || h0 === "#" || h0 === "#/" || h0 === "#/season") {
+      history.replaceState(null, "", seasonHash(state.meta.default_season ?? state.season));
+    }
+  }
   const [h, query] = location.hash.replace(/^#\/?/, "").split("?");
   const parts = h.split("/").filter(Boolean);
   const view = document.getElementById("view");
@@ -554,6 +583,7 @@ function route() {
   else if (parts[0] === "players")            setTitle("Players");
   else if (parts[0] === "games")              setTitle("Games");
   else if (parts[0] === "leaders")            setTitle("Leaders");
+  else if (parts[0] === "season")             setTitle("Season");
   else                                        setTitle("Standings");
   if (parts[0] === "teams" && parts[1]) { setView("teams"); withNotFound(view, () => renderTeamDetail(view, +parts[1])); }
   else if (parts[0] === "players" && parts[1]) {
@@ -576,6 +606,19 @@ function route() {
   else if (parts[0] === "players") { setView("players"); renderPlayers(view); }
   else if (parts[0] === "games") { setView("games"); renderGames(view); }
   else if (parts[0] === "leaders") { setView("leaders"); renderLeaders(view); }
+  else if (parts[0] === "season") {
+    setView("season");
+    const sid = +parts[1] || state.season;
+    if (seasons.some(s => s.season_id === sid)) {
+      syncContext(sid, null);
+      renderSeason(view, sid);
+    } else {
+      // an unknown season lists what exists instead of dead-ending
+      view.innerHTML = `<div class="empty">No such season. Available: ${
+        seasons.map(s => `<a class="row-link" href="${seasonHash(s.season_id)}">${esc(s.name)}</a>`).join(" · ")
+      }</div>`;
+    }
+  }
   else { setView("standings"); renderStandings(view); }
 }
 
@@ -813,6 +856,52 @@ function compareTeamsHTML(ta, tb) {
       <div class="h2h-record">Series: <b>${esc(ta.team_name)} ${series.a}</b> – <b>${series.b} ${esc(tb.team_name)}</b></div>` :
       `<div class="h2h-record">These teams never met this season.</div>`}
     </div>`;
+}
+
+/* ---------------- season overview ---------------- */
+
+/* The landing page: every group of one season, described in a few lines. The data
+ * comes from season_payload() in server.py — one request, also exported as
+ * data/season/<id>.json — so this page has no per-group fetching to do. */
+async function renderSeason(view, seasonId) {
+  view.innerHTML = '<div class="empty">Loading…</div>';
+  let sp;
+  try {
+    sp = await api("season", { season: seasonId });
+  } catch (e) {
+    setTitle("Season");
+    view.innerHTML = `<div class="empty">No season overview for season ${seasonId} — the static export needs rebuilding.</div>`;
+    return;
+  }
+  const t = sp.totals || {};
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const cards = [...(sp.groups || [])].sort(groupAgeSort).map(g => {
+    const size = g.teams
+      ? `${plural(g.teams, "team")} · ${plural(g.games, "game")} (${g.played} played)`
+      : "0 teams · no games yet";
+    const lead = g.leader
+      ? `<div class="season-line">1st <b>${esc(g.leader.team_name)}</b> ${g.leader.wins}-${g.leader.losses}, ${g.leader.points} pts</div>`
+      : `<div class="season-line">No results yet</div>`;
+    const top = g.top && g.top.ppg != null
+      ? `<div class="season-line">Top scorer <b>${esc(g.top.player_name)}</b> ${g.top.ppg} PPG</div>`
+      : "";
+    return `<a class="card season-card" href="#/standings?season=${seasonId}&group=${g.group_id}">
+        <h3>${esc(g.name)}</h3>
+        <div class="season-size">${size}</div>
+        ${lead}${top}
+      </a>`;
+  }).join("");
+  view.innerHTML = `
+    <div class="view-head">
+      <h2>${esc(sp.season_name)}</h2>
+      <div class="toolbar">
+        <div class="sub">${t.groups ?? 0} groups · ${t.teams ?? 0} teams · ${t.games ?? 0} games (${t.played ?? 0} played)${
+          t.last_game ? ` · data through ${esc(t.last_game)}` : ""}</div>
+        ${shareButton("seasons", seasonId)}
+      </div>
+    </div>
+    <div class="grid-cards">${cards || '<div class="empty">No groups</div>'}</div>`;
+  setTitle(sp.season_name);
 }
 
 /* ---------------- standings ---------------- */

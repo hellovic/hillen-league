@@ -184,6 +184,22 @@ QUERIES = {
     "seasons": "SELECT season_id, name FROM seasons ORDER BY season_id",
     "groups": """SELECT g.season_id, g.group_id, g.name FROM groups g
                  ORDER BY g.season_id, g.group_id""",
+    # aggregates for the season overview (one row per group / one for the season)
+    "season_group_counts": """
+        SELECT group_id, COUNT(*) AS teams
+        FROM season_teams WHERE season_id = ? GROUP BY group_id""",
+    "season_game_counts": """
+        SELECT group_id, COUNT(*) AS games,
+               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS played,
+               MIN(game_date) AS first_game, MAX(game_date) AS last_game
+        FROM games WHERE season_id = ? GROUP BY group_id""",
+    "season_games_total": """
+        SELECT COUNT(*) AS games,
+               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS played,
+               MIN(game_date) AS first_game, MAX(game_date) AS last_game
+        FROM games WHERE season_id = ?""",
+    "season_teams_total": """
+        SELECT COUNT(DISTINCT team_id) AS teams FROM season_teams WHERE season_id = ?""",
 }
 
 
@@ -255,6 +271,64 @@ def meta_payload(conn, db_path=DB_PATH):
         # back to the season's first group.
         "default_season": 33,
         "default_group": 16,      # 第33屆 · YOUTH GIRLS U13
+    }
+
+
+def season_payload(conn, season):
+    """Everything the season overview page shows, in one payload.
+
+    One entry per *registered* group — played or not, because a division the
+    league has opened is part of the season even before it has results — with
+    just enough to describe it: how many teams, how many games are played, who
+    leads it and who scores most for it. Ordering is left to the client (it has
+    the age-order rule already, for the group switcher).
+    """
+    names = {r["season_id"]: r["name"] for r in query(conn, "seasons")}
+    counts = {r["group_id"]: r["teams"] for r in query(conn, "season_group_counts", (season,))}
+    gstats = {r["group_id"]: r for r in query(conn, "season_game_counts", (season,))}
+    groups = []
+    for g in query(conn, "groups"):
+        if g["season_id"] != season:
+            continue
+        table = standings_rows(conn, season, g["group_id"])
+        gs = gstats.get(g["group_id"]) or {}
+        leader = None
+        if table:
+            top = table[0]                      # standings_rows() is points-ordered
+            leader = {"team_id": top["team_id"], "team_name": top["team_name"],
+                      "wins": top["wins"], "losses": top["losses"],
+                      "points": top["points"]}
+        scorer = None
+        players = query(conn, "players", (season, g["group_id"]))
+        if players:                             # this query is pts-descending
+            p = players[0]
+            gp = p["gp"] or 0
+            scorer = {"player_id": p["player_id"], "player_name": p["player_name"],
+                      "team_name": p["team_name"], "pts": p["pts"],
+                      "ppg": round(p["pts"] / gp, 1) if gp else None}
+        groups.append({
+            "group_id": g["group_id"],
+            "name": g["name"],
+            "teams": counts.get(g["group_id"], len(table)),
+            "games": gs.get("games") or 0,
+            "played": gs.get("played") or 0,
+            "last_game": gs.get("last_game"),
+            "leader": leader,
+            "top": scorer,
+        })
+    total = query(conn, "season_games_total", (season,))[0]
+    return {
+        "season_id": season,
+        "season_name": names.get(season, f"Season {season}"),
+        "totals": {
+            "groups": len(groups),
+            "teams": query(conn, "season_teams_total", (season,))[0]["teams"],
+            "games": total["games"] or 0,
+            "played": total["played"] or 0,
+            "first_game": total["first_game"],
+            "last_game": total["last_game"],
+        },
+        "groups": groups,
     }
 
 
@@ -385,6 +459,13 @@ def export_static(out_dir, db_path=DB_PATH):
         mp = meta_payload(conn, db_path)
         with open(os.path.join(data_root, "meta.json"), "w", encoding="utf-8") as f:
             json.dump(mp, f, ensure_ascii=False)
+        # one overview file per season, for the season page
+        season_dir = os.path.join(data_root, "season")
+        os.makedirs(season_dir, exist_ok=True)
+        for _s in mp["seasons"]:
+            with open(os.path.join(season_dir, f"{_s['season_id']}.json"), "w",
+                      encoding="utf-8") as f:
+                json.dump(season_payload(conn, _s["season_id"]), f, ensure_ascii=False)
 
         season_names = {s["season_id"]: s["name"] for s in mp["seasons"]}
         group_names = {(g["season_id"], g["group_id"]): g["name"] for g in mp["groups"]}
@@ -528,6 +609,19 @@ def export_static(out_dir, db_path=DB_PATH):
                         f"#/standings?season={season}&group={group}")
             n_share += 1
 
+        # One page per season: the overview that lists its groups. Deliberately
+        # small — a season card says how big the season is, not every table.
+        for _s in mp["seasons"]:
+            sp = season_payload(conn, _s["season_id"])
+            t = sp["totals"]
+            desc = " · ".join(x for x in (
+                f"{t['groups']} groups", f"{t['teams']} teams",
+                f"{t['games']} games ({t['played']} played)",
+                f"data through {t['last_game']}" if t["last_game"] else None) if x)
+            write_share("seasons", _s["season_id"], sp["season_name"], desc,
+                        f"#/season/{_s['season_id']}")
+            n_share += 1
+
         # tell GitHub Pages not to run Jekyll over the site
         with open(os.path.join(out_dir, ".nojekyll"), "w") as f:
             f.write("")
@@ -628,6 +722,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        # A season page lists its groups.
+        m = re.fullmatch(r"/seasons/(\d+)/?", path)
+        if m:
+            self.send_response(302)
+            self.send_header("Location", f"/#/season/{m.group(1)}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
 
         # static files
         rel = path.lstrip("/") or "index.html"
@@ -687,6 +789,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if path == "/api/meta":
                     self._json(meta_payload(conn, self.server.db_path))
+                elif path == "/api/season":
+                    self._json(season_payload(conn, req_int(season, "season")))
                 elif path == "/api/standings":
                     self._json(standings_rows(conn, req_int(season, "season"), req_int(group, "group")))
                 elif path == "/api/teams":

@@ -48,12 +48,13 @@ A zero-dependency web dashboard over the database:
 - **Players** — sortable/searchable season stats (incl. +/-), **shooting efficiency (eFG%, TS%)**, per-game points chart, radar vs group average, full game logs
 - **Games** — box scores, scoring-by-quarter table, team performance, full per-player lines
 - **Leaders** — the league's own top-5 leaderboards per category (MVP, 得分王, 三分王, 助攻王, 偷截王, 罰球王, 籃板王, 封阻王), with CSV
-- **Landing page** — a bare visit (`https://hellovic.github.io/hillen-league/`) opens
-  **season 33 · YOUTH GIRLS U13**. The default is not baked into the dashboard:
-  `/api/meta` reports `default_season`/`default_group` and `init()` applies them
-  before the first render, so changing the landing page is a two-line edit in
-  `server.py` (a group that is not in that season falls back to the season's first
-  group).
+- **Landing page = the season overview** — a bare visit
+  (`https://hellovic.github.io/hillen-league/`) opens `#/season/33`: every group of
+  that season as one small card — teams, games played, the leader with its record,
+  and the top scorer — each linking to that group's standings. One request feeds it
+  (`/api/season?season=`, pre-exported as `data/season/<id>.json`), so it costs
+  nothing per group. The default season is `meta.default_season`; an unknown season
+  id lists the seasons that exist.
 - **Season/group live in the URL** — `#/standings?season=33&group=11` opens exactly that table, so a standings link is shareable like a game link. Changing either dropdown (or clicking a tab) writes the pair into the fragment with `history.replaceState`, so the address bar always describes what you are looking at while Back still leaves the page instead of rewinding through every season you tried. `route()` validates the values — an unknown season is ignored and an unknown group falls back to that season's first group — and the older positional form `#/players/<id>/<season>/<group>` is still accepted. Compare links carry the context too, since their pickers list one season's group.
 - **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
 - **Global search** — header box that matches players, teams, and games **across all seasons/groups** and jumps to the page
@@ -62,7 +63,7 @@ A zero-dependency web dashboard over the database:
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 - **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
 - **Open Graph / share previews**: `og:` + `twitter:` meta tags so links shared on WhatsApp/Telegram/etc. show a proper title and description. **Deliberately no preview image** — the cards are meant to be compact text (`twitter:card` is `summary`, not `summary_large_image`), the only available image was a generic league banner that would stand in for a specific game, and a thumbnail always dominates a WhatsApp message. `make_og.py` (Pillow, not stdlib, run by hand) and `og.png` are kept but currently unreferenced, so the banner can return by restoring two `og:image` / `twitter:image` lines. The *site-level* card is static — link-preview crawlers don't run JS and a `#hash` is never sent to the server — but every game, team and player also gets its own pastable link (next bullet).
-- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 859 = 140 games + 61 teams + 641 players + 17 season/group pages).
+- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 871 = 140 games + 61 teams + 650 players + 17 season/group pages + 3 seasons).
 - **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `dashboard/index.html`.
 
 ```bash
@@ -77,6 +78,7 @@ The frontend talks to a read-only JSON API:
 | Endpoint | Returns |
 |---|---|
 | `/api/meta` | seasons, groups, row counts |
+| `/api/season?season=` | one season's groups with teams, games, leader and top scorer |
 | `/api/standings?season=&group=` | official group table |
 | `/api/teams?season=&group=` | teams with season record |
 | `/api/teams/<team_id>?season=` | profile, roster, results, leaders |
