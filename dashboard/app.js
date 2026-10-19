@@ -918,7 +918,10 @@ async function renderSeason(view, seasonId) {
     <div class="grid-cards">${cards || '<div class="empty">No groups</div>'}</div>
     <div class="card results">
       <h3>Latest results</h3>
-      ${latest || '<div class="empty">No games played yet</div>'}
+      ${latest || `<div class="empty">${
+        sp.latest_games === undefined
+          ? "This build's data has no results list — restart the server or rebuild the export"
+          : "No games played yet"}</div>`}
     </div>`;
   setTitle(sp.season_name);
 }
