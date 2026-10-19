@@ -25,6 +25,11 @@ Format follows deployed versions; each entry lists the user-visible changes.
   screen. The router updates its state after the `history.replaceState` URL
   write instead of waiting for a `hashchange` event that replaceState never
   fires. The headless smoke test now covers it (20 checks).
+- **Game page — 最佳表現 readability** — in the Best Performance table the player
+  names drop from 16 px to 13 px, and the PTS / 2PT / 3PT / FT labels change from
+  16 px accent orange to 10 px body text (white on dark, near-black on light), so
+  the two point columns read first. Purely a style layer
+  (`react-dashboard/src/styles/tweaks.css`); the design files stay untouched.
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
   leader with its record, each linking to that group's standings. Two cards per row

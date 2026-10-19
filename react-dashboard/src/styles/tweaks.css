@@ -1,0 +1,32 @@
+/* Product tweaks requested on top of the Courtside Orange design layer.
+ *
+ * Kept apart from design.css so the design file stays byte-identical to the
+ * Open Design export, and from desktop-fix.css so that file keeps its single
+ * purpose (desktop layout corrections). Imported last in src/main.jsx.
+ *
+ * Specificity note: design.css sets `.card table.data { font-size: 16px }`
+ * (0,1,1), which beats plain class selectors on the table. Every rule below
+ * therefore repeats `body.orange .card table.data.best-table` so it wins without
+ * !important.
+ */
+
+/* Game page — 最佳表現 / Best Performance.
+ * Player names drop from 16px to 13px; the PTS / 2PT / 3PT / FT labels become
+ * neutral body text (white on dark, near-black on light) and drop to 10px so
+ * they read as small captions between the two point columns. Point values stay
+ * at the original 12px mono. */
+body.orange .card table.data.best-table {
+  font-size: 13px;
+}
+body.orange .card table.data.best-table tbody td {
+  font-size: 13px;
+}
+body.orange .card table.data.best-table td.num.mono {
+  font-size: 12px;
+}
+body.orange .card table.data.best-table td.bst {
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+}

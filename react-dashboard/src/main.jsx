@@ -7,6 +7,8 @@ import "./styles/base.css";
 import "./styles/design.css";
 /* Platform-specific corrections layered on top of the design system. */
 import "./styles/desktop-fix.css";
+/* Small product tweaks on top of the design (e.g. the box-score caption sizes). */
+import "./styles/tweaks.css";
 
 import App from "./App.jsx";
 import { initAnalytics } from "./analytics.js";

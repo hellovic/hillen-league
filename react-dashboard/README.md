@@ -55,6 +55,10 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
   detail links), context adoption from detail payloads, sortable tables,
   global search with cross-group jumps, share-link copy, CSV downloads, theme
   persistence in `localStorage["courtside-theme"]`, chart palette switching.
+- `src/styles/tweaks.css` layers small product tweaks on top of the design
+  layer (currently the game page's 最佳表現 table, see deviation 6). It is the
+  only other rule-bearing file besides `desktop-fix.css`, and neither edits
+  `base.css` or `design.css`.
 
 ## Deviations from the OD build (and why)
 
@@ -65,9 +69,11 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 | 3 | Unplayed games render blank score cells instead of the literal text `null` | The vanilla templates interpolated `null`; the port renders an empty cell. |
 | 4 | A few text runs are pixel-different by antialiasing only | JSX splits dynamic strings into several text nodes, so kerning across node boundaries differs by a fraction of a pixel. Normalised `innerText` and markup structure are identical to the OD build. |
 | 5 | “Copy link” copies the share-stub URL (`games/20863/`, `players/17864/`…), not `location.href` | The OD build copied the hash URL, which chat apps cannot preview (crawlers never see the fragment). The static export writes an OG stub per entity; copying that URL keeps the vanilla app's link-preview feature. |
+| 6 | 最佳表現 table: player names 13 px (was 16 px), stat labels 10 px in body-text colour (was 16 px accent orange) | Requested readability tweak on the game page — the PTS/2PT labels are captions between the two point columns and should not compete with them. Scoped rules live in `src/styles/tweaks.css`. |
 
 Remove the `desktop-fix.css` import in `src/main.jsx` to get pixel parity with
-the OD build at every width, including its desktop quirks.
+the OD build at every width, including its desktop quirks. The `tweaks.css` import is independent of
+this and can stay.
 
 ## Parity evidence
 
@@ -114,7 +120,7 @@ react-dashboard/
 ├── scripts/verify.mjs       # headless smoke test (dev build or exported site)
 ├── screenshots/             # verification evidence
 ├── src/
-│   ├── main.jsx             # stylesheet order: base.css → design.css → desktop-fix.css
+│   ├── main.jsx             # stylesheet order: base.css → design.css → desktop-fix.css → tweaks.css
 │   ├── App.jsx              # hash router, context, theme, shell composition
 │   ├── data.js              # synchronous LEAGUE_DATA access
 │   ├── utils.js             # titles, dates, sorting, share/CSV, context hashes
@@ -122,7 +128,7 @@ react-dashboard/
 │   ├── charts.jsx           # GroupedBars / LineChart / RadarChart (SVG)
 │   ├── components/          # Topbar, Tabs, MobileNav, SortTable, SearchBox, …
 │   ├── views/               # one component per route (season, standings, …)
-│   └── styles/              # base.css, design.css (verbatim), desktop-fix.css
+│   └── styles/              # base.css, design.css (verbatim), desktop-fix.css, tweaks.css
 ```
 
 ## Deploying (`server.py --export`)
