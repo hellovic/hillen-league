@@ -5,9 +5,10 @@ Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
-  a page per season listing every group as one card: teams, games played, the
-  leader with its record, and the top scorer, each linking to that group's
-  standings. The data comes from a new `season_payload()` in server.py, served as
+  a page per season listing every group as one card: teams, games played, and the
+  leader with its record, each linking to that group's standings. Two cards per row
+  on a phone (`grid-template-columns: repeat(2, minmax(0, 1fr))` under 768px), as
+  many as fit on a desktop. The data comes from a new `season_payload()` in server.py, served as
   `/api/season?season=` and exported as `data/season/<id>.json`, so the page costs
   one request instead of one per group. Groups are listed in age order (the same
   rule as the group switcher, now shared), an unknown season lists the seasons that

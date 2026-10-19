@@ -882,13 +882,10 @@ async function renderSeason(view, seasonId) {
     const lead = g.leader
       ? `<div class="season-line">1st <b>${esc(g.leader.team_name)}</b> ${g.leader.wins}-${g.leader.losses}, ${g.leader.points} pts</div>`
       : `<div class="season-line">No results yet</div>`;
-    const top = g.top && g.top.ppg != null
-      ? `<div class="season-line">Top scorer <b>${esc(g.top.player_name)}</b> ${g.top.ppg} PPG</div>`
-      : "";
     return `<a class="card season-card" href="#/standings?season=${seasonId}&group=${g.group_id}">
         <h3>${esc(g.name)}</h3>
         <div class="season-size">${size}</div>
-        ${lead}${top}
+        ${lead}
       </a>`;
   }).join("");
   view.innerHTML = `
