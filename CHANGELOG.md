@@ -19,6 +19,12 @@ Format follows deployed versions; each entry lists the user-visible changes.
   needs Node.js 22+ (`npm ci --prefix react-dashboard`); both workflows install
   it. The legacy vanilla `dashboard/` stays in the repo as the local dev UI of
   `python3 server.py`.
+- **Season switcher updates the overview** — changing the Season picker on the
+  Overview page now swaps the whole page (stats, latest results, group cards);
+  before, only the address bar changed while the old season's content stayed on
+  screen. The router updates its state after the `history.replaceState` URL
+  write instead of waiting for a `hashchange` event that replaceState never
+  fires. The headless smoke test now covers it (20 checks).
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
   leader with its record, each linking to that group's standings. Two cards per row

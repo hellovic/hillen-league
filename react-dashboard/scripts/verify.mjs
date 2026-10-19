@@ -158,6 +158,28 @@ await waitFor(`document.querySelector(".view-head h2")?.textContent === "Standin
 check("rail navigation updates route and heading", true);
 check("per-view document title", (await evaluate("document.title")).includes("YOUTH GIRLS U13 - Standings - Season 33"), await evaluate("document.title"));
 
+// Regression guard: changing the season must re-render the overview. The URL
+// update goes through history.replaceState(), which fires no hashchange event,
+// so the router has to refresh its own state (App.jsx syncUrl → setRoute).
+await open("/season/33");
+const startSeason = await evaluate(`document.querySelector("#season-select").value`);
+const startGroup = await evaluate(`document.querySelector("#group-select").value`);
+const overviewBefore = await evaluate(`document.querySelector("#view .season-stats")?.innerText.replace(/\\s+/g, " ")`);
+const switchedTo = await evaluate(`(() => {
+  const sel = document.querySelector("#season-select");
+  const other = [...sel.options].map((o) => o.value).find((v) => v !== sel.value);
+  sel.value = other;
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+  return other;
+})()`);
+await waitFor(`document.documentElement.dataset.route === "season/${switchedTo}"`, "season switch route");
+await sleep(150);
+const overviewAfter = await evaluate(`document.querySelector("#view .season-stats")?.innerText.replace(/\\s+/g, " ")`);
+check("season selector re-renders the overview", !!overviewAfter && overviewAfter !== overviewBefore, `${overviewBefore} -> ${overviewAfter}`);
+await evaluate(`(() => { const sel = document.querySelector("#season-select"); sel.value = ${JSON.stringify(startSeason)}; sel.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+await waitFor(`document.documentElement.dataset.route === "season/${startSeason}"`, "season restored");
+await evaluate(`(() => { const sel = document.querySelector("#group-select"); if ([...sel.options].some((o) => o.value === ${JSON.stringify(startGroup)})) { sel.value = ${JSON.stringify(startGroup)}; sel.dispatchEvent(new Event("change", { bubbles: true })); } })()`);
+
 await open("/standings");
 await evaluate(`document.querySelector('th[data-key="team_name"]').click()`);
 await sleep(120);

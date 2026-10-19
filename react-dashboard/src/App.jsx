@@ -114,7 +114,13 @@ export default function App() {
 
   /* Keep the URL in step with the selectors, exactly like syncUrl(): the season
    * view canonicalises to #/season/<id>, list views carry both query params, and
-   * detail views own their URL. */
+   * detail views own their URL.
+   *
+   * replaceState() does not fire hashchange, so the route state must be
+   * refreshed by hand. Without this the season view keeps rendering the id that
+   * was in the URL when it mounted: picking season 31 updates the address bar to
+   * #/season/31 and the context, but `parts[1]` (the prop SeasonView renders)
+   * stays 33. */
   const syncUrl = useCallback((season, group) => {
     const { parts } = parseHash();
     const view = parts[0] || "season";
@@ -122,7 +128,9 @@ export default function App() {
     if (view === "season") hash = seasonHash(season);
     else if (LIST_VIEWS.has(view)) hash = contextHash(view, { season, group });
     else return;
-    if (location.hash !== hash) history.replaceState(null, "", hash);
+    if (location.hash === hash) return;
+    history.replaceState(null, "", hash);
+    setRoute(parseHash());
   }, []);
 
   const changeSeason = (season) => {
