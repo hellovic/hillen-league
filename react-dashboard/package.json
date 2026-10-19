@@ -1,0 +1,21 @@
+{
+  "name": "hillen-league-react",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "data": "python3 ../server.py --export-data public/league-data.js",
+    "verify": "npm run build && node scripts/verify.mjs",
+    "verify:site": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.4"
+  },
+  "description": "Hillen Youth League dashboard — React port of the “Courtside Orange” design system"
+}

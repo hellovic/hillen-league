@@ -1,0 +1,167 @@
+:root{color-scheme:dark;--bg:#101112;--bg2:#151719;--card:#1b1d20;--card2:#24272b;--line:#34383d;--text:#f5f6f7;--muted:#b0b5bd;--accent:#ff8b50;--accent2:#ff9b68;--cyan:#ff9b68;--good:#8ed7aa;--bad:#ff9c9c;--display:'Avenir Next Condensed','Franklin Gothic Medium','Impact',sans-serif;--radius:8px;--space:24px;--duration:180ms;--mono:'SF Mono',Menlo,monospace}
+*{box-sizing:border-box}html,body{font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text)}body{margin:0}button,input,select{font:inherit}button,a,select{cursor:pointer}a{color:var(--cyan)}:focus-visible{outline:3px solid var(--accent);outline-offset:4px}button,input,select,a{ -webkit-tap-highlight-color:transparent}button{transition:background var(--duration) ease-out}button:disabled{opacity:.5;cursor:default}a{text-underline-offset:4px}p{margin:0 0 16px}h1,h2,h3{line-height:1.25}h2,h3{font-family:var(--display)}.site-layout{max-width:1600px;margin:auto}.topbar{position:static;background:var(--bg);border:0;border-bottom:1px solid var(--line);padding:24px 40px;gap:24px}.brand{gap:12px;min-width:0}.logo{background:var(--accent);color:var(--bg);box-shadow:none;border-radius:8px;width:48px;height:48px;font-family:var(--display);font-size:22px;flex:none}.brand h1{font-family:var(--display);font-size:24px;letter-spacing:-.5px}.brand h1 span{display:none}.meta-line{font-size:12px;max-width:360px;line-height:1.5}.controls{gap:16px;flex-wrap:wrap}.controls label,.search-label{font-size:12px;color:var(--muted)}.controls label{display:grid;gap:4px;min-width:0}select{background:var(--bg2);font-size:16px;max-width:250px;padding:8px 12px;min-height:44px;border-radius:var(--radius)}.gsearch{min-width:180px}.gsearch input[type=search]{width:240px;max-width:100%;min-height:44px;background:var(--bg2);font-size:16px;border-radius:var(--radius)}.global-results{max-width:calc(100vw - 32px);background:var(--card)}.gs-item{font-size:16px;min-height:48px}.tabs{position:static;background:none;border:0;padding:24px 40px 0;gap:8px}.tabs button{font-size:16px;min-height:48px;padding:8px 16px;border-radius:var(--radius);border:1px solid transparent}.tabs button.active{background:var(--card2);border:1px solid var(--line);color:var(--accent)}main{max-width:none;padding:32px 40px 48px;min-width:0}.season-hero{display:grid;grid-template-columns:1.15fr 1fr;align-items:center;gap:32px;padding:24px 0 40px}.eyebrow{font-size:11px;letter-spacing:2px;color:var(--muted);font-weight:700;margin-bottom:16px}.hero-copy h2{font-size:clamp(36px,4.5vw,68px);letter-spacing:-2px;margin:0 0 24px;line-height:1.05;text-transform:uppercase}.hero-copy h2 em{color:var(--accent);font-style:normal}.league-title{color:var(--muted);font-size:16px}.primary-action{display:inline-flex;align-items:center;gap:32px;min-height:48px;padding:12px 20px;background:var(--accent);color:var(--bg);text-decoration:none;font-weight:700;border-radius:var(--radius)}.hero-score{border:1px solid var(--line);background:var(--bg2);padding:24px;border-radius:var(--radius);position:relative}.score-caption{justify-content:space-between;color:var(--accent);font-size:12px;letter-spacing:1px}.featured-game{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;text-align:center;color:var(--text);text-decoration:none;padding:32px 0 16px}.featured-game b{font-size:16px;overflow-wrap:anywhere}.featured-game strong{font:700 clamp(40px,5vw,72px)/1.3 var(--display)}.score-divider{font-size:32px;color:var(--muted)}.featured-note{font-size:12px;text-align:center;color:var(--muted);margin:0}.court-lines{height:16px;border-top:1px solid var(--line);margin-top:24px}.season-stats{display:grid;grid-template-columns:repeat(4,1fr);border-block:1px solid var(--line);padding:24px 0;margin-bottom:40px}.season-stats .od-stat{padding-left:24px;border-left:1px solid var(--line)}.season-stats .od-stat:first-child{padding-left:0;border:0}.season-stats strong{font:600 32px/1.3 var(--display)}.season-stats span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px}.dashboard-grid>*{min-width:0}.section-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}.section-head .eyebrow{margin-bottom:8px;font-size:10px}.section-head h3{font-size:24px;margin:0;color:var(--text)}.count-tag{font-size:12px;white-space:nowrap;color:var(--muted)}.grid-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{border-radius:var(--radius);padding:24px;border-color:var(--line);margin-bottom:24px;background:var(--card);min-width:0}.season-card{padding:20px;margin:0;color:var(--text);text-decoration:none}.division-top{gap:8px;margin-bottom:16px}.division-age{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:var(--card2);font:700 20px var(--display);color:var(--accent);border-radius:4px}.division-group{font-size:10px;letter-spacing:1px;color:var(--muted)}.division-arrow{margin-left:auto;color:var(--accent)}.season-card h3{font:600 20px/1.3 var(--display);color:var(--text);margin-bottom:8px}.season-size{font-size:12px;margin:0 0 20px;color:var(--muted)}.division-leader{border-top:1px solid var(--line);padding-top:16px;display:grid;gap:4px}.leader-label{font-size:9px;letter-spacing:1px;color:var(--muted)}.leader-record{font-size:12px;color:var(--muted)}.leader-record b{color:var(--accent);margin-left:8px}.results{margin-top:0}.text-link{font-size:12px;text-decoration:none;white-space:nowrap;min-height:44px;display:flex;align-items:center}.game-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:20px 0;position:relative;font-size:16px}.gr-top{width:auto;grid-column:1/-1;font-size:11px;align-items:center;gap:8px}.gr-group{font-size:10px;border-radius:4px}.final-label{margin-left:auto;font-size:9px;letter-spacing:1px;color:var(--muted)}.gr-match{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);width:100%;margin:0;gap:12px}.gr-team{white-space:normal;overflow:visible;overflow-wrap:anywhere;font-size:14px}.gr-team.home{text-align:left}.gr-team.away{text-align:right}.gr-score{font:600 24px/1.3 var(--display);min-width:64px;white-space:nowrap}.row-arrow{font-size:16px;color:var(--muted)}.upcoming h3{font-size:20px}.upcoming p,.upcoming .muted{font-size:14px}.muted{color:var(--muted)}.small-dot{display:block;width:8px;height:8px;background:var(--accent);border-radius:50%}.source-note{display:flex;gap:16px;align-items:center;padding:8px 0;color:var(--muted);font-size:12px}.source-note p{margin:0}.source-note p span{font-size:10px}.source-mark{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid var(--line);font-weight:700}footer.foot{font-size:12px;line-height:1.8;padding:24px 40px}.view-head{gap:16px;margin-bottom:24px}.view-head h2{font-size:32px}.toolbar{flex-wrap:wrap}.toolbar .sub{font-size:14px}.card h3{font-size:20px}.card table.data{font-size:16px}table.data th{font-size:12px;padding:16px 12px}table.data td{padding:16px 12px;border-color:var(--line)}.card:has(table){overflow-x:auto}.grid-2{gap:24px}.grid-2>*{min-width:0}.bar-fill{background:var(--accent)}.bar-row{font-size:14px;min-height:36px}.bar-row .bl{white-space:normal;overflow-wrap:anywhere}.csv-btn{font-size:14px;min-height:44px;background:var(--bg2)}.back{font-size:16px;min-height:44px}.scoreboard .team .tname{font-size:18px;overflow-wrap:anywhere}.scoreboard .score{font-size:clamp(28px,4vw,48px);white-space:nowrap}.badge{font-size:12px}.empty{font-size:16px}.compare-pickers select{max-width:100%;min-width:0}.mobile-nav{display:none}
+/* Orange: courtside utility, a dedicated desktop navigation rail. */
+@media(min-width:1024px){body.orange .site-layout{display:grid;grid-template-columns:184px minmax(0,1fr)}body.orange .topbar{grid-column:1/-1}body.orange .tabs{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:8px;padding:32px 16px;border-right:1px solid var(--line)}body.orange .tabs::before{content:'LEAGUE';color:var(--muted);font-size:10px;letter-spacing:2px;margin:0 16px 16px}body.orange .tabs button{text-align:left}body.orange main{grid-column:2;padding:32px}body.orange .foot{grid-column:1/-1}body.orange .hero-copy h2{font-size:clamp(36px,4vw,64px)}}
+@media(hover:hover){a:hover{color:var(--accent)}.primary-action:hover{background:var(--card2);color:var(--accent)}.tabs button:hover,button:hover{background:var(--card2);color:var(--accent)}.season-card:hover{background:var(--card2);border-color:var(--accent)}.game-row:hover,.gs-item:hover{background:var(--card2)}.game-row:hover .gr-team{color:var(--accent)}table.data th:hover{color:var(--accent)}}
+@media(min-width:1440px){main{padding:40px 64px 64px}.topbar{padding-inline:64px}.dashboard-grid{gap:40px}.grid-cards{gap:24px}}
+@media(max-width:1023px){.topbar{padding:24px;align-items:flex-start}.controls{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}.controls select,.gsearch input[type=search]{width:100%;max-width:100%}.tabs{padding:16px 24px;gap:8px;justify-content:space-between}.tabs button{padding:8px}.dashboard-grid{grid-template-columns:1fr 1fr;gap:24px}main{padding:24px}.hero-copy h2{font-size:44px}.season-hero{gap:24px}.featured-game strong{font-size:56px}.grid-cards{grid-template-columns:1fr}.season-card{padding:20px}.gr-score{font-size:22px}.game-row{padding:20px 0}.hero-score{padding:20px}}
+@media(max-width:767px){.topbar{padding:24px 20px;gap:24px}.brand h1{font-size:24px}.meta-line{font-size:11px}.controls{grid-template-columns:1fr 1fr;gap:16px}.gsearch{grid-column:1/-1}.search-label{display:block;margin-bottom:4px}.gsearch input[type=search]{width:100%}.controls label{font-size:12px}select{padding:8px;min-width:0}.tabs{display:none!important}main{padding:24px 20px 40px}.season-hero{grid-template-columns:1fr;gap:32px;padding:8px 0 24px}.hero-copy h2{font-size:44px;letter-spacing:-1.5px}.eyebrow{font-size:10px;letter-spacing:1.5px}.league-title{font-size:14px}.primary-action{min-height:48px}.hero-score{padding:20px}.featured-game{padding:24px 0 12px}.featured-game strong{font-size:56px}.featured-game b{font-size:16px}.season-stats{margin-bottom:32px;padding:20px 0}.season-stats .od-stat{padding-left:16px}.season-stats strong{font-size:28px}.season-stats span{font-size:10px;letter-spacing:.5px}.dashboard-grid{grid-template-columns:1fr;gap:32px}.grid-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.season-card{padding:16px}.division-top{flex-wrap:wrap;gap:8px}.division-group{font-size:9px}.division-age{font-size:20px;min-width:40px;min-height:40px}.division-arrow{display:none}.season-card h3{font-size:18px}.season-size{font-size:12px}.division-leader{font-size:14px}.leader-record{font-size:11px}.leader-record b{margin-left:4px}.card{padding:20px}.season-card{padding:16px}.results-column .card{padding:20px}.section-head h3{font-size:24px}.game-row{display:grid;font-size:16px}.gr-match{display:grid;flex:auto}.gr-team{font-size:16px}.gr-top{font-size:12px}.gr-score{font-size:28px}.results-column .gr-match{gap:12px}.foot{margin-bottom:0}.mobile-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--line);gap:8px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:50}.mobile-nav button,.mobile-nav summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:56px;border:0;background:none;color:var(--muted);font-size:10px;padding:4px;border-radius:8px}.mobile-nav .od-icon{--od-icon-size:20px}.mobile-nav button[aria-current=page]{color:var(--accent);background:var(--card2)}.mobile-nav details{min-width:0}.mobile-nav summary{list-style:none;cursor:pointer}.mobile-nav summary::-webkit-details-marker{display:none}.more-menu{position:absolute;bottom:calc(100% + 8px);right:16px;width:200px;padding:8px;background:var(--card);border:1px solid var(--line);box-shadow:0 8px 32px #0006}.more-menu button{width:100%;min-height:48px;align-items:flex-start;padding:12px 16px;font-size:16px}.view-head h2{font-size:28px}.toolbar .sub{display:block;font-size:12px}.card table.data{font-size:16px}table.data td,table.data th{padding:12px}.grid-2{grid-template-columns:1fr}.compare-pickers{display:grid;grid-template-columns:1fr;width:100%}.compare-pickers select{width:100%}.scoreboard{gap:8px}.scoreboard .team .tname{font-size:16px}.bar-row .bl{width:120px}.global-results{left:0;right:auto;width:100%}.kv{font-size:16px}.qstrip{flex-wrap:wrap}}
+@media(max-width:374px){.grid-cards{grid-template-columns:1fr}.hero-copy h2{font-size:36px}.season-stats .od-stat{padding-left:8px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+body.orange{
+  --display:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang HK','Microsoft JhengHei',sans-serif;
+  --mobile-title:20px;
+  --mobile-heading:18px;
+  --mobile-body:16px;
+  --mobile-detail:14px;
+  --mobile-caption:12px;
+}
+body.orange .season-hero,
+body.orange .section-head .eyebrow,
+body.orange .source-note,
+body.orange .meta-line{display:none}
+body.orange .brand h1{font-weight:750;letter-spacing:-.5px}
+body.orange .season-stats{margin-top:0}
+body.orange .section-head h3{font-weight:700}
+body.orange .skip-link{position:absolute;top:8px;left:8px;transform:translateY(-200%);z-index:100;background:var(--bg2)}
+body.orange .skip-link:focus{transform:translateY(0)}
+@media(max-width:767px){
+ body.orange{font-size:var(--mobile-body);line-height:1.5}
+ body.orange .topbar{padding:16px;gap:16px}
+ body.orange .brand{gap:12px}
+ body.orange .logo{width:40px;height:40px;font-size:var(--mobile-heading)}
+ body.orange .brand h1{font-size:var(--mobile-title);line-height:1.3}
+ body.orange .controls{gap:12px}
+ body.orange .controls label,body.orange .search-label{font-size:var(--mobile-detail);line-height:1.5}
+ body.orange .gsearch input[type=search],body.orange select{font-size:var(--mobile-body);line-height:1.5;min-height:44px}
+ body.orange main{padding:16px 16px 32px}
+ body.orange .season-stats{padding:16px 0;margin-bottom:24px}
+ body.orange .season-stats .od-stat{padding-left:12px;gap:4px}
+ body.orange .season-stats .od-stat:first-child{padding-left:0}
+ body.orange .season-stats strong{font-size:24px;line-height:1.25;font-weight:700}
+ body.orange .season-stats span{font-size:var(--mobile-caption);text-transform:none;letter-spacing:0}
+ body.orange .dashboard-grid{gap:24px}
+ body.orange .section-head{margin-bottom:16px;gap:12px}
+ body.orange .section-head h3,body.orange .card h3{font-size:var(--mobile-heading);line-height:1.4}
+ body.orange .count-tag,body.orange .text-link{font-size:var(--mobile-detail)}
+ body.orange .grid-cards{grid-template-columns:1fr;gap:12px}
+ body.orange .season-card{padding:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
+ body.orange .division-top{display:none}
+ body.orange .season-card h3{grid-column:1;grid-row:1;font-size:var(--mobile-body);margin:0;font-weight:700}
+ body.orange .season-size{grid-column:1;grid-row:2;font-size:var(--mobile-detail);margin:0;line-height:1.5}
+ body.orange .division-leader{grid-column:1/-1;border-top:1px solid var(--line);padding-top:12px;margin-top:8px;gap:4px;font-size:var(--mobile-body)}
+ body.orange .leader-label{font-size:var(--mobile-caption);letter-spacing:.5px}
+ body.orange .leader-record{font-size:var(--mobile-detail)}
+ body.orange .results-column .card{padding:16px;margin-bottom:16px}
+ body.orange .game-row{padding:16px 0}
+ body.orange .gr-team{font-size:var(--mobile-body);line-height:1.5}
+ body.orange .gr-score{font-size:24px;font-weight:750;letter-spacing:-.5px}
+ body.orange .gr-group,body.orange .gr-when,body.orange .final-label{font-size:var(--mobile-caption)}
+ body.orange .final-label{letter-spacing:0}
+ body.orange .row-arrow{display:none}
+ body.orange .game-row{grid-template-columns:1fr}
+ body.orange .upcoming p,body.orange .upcoming .muted{font-size:var(--mobile-detail)}
+ body.orange .view-head h2{font-size:24px;line-height:1.3;font-weight:750}
+ body.orange .mobile-nav button,body.orange .mobile-nav summary{font-size:var(--mobile-caption);line-height:1.3;min-height:56px}
+ body.orange .more-menu button{font-size:var(--mobile-body)}
+ body.orange .foot{font-size:var(--mobile-caption);padding:16px}
+}
+
+
+body.orange .dashboard-grid{grid-template-columns:minmax(0,1fr)}
+body.orange .results-column .upcoming{margin-bottom:0}
+body.orange .division-section .grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:767px){
+ body.orange .division-section .grid-cards{gap:12px}
+ body.orange .season-card{display:flex;flex-direction:column;gap:8px;padding:12px}
+ body.orange .season-card h3{font-size:var(--mobile-body);line-height:1.5}
+ body.orange .season-size{font-size:var(--mobile-detail)}
+ body.orange .division-leader{margin-top:auto;padding-top:12px;gap:8px;overflow-wrap:anywhere}
+ body.orange .leader-record{display:flex;flex-wrap:wrap;gap:4px 8px;white-space:normal}
+ body.orange .leader-record b{margin-left:0;white-space:nowrap}
+}
+
+
+body.orange .results-column .upcoming-empty{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;padding:12px 16px}
+body.orange .upcoming-empty .section-head{margin:0}
+body.orange .upcoming-empty .section-head h3{font-size:16px;line-height:1.5}
+body.orange .upcoming-empty .small-dot,body.orange .upcoming-empty>.muted{display:none}
+body.orange .upcoming-empty>p{margin:0;font-size:14px;line-height:1.5;color:var(--muted)}
+
+
+.compact-date .date-short{display:none}
+.compact-date .date-time{display:block}
+@media(max-width:767px){
+ body.orange .compact-date{display:grid;gap:4px;font-variant-numeric:tabular-nums;font-size:14px;line-height:1.4;white-space:nowrap}
+ body.orange .compact-date .date-full{position:absolute;inline-size:1px;block-size:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+ body.orange .compact-date .date-short{display:block}
+ body.orange .compact-date .date-time{font-size:12px;color:var(--muted)}
+ body.orange table.data .game-date-cell{padding-inline:8px;width:64px;min-width:64px}
+ body.orange #t-games,body.orange #t-games tbody{display:block;width:100%}
+ body.orange #t-games thead{position:absolute;inline-size:1px;block-size:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+ body.orange #t-games tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
+ body.orange #t-games tbody tr:last-child{border-bottom:0}
+ body.orange #t-games td{display:block;position:static;width:auto;min-width:0;padding:0;border:0;white-space:normal;background:none;box-shadow:none;overflow-wrap:anywhere}
+ body.orange #t-games td:nth-child(1){grid-column:1/3;grid-row:1}
+ body.orange #t-games .compact-date{display:flex;align-items:center;gap:8px}
+ body.orange #t-games td:nth-child(6){grid-column:3;grid-row:1;text-align:right;align-self:center;white-space:nowrap}
+ body.orange #t-games td:nth-child(2){grid-column:1;grid-row:2;align-self:center}
+ body.orange #t-games td:nth-child(3){grid-column:2;grid-row:2;align-self:center;font:700 20px/1.5 var(--display);white-space:nowrap;text-align:center}
+ body.orange #t-games td:nth-child(4){grid-column:3;grid-row:2;align-self:center;text-align:right}
+ body.orange #t-games td:nth-child(5){grid-column:1/-1;grid-row:3;color:var(--muted);font-size:12px}
+ body.orange #t-games td:nth-child(5)::before{content:'Venue: '}
+ body.orange #t-games .row-link{font-size:16px;line-height:1.5}
+ body.orange #t-games .badge{font-size:12px}
+}
+
+@media(max-width:767px){
+ body.orange .view-head .game-detail-heading{font-size:clamp(12px,4vw,16px);line-height:1.5;letter-spacing:0;font-weight:600;white-space:nowrap}
+}
+
+/* Fit the complete quarter scoreboard to a mobile card, including overtime. */
+@media(max-width:767px){
+ body.orange .card table.data.quarter-table{width:100%;max-width:100%;table-layout:fixed;font-size:14px;margin:16px 0 0}
+ body.orange table.data.quarter-table th,
+ body.orange table.data.quarter-table td{padding:12px 4px;white-space:normal;text-align:center}
+ body.orange table.data.quarter-table th{font-size:11px;letter-spacing:0;position:static}
+ body.orange table.data.quarter-table th:first-child,
+ body.orange table.data.quarter-table td:first-child{width:30%;text-align:left;overflow-wrap:anywhere;font-size:14px;line-height:1.4}
+ body.orange table.data.quarter-table td:not(:first-child){white-space:nowrap;font-variant-numeric:tabular-nums}
+}
+
+
+body.orange .results-column .gr-score{font-family:var(--display);font-size:16px;font-weight:600;line-height:1.5;letter-spacing:0;min-width:56px;font-variant-numeric:tabular-nums}
+
+/* Courtside theme tokens: independent contrast palettes for day and night. */
+:root[data-theme="light"]{color-scheme:light;--bg:#f6f7f9;--bg2:#eef0f3;--card:#ffffff;--card2:#e5e8ed;--line:#c5cbd3;--text:#19212a;--muted:#525e6b;--accent:#a53b0a;--accent2:#a53b0a;--cyan:#a53b0a;--good:#25733f;--bad:#b12c32}
+:root[data-theme="dark"]{color-scheme:dark}
+[data-theme="light"] body.orange .topbar{background:var(--bg)}
+body.orange .theme-toggle{margin-left:auto;display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;font-size:14px;line-height:1.5;white-space:nowrap;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px}
+[data-theme="light"] body.orange .logo{color:#fff}
+[data-theme="light"] .chart-grid{stroke:#c5cbd3}
+[data-theme="light"] table.data tbody tr:hover{background:#eef0f3}
+[data-theme="light"] .badge.w{background:#e4f2e8}
+[data-theme="light"] .badge.l{background:#fae6e7}
+[data-theme="light"] .badge.np{background:#e9ecf0}
+[data-theme="light"] .more-menu{box-shadow:0 8px 24px #19212a20}
+body.orange tr.dnp-row td{opacity:1}
+@media(min-width:1024px){body.orange .controls{flex:1;justify-content:flex-end}body.orange .topbar .theme-toggle{order:3}}
+@media(max-width:767px){body.orange .topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 8px}body.orange .topbar .controls{grid-column:1/-1;width:100%}body.orange .topbar .theme-toggle{font-size:12px;margin:0}body.orange footer.foot{padding-bottom:calc(112px + env(safe-area-inset-bottom))}}
+
+/* All Leaders categories use a compact, full-width mobile table. */
+@media(max-width:767px){
+ body.orange .leaderboard-card{padding:16px 12px}
+ body.orange .card table.data.leaderboard-table{table-layout:fixed;width:100%;font-size:14px}
+ body.orange table.data.leaderboard-table th{font-size:10px;letter-spacing:0;padding:8px 4px;white-space:nowrap}
+ body.orange table.data.leaderboard-table td{padding:10px 4px;font-size:14px;line-height:1.5}
+ body.orange table.data.leaderboard-table th:nth-child(1){width:6%}
+ body.orange table.data.leaderboard-table th:nth-child(2){width:24%}
+ body.orange table.data.leaderboard-table th:nth-child(3){width:28%}
+ body.orange table.data.leaderboard-table th:nth-child(4){width:10%}
+ body.orange table.data.leaderboard-table th:nth-child(5),body.orange table.data.leaderboard-table th:nth-child(6){width:16%}
+ body.orange table.data.leaderboard-table td:nth-child(2),body.orange table.data.leaderboard-table td:nth-child(3){white-space:normal;overflow-wrap:anywhere}
+ body.orange table.data.leaderboard-table .row-link{font-size:14px;font-weight:600}
+ body.orange .leaderboard-card h3{margin-bottom:12px}
+}

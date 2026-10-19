@@ -1,0 +1,23 @@
+/* Desktop layout corrections for the "Courtside Orange" handoff.
+ *
+ * The design was built and previewed at phone width (390–650 px). Two rules
+ * from that iteration leak into the desktop rail layout:
+ *
+ *  1. base.css (the original dashboard stylesheet) sets `main { margin: 0 auto }`.
+ *     Inside the new `.site-layout` grid that turns <main> into a shrink-to-fit
+ *     item, so its width follows whatever the current view's content asks for
+ *     (season page: 512 px, compare page: 1192 px) and the rail layout floats.
+ *  2. `body.orange .dashboard-grid { grid-template-columns: 1fr }` sits outside
+ *     its media block, so the two-column dashboard never appears on desktop.
+ *
+ * Both are scoped fixes, only at ≥1024 px where the rail layout exists. The
+ * design layer itself (design.css) is imported unmodified, so removing this
+ * file restores byte-exact parity with the OD build at mobile width. */
+@media (min-width: 1024px) {
+  body.orange main {
+    margin: 0;
+  }
+  body.orange .dashboard-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+}

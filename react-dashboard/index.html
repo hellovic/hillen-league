@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101112" />
+    <meta name="description" content="Live standings, teams, player season stats and per-game box scores for the Hillen Youth Girls Basketball League." />
+    <!-- Link previews (WhatsApp/Telegram/Slack…). Crawlers don't run JS, so every
+         SPA route previews as this generic card; server.py writes one stub page
+         per game/team/player/group/season with entity-specific tags and a
+         forward into the hash route, and "Copy link" hands out those URLs. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Hillen League" />
+    <meta property="og:title" content="Hillen League - Youth Girls Basketball League" />
+    <meta property="og:description" content="Live standings, teams, player season stats and per-game box scores for the Hillen Youth Girls Basketball League." />
+    <meta property="og:url" content="https://hellovic.github.io/hillen-league/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Hillen League - Youth Girls Basketball League" />
+    <meta name="twitter:description" content="Live standings, teams, player season stats and per-game box scores for the Hillen Youth Girls Basketball League." />
+    <title>Hillen League Dashboard</title>
+    <style>
+      /* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio, geometry.
+         Put this @layer first; product CSS outside the layer always wins. */
+      @layer od-layout {
+        :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+        /* containers */
+        .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+        .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+        .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+        .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+        .od-fill    { flex: 1 1 0; min-width: 0; }
+        .od-fixed   { flex: none; }
+        .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+        /* stacked information: each piece is its own line — never sibling inline spans */
+        .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+        :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+        .od-tile { display: grid; grid-template-rows: auto 1fr; }
+        :where(.od-tile) > :where(*) { display: block; }
+
+        /* media keeps its intrinsic ratio by default; never a distorted or cropped
+           cover by accident. height:auto lets the ratio win over an <img height="…">
+           attribute. Cropping to a uniform box is an explicit opt-in: set --od-ratio
+           AND add .od-media-cover together. */
+        .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+        .od-media-cover { object-fit: cover; }
+
+        /* functional inline SVG icons opt into bounded geometry; content SVGs keep their own */
+        .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
+
+        /* data text only — authored copy is rewritten to its budget instead */
+        .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+        .od-clamp-2 { -webkit-line-clamp: 2; }
+        .od-clamp-3 { -webkit-line-clamp: 3; }
+        .od-lines-2 { min-height: calc(2 * 1.4em); }
+        .od-nowrap  { white-space: nowrap; }
+        .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+
+        /* screen skeleton (optional): bars take their own space, the middle scrolls */
+        .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+        .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+        /* horizontal rail: the next item peeks at the edge; trailing room survives overflow */
+        .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+                   padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+        .od-rail::-webkit-scrollbar { display: none; }
+        :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+        :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+        .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+        .od-touch  { min-width: 44px; min-height: 44px; }
+      }
+      /* /OD-LAYOUT-PRIMITIVES v1 */
+    </style>
+    <script>
+      // Set the theme before first paint so there is no flash of the wrong palette.
+      try {
+        const t = localStorage.getItem("courtside-theme");
+        document.documentElement.dataset.theme = t === "light" || t === "dark" ? t : (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      } catch (e) {
+        document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      }
+    </script>
+<!-- PostHog analytics (cloud). The project API key is public by design. The
+     loader registers window.posthog; we only init it on the real (non-localhost)
+     site so local dev traffic isn't tracked. Page views are fired manually on
+     every hashchange (see src/analytics.js) because this is a hash-routed SPA. PostHog's
+     Web Analytics "Pages" report derives $pathname from $current_url and strips
+     the #hash, so every route on this GitHub Pages site would otherwise collapse
+     into one /hillen-league/ entry — before_send rewrites $pathname to the real
+     route (see https://posthog.com/tutorials/hash-based-routing). -->
+<script>
+!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+if (!/^(localhost|127\.)/.test(location.hostname)) {
+  posthog.init('phc_sXy4XnR8B5MHTq2M3GPQFBKxY4hwZTv5P8Km87mJHUmC', {
+    api_host: 'https://us.i.posthog.com',
+    defaults: '2026-05-30',
+    capture_pageview: false,   // hash-routed SPA: we fire $pageview/$pageleave manually
+    capture_pageleave: false,
+    before_send: (event) => {
+      // For a hash-routed SPA the real route lives in the #fragment. PostHog
+      // derives $pathname from $current_url and drops the hash, so on this
+      // GitHub Pages site every route would otherwise report as /hillen-league/.
+      // Rewrite $pathname to the actual route so the "Pages"/Pageviews report
+      // counts each route. Only touch $pageview: app.js sets $pageleave's
+      // $pathname to the *previous* route (correct semantics) and overriding it
+      // would corrupt pageleave attribution.
+      if (event && event.event === "$pageview" && event.properties) {
+        const cu = event.properties.$current_url;
+        if (typeof cu === "string" && cu.indexOf("#") !== -1) {
+          // also drop a season/group query (…#/standings?season=33&group=11): it
+          // refines a route rather than naming another page, and keeping it would
+          // split /standings into a row per season in the Pages report
+          event.properties.$pathname = cu.slice(cu.indexOf("#") + 1).split("?")[0] || "/";
+        }
+      }
+      return event;
+    }
+  });
+}
+</script>
+  </head>
+  <body class="orange">
+    <div id="root"></div>
+    <script src="/league-data.js"></script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
