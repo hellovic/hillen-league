@@ -145,6 +145,28 @@ main { padding: 20px 22px 40px; max-width: 1280px; margin: 0 auto; }
 /* ---------- cards ---------- */
 
 /* season overview — one card per group; 2 per row on phones (see the 768px block) */
+/* latest results under the season cards: one row per game */
+.results { margin-top: 14px; }
+.game-row { display: flex; align-items: center; gap: 14px; padding: 9px 0;
+            border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.game-row:last-child { border-bottom: 0; }
+.game-row:hover .gr-team { color: var(--cyan); }
+.gr-top { display: flex; gap: 8px; align-items: baseline; width: 200px; flex: none; }
+.gr-when { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gr-group { font-size: 11px; color: var(--muted); background: var(--card2);
+            border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+.gr-status { font-size: 12px; color: var(--accent2); }
+/* the two names hug the score; keep the block centred instead of letting it
+ * stretch edge to edge, so a wide window does not leave a hole in the middle */
+.gr-match { flex: 0 1 620px; margin: 0 auto; display: flex; align-items: center;
+            gap: 12px; min-width: 0; }
+.gr-team { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gr-team.home { text-align: right; }
+.gr-team.away { text-align: left; }
+.gr-team.win { font-weight: 700; }
+.gr-score { flex: none; min-width: 62px; text-align: center; font-weight: 700;
+            font-variant-numeric: tabular-nums; }
+
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .season-card { display: block; text-decoration: none; color: inherit; }
 .season-card:hover { border-color: var(--cyan); }
@@ -383,6 +405,12 @@ table.data td.lo { color: var(--muted); }
 
   /* season overview: two group cards per row */
   .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  /* latest results stack into two lines per game; names to the edges, score centred */
+  .game-row { flex-direction: column; align-items: stretch; gap: 3px; }
+  .gr-top { width: auto; }
+  .gr-match { flex: 1 1 auto; margin: 0; gap: 8px; }
+  .gr-team.home { text-align: left; }
+  .gr-team.away { text-align: right; }
   .season-card { margin-bottom: 0; }
   .season-card h3 { font-size: 12px; line-height: 1.3; }
   .season-size, .season-line { font-size: 11px; margin-top: 4px; }

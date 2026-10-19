@@ -198,6 +198,18 @@ QUERIES = {
                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS played,
                MIN(game_date) AS first_game, MAX(game_date) AS last_game
         FROM games WHERE season_id = ?""",
+    "season_latest_games": """
+        SELECT g.event_id, g.game_date, g.start_time, g.status,
+               g.group_id, gr.name AS group_name,
+               ht.name AS home_name, at.name AS away_name,
+               g.home_score, g.away_score
+        FROM games g
+        JOIN teams  ht ON ht.team_id = g.home_team_id
+        JOIN teams  at ON at.team_id = g.away_team_id
+        JOIN groups gr ON gr.group_id = g.group_id AND gr.season_id = g.season_id
+        WHERE g.season_id = ? AND g.status <> 'scheduled'
+        ORDER BY g.game_date DESC, COALESCE(g.start_time, '') DESC, g.event_id DESC
+        LIMIT 10""",
     "season_teams_total": """
         SELECT COUNT(DISTINCT team_id) AS teams FROM season_teams WHERE season_id = ?""",
 }
@@ -274,6 +286,11 @@ def meta_payload(conn, db_path=DB_PATH):
     }
 
 
+def group_short(name):
+    """A group name squeezed for a badge: "YOUTH GIRLS U11 GROUP A" -> "U11 A"."""
+    return name.replace("YOUTH GIRLS ", "").replace(" GROUP ", " ")
+
+
 def season_payload(conn, season):
     """Everything the season overview page shows, in one payload.
 
@@ -316,6 +333,8 @@ def season_payload(conn, season):
             "leader": leader,
             "top": scorer,
         })
+    latest = [dict(r, group_short=group_short(r["group_name"]))
+              for r in query(conn, "season_latest_games", (season,))]
     total = query(conn, "season_games_total", (season,))[0]
     return {
         "season_id": season,
@@ -329,6 +348,7 @@ def season_payload(conn, season):
             "last_game": total["last_game"],
         },
         "groups": groups,
+        "latest_games": latest,
     }
 
 

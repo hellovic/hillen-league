@@ -888,6 +888,24 @@ async function renderSeason(view, seasonId) {
         ${lead}
       </a>`;
   }).join("");
+  const latest = (sp.latest_games || []).map(g => {
+    const done = g.home_score != null && g.away_score != null;
+    const why = g.status === "forfeit" ? "Forfeit"
+      : g.status === "not_played" ? "Not played"
+        : done ? "" : "Scheduled";
+    return `<a class="game-row" href="#/games/${g.event_id}">
+        <div class="gr-top">
+          <span class="gr-when">${esc(fmtDate(g.game_date))}</span>
+          <span class="gr-group">${esc(g.group_short || "")}</span>
+          ${why ? `<span class="gr-status">${esc(why)}</span>` : ""}
+        </div>
+        <div class="gr-match">
+          <span class="gr-team home${done && g.home_score > g.away_score ? " win" : ""}">${esc(g.home_name)}</span>
+          <span class="gr-score">${done ? `${g.home_score}–${g.away_score}` : "vs"}</span>
+          <span class="gr-team away${done && g.away_score > g.home_score ? " win" : ""}">${esc(g.away_name)}</span>
+        </div>
+      </a>`;
+  }).join("");
   view.innerHTML = `
     <div class="view-head">
       <h2>${esc(sp.season_name)}</h2>
@@ -897,7 +915,11 @@ async function renderSeason(view, seasonId) {
         ${shareButton("seasons", seasonId)}
       </div>
     </div>
-    <div class="grid-cards">${cards || '<div class="empty">No groups</div>'}</div>`;
+    <div class="grid-cards">${cards || '<div class="empty">No groups</div>'}</div>
+    <div class="card results">
+      <h3>Latest results</h3>
+      ${latest || '<div class="empty">No games played yet</div>'}
+    </div>`;
   setTitle(sp.season_name);
 }
 

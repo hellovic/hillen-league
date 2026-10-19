@@ -54,7 +54,10 @@ A zero-dependency web dashboard over the database:
   record — each linking to that group's standings. Two cards per row on a phone,
   as many as fit on a desktop. One request feeds it (`/api/season?season=`,
   pre-exported as `data/season/<id>.json`), so it costs nothing per group; the
-  export also carries each group's top scorer, which the card does not show. The default season is `meta.default_season`; an unknown season
+  export also carries each group's top scorer, which the card does not show.
+  Below the cards, **Latest results** lists the season's ten most recent games —
+  newest first, each tagged with its group's short name (`U11 A`) — and a row opens
+  that game's page. The default season is `meta.default_season`; an unknown season
   id lists the seasons that exist.
 - **Season/group live in the URL** — `#/standings?season=33&group=11` opens exactly that table, so a standings link is shareable like a game link. Changing either dropdown (or clicking a tab) writes the pair into the fragment with `history.replaceState`, so the address bar always describes what you are looking at while Back still leaves the page instead of rewinding through every season you tried. `route()` validates the values — an unknown season is ignored and an unknown group falls back to that season's first group — and the older positional form `#/players/<id>/<season>/<group>` is still accepted. Compare links carry the context too, since their pickers list one season's group.
 - **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
