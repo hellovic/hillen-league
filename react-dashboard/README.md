@@ -34,7 +34,7 @@ acceptance test this design needs — **zero horizontal overflow at 390 px and
 on failure:
 
 ```
-61 checks, 61 passed, 0 failed
+62 checks, 62 passed, 0 failed
 ```
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
@@ -176,7 +176,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 61 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 62 checks
 ```
 
 ## Syncing back to the Open Design project

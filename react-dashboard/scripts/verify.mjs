@@ -575,6 +575,19 @@ const ariaSort = await evaluate(`(() => {
     none: ths.filter((th) => th.getAttribute("aria-sort") === "none").length,
   };
 })()`);
+await open("/games");
+const gamesOrder = await evaluate(`(() => {
+  const rows = [...document.querySelectorAll("#t-games tbody tr")];
+  const dates = rows.map((r) => r.querySelector("time")?.getAttribute("datetime") || "");
+  return {
+    first: dates[0] || "",
+    last: dates[dates.length - 1] || "",
+    count: dates.length,
+    sorted: dates.every((d, i) => i === 0 || dates[i - 1] >= d),
+  };
+})()`);
+check("games are listed newest first", gamesOrder.count > 1 && gamesOrder.sorted && gamesOrder.first >= gamesOrder.last, `${gamesOrder.first} … ${gamesOrder.last}`);
+
 check("sortable headers expose aria-sort", ariaSort.active === 1 && ariaSort.none >= 5, `${ariaSort.active} active / ${ariaSort.none} none`);
 
 // UX-18: comparison content must fit a 320 px phone without panning.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, groupName, scopeLabel } from "../data.js";
-import { contextHash, csvDownload, gameStatus, hasResult, scoreText, setTitle, sortRows } from "../utils.js";
+import { contextHash, csvDownload, gameStatus, hasResult, kickoffKey, scoreText, setTitle, sortByKickoff, sortRows } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
 import SortTable from "../components/SortTable.jsx";
@@ -25,18 +25,21 @@ export default function GamesView({ ctx }) {
   const games = api("games", ctx);
   const resolved = games.filter(hasResult);
   const skipped = games.filter((g) => gameStatus(g).code === "skipped");
+  /* Newest fixture first: the list is a schedule, so the most recent game is
+   * what a visitor looks for. Column clicks still override this default. */
+  const newestFirst = sortByKickoff(games, "desc");
 
   useEffect(() => {
     setTitle(groupName(ctx.season, ctx.group), "Games", "Season " + ctx.season);
   }, [ctx.season, ctx.group]);
 
-  const rows = sort ? sortRows(games, sort.key, sort.dir) : games;
+  const rows = sort ? sortRows(games, sort.key, sort.dir) : newestFirst;
 
   const downloadCsv = () =>
     csvDownload(
       "games.csv",
       ["Date", "Home", "Score", "Away", "Venue", "Status"],
-      games.map((g) => [
+      rows.map((g) => [
         g.game_date, g.home_name,
         hasResult(g) ? `${g.home_score}-${g.away_score}` : "",
         g.away_name, g.venue, g.status,

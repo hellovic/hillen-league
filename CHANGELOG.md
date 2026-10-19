@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **Games list is newest-first** — the Games page now lists fixtures in reverse date order so the latest game (played or skipped) is at the top; the Date column header still re-sorts either way.
 - **Season and Group pickers are always visible on phones** — the compact header keeps both selects side by side (labels above each) instead of hiding them behind a filter chip, so a season or group change is one selection. Header height is 186 px at 390×844 (was 243 px before the mobile pass). Group options shorten to `U11 A` on phones; the full division name stays in the tooltip.
 - **The published site is now the React dashboard** — `server.py --export docs`
   builds `react-dashboard/` with Vite and writes one inline data bundle
