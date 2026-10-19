@@ -11,8 +11,13 @@ Format follows deployed versions; each entry lists the user-visible changes.
   waterfall. The 871 share/preview stubs and their `og:`/`twitter:` tags are
   unchanged and "Copy link" still hands out those URLs; asset URLs keep a
   `?v=<build stamp>` query and Vite asset names are now stable, so a deploy can
-  never 404 a page that is still cached (Pages caches for 10 minutes). PostHog route pageviews are
-  preserved (each `#/…` route reports as its own page). The data bundle is referenced relatively (`. /league-data.js` — no space), because the site lives under `/hillen-league/`; the export normalises the path server-side since a CI checkout has no local data snapshot for Vite to resolve. Building needs Node.js 22+ (`npm ci --prefix react-dashboard`); both workflows install it. The legacy vanilla `dashboard/` stays in the repo as the local dev UI of
+  never 404 a page that is still cached (Pages caches for 10 minutes). PostHog
+  route pageviews are preserved (each `#/…` route reports as its own page).
+  The data bundle is referenced relatively (`./league-data.js`) because the site
+  lives under `/hillen-league/`; the export normalises the path server-side,
+  since a CI checkout has no local data snapshot for Vite to resolve. Building
+  needs Node.js 22+ (`npm ci --prefix react-dashboard`); both workflows install
+  it. The legacy vanilla `dashboard/` stays in the repo as the local dev UI of
   `python3 server.py`.
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
