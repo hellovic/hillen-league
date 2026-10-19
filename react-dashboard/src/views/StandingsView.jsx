@@ -30,8 +30,8 @@ const KEYS = [
 /* Group standings for the selected season/group. Empty-state rules (UX-03 /
  * UX-19): a group with no results keeps its table but the points chart is
  * replaced by an explanation; a group with no teams shows a plain empty state
- * instead of an empty table. Pending fixtures are surfaced separately so a
- * missing result is never shown as a result. */
+ * instead of an empty table. Unplayed fixtures are skipped and never shown as
+ * results. */
 export default function StandingsView({ ctx }) {
   const [sort, setSort] = useState(null);
   const [standings, teams, games] = [api("standings", ctx), api("teams", ctx), api("games", ctx)];
@@ -42,7 +42,6 @@ export default function StandingsView({ ctx }) {
 
   const maxPf = Math.max(...teams.map((t) => t.pts_for), 1);
   const resolved = sortByKickoff(games.filter(hasResult), "desc");
-  const pending = sortByKickoff(games.filter((g) => gameStatus(g).code === "pending"));
   const latest = resolved.slice(0, 5);
   const rows = sort ? sortRows(standings, sort.key, sort.dir) : standings;
 
@@ -77,7 +76,6 @@ export default function StandingsView({ ctx }) {
         <div className="toolbar">
           <div className="sub">
             {teams.length} teams · {resolved.length} played
-            {pending.length ? ` · ${pending.length} pending` : ""}
           </div>
           <ShareButton kind="groups" id={`${ctx.season}/${ctx.group}`} />
           <CsvButton onDownload={downloadCsv} />
@@ -153,18 +151,6 @@ export default function StandingsView({ ctx }) {
               />
             )}
           </div>
-          {pending.length ? (
-            <div className="card scope-pending" aria-labelledby="st-pending-heading">
-              <div className="section-head">
-                <h3 id="st-pending-heading">Results pending</h3>
-                <span className="count-tag">{pending.length}</span>
-              </div>
-              <p className="scope-note">
-                Past fixtures with no recorded result — not counted in the table or the chart.
-              </p>
-              {pending.map(resultRow)}
-            </div>
-          ) : null}
         </div>
       </div>
     </>

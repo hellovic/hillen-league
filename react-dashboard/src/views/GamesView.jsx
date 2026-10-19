@@ -18,13 +18,13 @@ const KEYS = [
 
 /* Every fixture of the selected season/group. Sorting uses the raw `status` and
  * ISO date fields from the payload (never a rendered label); the Status column
- * is the shared GameStatus badge, so "Result pending" (past, no score) is never
+ * is the shared GameStatus badge, so a skipped fixture (past, no score) is never
  * confused with "Final" or "Scheduled". Missing scores stay em dashes. */
 export default function GamesView({ ctx }) {
   const [sort, setSort] = useState(null);
   const games = api("games", ctx);
   const resolved = games.filter(hasResult);
-  const pending = games.filter((g) => gameStatus(g).code === "pending");
+  const skipped = games.filter((g) => gameStatus(g).code === "skipped");
 
   useEffect(() => {
     setTitle(groupName(ctx.season, ctx.group), "Games", "Season " + ctx.season);
@@ -53,7 +53,7 @@ export default function GamesView({ ctx }) {
         <div className="toolbar">
           <div className="sub">
             {games.length} fixtures · {resolved.length} played
-            {pending.length ? ` · ${pending.length} pending` : ""}
+            {skipped.length ? ` · ${skipped.length} skipped` : ""}
           </div>
           <CsvButton onDownload={downloadCsv} />
         </div>

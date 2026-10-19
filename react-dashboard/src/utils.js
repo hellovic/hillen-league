@@ -20,9 +20,10 @@ export function resultOf(g, teamId) {
 /* ---------------- game status (UX-02) ----------------
  * One source of truth for how a fixture's state is worded. The bundle has three
  * raw statuses (`completed`, `forfeit`, `not_played`); everything the UI shows
- * is derived from those plus the league date in Hong Kong, so a past fixture
- * with no recorded score reads as "Result pending" instead of a fake result or
- * a fake 0–0. Only `completed` / `forfeit` carry scores. */
+ * is derived from those plus the league date in Hong Kong. A past fixture with
+ * no recorded score is "Skipped": the league does not make up unplayed games,
+ * so it is not a result and is never listed as one. Only `completed` /
+ * `forfeit` carry scores. */
 
 const HK_DATE = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Hong_Kong",
@@ -61,7 +62,7 @@ export function sortByKickoff(games, dir = "asc") {
  * UX-02 status model.
  *   completed                      → { code: "final",    label: "Final" }
  *   forfeit                        → { code: "forfeit",  label: "Forfeit" }
- *   not_played, kickoff < today HK → { code: "pending",  label: "Result pending" }
+ *   not_played, kickoff < today HK → { code: "skipped",  label: "Skipped" }
  *   anything else                  → { code: "upcoming", label: "Scheduled" }
  * `tone` is the CSS modifier suffix used by <GameStatus>.
  */
@@ -70,7 +71,7 @@ export function gameStatus(g) {
   if (status === "completed") return { code: "final", label: "Final", tone: "final" };
   if (status === "forfeit") return { code: "forfeit", label: "Forfeit", tone: "forfeit" };
   const past = g?.game_date ? kickoffKey(g) < todayHk() : false;
-  if (past) return { code: "pending", label: "Result pending", tone: "pending" };
+  if (past) return { code: "skipped", label: "Skipped", tone: "skipped" };
   return { code: "upcoming", label: "Scheduled", tone: "upcoming" };
 }
 

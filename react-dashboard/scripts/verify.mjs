@@ -439,12 +439,14 @@ check("group cards hide leaders for groups that have not played", cards.fakeLead
 await open("/games?season=33&group=16");
 const statuses = await evaluate(`(() => ({
   final: document.querySelectorAll('[data-status="final"]').length,
-  pending: document.querySelectorAll('[data-status="pending"]').length,
-  pendingText: document.querySelector('[data-status="pending"]')?.innerText.trim(),
+  skipped: document.querySelectorAll('[data-status="skipped"]').length,
+  skippedText: document.querySelector('[data-status="skipped"]')?.innerText.trim(),
+  pageText: document.querySelector("#view").innerText.replace(/\\s+/g, " "),
   rows: [...document.querySelectorAll("#t-games tbody tr")].map((r) => r.innerText.replace(/\\s+/g, " ")),
 }))()`);
-check("past fixtures without a score are marked Result pending", statuses.pending === 1 && /result pending/i.test(statuses.pendingText || ""), statuses.pendingText);
-check("a pending fixture never shows a 0 score", statuses.final === 1 && !statuses.rows.some((r) => /Arouse U13\\s+0/.test(r)), statuses.rows.join(" | ").slice(0, 90));
+check("past fixtures without a score are marked Skipped", statuses.skipped === 1 && /^skipped$/i.test(statuses.skippedText || ""), statuses.skippedText);
+check("no Results pending wording survives anywhere", !/result pending/i.test(statuses.pageText) && !/\\bpending\\b/i.test(statuses.pageText), statuses.pageText.includes("pending") ? "found 'pending'" : "no pending wording");
+check("a skipped fixture never shows a 0 score", statuses.final === 1 && !statuses.rows.some((r) => /Arouse U13\\s+0/.test(r)), statuses.rows.join(" | ").slice(0, 90));
 
 // UX-03: empty groups explain themselves instead of showing all-zero tables.
 await open("/standings?season=33&group=28");

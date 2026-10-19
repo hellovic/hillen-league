@@ -16,7 +16,7 @@ import ScopeEmpty from "../components/ScopeEmpty.jsx";
 /* Landing page for one season, scoped to one group (UX-01).
  *
  * The page answers "what is happening in MY group right now": the four totals,
- * the latest results, anything pending and the next fixtures are all read from
+ * the latest results and the next fixtures are all read from
  * the current season/group, not the whole season. The group cards below are
  * navigation — each one switches the whole dashboard to that group, which is
  * why this section is labelled as a directory rather than as season content. */
@@ -83,13 +83,12 @@ export default function SeasonView({ ctx, seasonId }) {
 
   const resolved = games.filter(hasResult);
   const latest = sortByKickoff(resolved, "desc").slice(0, 5);
-  const pending = games
-    .filter((g) => gameStatus(g).code === "pending")
-    .sort((a, b) => (a.game_date || "").localeCompare(b.game_date || ""));
+  /* Unplayed fixtures are skipped (the league does not make them up), so they
+   * are not competition games: `competition` keeps Played + Remaining = Games. */
+  const competition = games.filter((g) => gameStatus(g).code !== "skipped");
   const upcoming = sortByKickoff(
     games.filter((g) => gameStatus(g).code === "upcoming")
   );
-  const remaining = games.length - resolved.length;
 
   const gamesFor = (gid) => {
     try {
@@ -123,9 +122,9 @@ export default function SeasonView({ ctx, seasonId }) {
    * always adds up: Played + Remaining = Games. */
   const stats = [
     [teams.length, "Teams"],
-    [games.length, "Games"],
+    [competition.length, "Games"],
     [resolved.length, "Played"],
-    [Math.max(remaining, 0), "Remaining"],
+    [upcoming.length, "Remaining"],
   ];
 
   const groups = [...(sp.groups || [])].sort(groupAgeSort);
@@ -173,22 +172,6 @@ export default function SeasonView({ ctx, seasonId }) {
             )}
           </section>
 
-          {pending.length ? (
-            <section className="card scope-pending" aria-labelledby="pending-heading">
-              <div className="section-head">
-                <div>
-                  <h3 id="pending-heading">Results pending</h3>
-                </div>
-                <span className="count-tag">{pending.length}</span>
-              </div>
-              <p className="scope-note">
-                These fixtures are in the past but have no recorded result yet, so they are not
-                counted as results.
-              </p>
-              {pending.map(row)}
-            </section>
-          ) : null}
-
           <section className={`upcoming card${upcoming.length ? "" : " upcoming-empty"}`}>
             <div className="section-head">
               <h3>Next on court</h3>
@@ -233,7 +216,6 @@ export default function SeasonView({ ctx, seasonId }) {
               const label = g.name.match(/GROUP (.+)/)?.[0] || "YOUTH GIRLS";
               const gGames = gamesFor(g.group_id);
               const gResolved = gGames.filter(hasResult);
-              const gPending = gGames.filter((x) => gameStatus(x).code === "pending").length;
               const current = g.group_id === group;
               const empty = !g.teams;
               const leader = !empty && g.played > 0 ? g.leader : null;
@@ -254,9 +236,7 @@ export default function SeasonView({ ctx, seasonId }) {
                   <h3>{shortGroupName(g.name)}</h3>
                   {current ? <span className="scope-tag">Current group</span> : null}
                   <p className="season-size">
-                    {`${g.teams} teams · ${gResolved.length} played${
-                      gPending ? ` · ${gPending} pending` : ""
-                    }`}
+                    {`${g.teams} teams · ${gResolved.length} played`}
                   </p>
                   <div className="division-leader">
                     <span className="leader-label">

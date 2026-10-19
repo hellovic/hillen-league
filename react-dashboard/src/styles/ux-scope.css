@@ -103,7 +103,7 @@ body.orange .game-status--forfeit {
   border-color: var(--accent);
   color: var(--accent);
 }
-body.orange .game-status--pending {
+body.orange .game-status--skipped {
   border-style: dashed;
 }
 body.orange .game-status--upcoming {
@@ -173,13 +173,6 @@ body.orange .scope-result-score {
   }
 }
 
-/* Pending card sits under "Latest results"; last row shares the card padding. */
-body.orange .scope-pending .game-row:last-child,
-body.orange .scope-pending .scope-result:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
 /* ---------------------------------------------------------------- UX-19 */
 body.orange .scope-empty {
   display: grid;
@@ -222,10 +215,6 @@ body.orange .scope-note {
 body.orange .scope-note b {
   color: var(--text);
 }
-body.orange .scope-pending .scope-note {
-  margin-top: -8px;
-}
-
 /* ---------------------------------------------------------------- UX-04 */
 /* Scope headings inside the search dropdown. Plain block elements, never
  * anchors, so the "#global-results a" result contract stays intact. */

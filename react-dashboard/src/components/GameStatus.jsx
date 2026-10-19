@@ -10,7 +10,7 @@ import { gameStatus } from "../utils.js";
  * Renders
  *   <span class="game-status game-status--<tone>" data-status="<code>">label</span>
  *   tones/codes/labels come from `gameStatus()` in utils.js:
- *   final ("Final"), forfeit ("Forfeit"), pending ("Result pending"),
+ *   final ("Final"), forfeit ("Forfeit"), skipped ("Skipped"),
  *   upcoming ("Scheduled").
  *
  * The badge is presentational only — never derive a fixture's state from its
