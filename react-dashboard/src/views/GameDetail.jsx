@@ -231,7 +231,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
     list.map((p, i) =>
       p.id
         ? <div key={i}><a className="row-link" href={`#/players/${p.id}`}>{p.name}</a></div>
-        : <div key={i}>{p.name}</div>
+        : <div key={i} className="nil">{p.name}</div>
     );
 
   const bestTable = (

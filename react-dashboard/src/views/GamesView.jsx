@@ -69,7 +69,7 @@ export default function GamesView({ ctx }) {
               </td>,
               <td key="home"><a className="row-link" href={`#/teams/${g.home_team_id}`}>{g.home_name}</a></td>,
               <td className="num mono" key="score">
-                {g.status === "completed" ? `${g.home_score}–${g.away_score}` : "—"}
+                {g.status === "completed" ? `${g.home_score} – ${g.away_score}` : "—"}
               </td>,
               <td key="away"><a className="row-link" href={`#/teams/${g.away_team_id}`}>{g.away_name}</a></td>,
               <td key="venue">{g.venue || "—"}</td>,

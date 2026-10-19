@@ -94,8 +94,11 @@ export default function StandingsView({ ctx }) {
                 style={{ cursor: "pointer" }}
                 onClick={() => go(`#/games/${g.event_id}`)}
               >
-                <span className="bl" style={{ width: "100%" }}>
-                  {fmtDate(g.game_date)} · {g.home_name} {g.home_score ?? "—"}–{g.away_score ?? "—"} {g.away_name}
+                <span className="bl" style={{ width: "100%", textAlign: "left" }}>
+                  {fmtDate(g.game_date)} ·{" "}
+                  {g.home_score != null
+                    ? `${g.home_name} ${g.home_score} – ${g.away_score} ${g.away_name}`
+                    : `${g.home_name} — ${g.away_name}`}
                 </span>
               </div>
             ))}

@@ -113,8 +113,17 @@ function ComparePlayers({ pa, pb, palette }) {
   return (
     <>
       <div className="grid-2">
-        <div className="card"><h3>{pa.player_name} <span className="cn">{pa.team_name}</span></h3></div>
-        <div className="card"><h3>{pb.player_name} <span className="cn">{pb.team_name}</span></h3></div>
+        {[pa, pb].map((p, i) => (
+          <div className="card" key={i}>
+            <h3>{p.player_name} <span className="cn">{p.team_name}</span></h3>
+            <div className="cmp-mini">
+              <span><b>{p.gp}</b> GP</span>
+              <span><b>{(p.pts / g(p)).toFixed(1)}</b> PPG</span>
+              <span><b>{(p.reb / g(p)).toFixed(1)}</b> RPG</span>
+              <span><b>{(p.ast / g(p)).toFixed(1)}</b> APG</span>
+            </div>
+          </div>
+        ))}
       </div>
       <div className="card">
         <h3>Season comparison</h3>
@@ -208,7 +217,7 @@ function CompareTeams({ ta, tb, palette }) {
                   return (
                     <tr key={x.event_id} tabIndex={0} data-href={`#/games/${x.event_id}`} onClick={() => go(`#/games/${x.event_id}`)}>
                       <td>{x.game_date}</td>
-                      <td className="mono">{aScore}–{bScore}</td>
+                      <td className="mono">{aScore} – {bScore}</td>
                       <td>{x.venue || "—"}</td>
                       <td>{winner}</td>
                     </tr>
@@ -230,6 +239,18 @@ export default function CompareView({ ctx, type, a, b }) {
   const kind = type === "t" ? "t" : "p";
   const palette = usePalette();
   const [notice, setNotice] = useState("");
+  /* The pickers have to hold a half-finished choice: the URL only carries a
+   * comparison once both sides are picked, so the selects are local state that
+   * mirrors the route and is committed when the second side arrives. Without
+   * this the controlled selects snapped back to "— choose —" after every
+   * change and the page could only be used through a deep link. */
+  const [pickA, setPickA] = useState(a ?? "");
+  const [pickB, setPickB] = useState(b ?? "");
+  useEffect(() => {
+    setPickA(a ?? "");
+    setPickB(b ?? "");
+    setNotice("");
+  }, [a, b, kind, ctx.season, ctx.group]);
   const idKey = kind === "p" ? "player_id" : "team_id";
   const nameKey = kind === "p" ? "player_name" : "team_name";
   const gname = groupName(ctx.season, ctx.group);
@@ -298,11 +319,12 @@ export default function CompareView({ ctx, type, a, b }) {
           </select>
           <select
             id="cmp-a"
-            value={a ?? ""}
+            value={pickA}
             onChange={(e) => {
               const id = +e.target.value || null;
-              if (id && b) goCompare(kind, id, b);
-              else setNotice(`Choose two ${kind === "p" ? "players" : "teams"} to compare.`);
+              setPickA(id ?? "");
+              setNotice("");
+              if (id && pickB) goCompare(kind, id, pickB);
             }}
           >
             <option value="">— choose —</option>
@@ -313,11 +335,12 @@ export default function CompareView({ ctx, type, a, b }) {
           <span className="vs-badge">VS</span>
           <select
             id="cmp-b"
-            value={b ?? ""}
+            value={pickB}
             onChange={(e) => {
               const id = +e.target.value || null;
-              if (id && a) goCompare(kind, a, id);
-              else setNotice(`Choose two ${kind === "p" ? "players" : "teams"} to compare.`);
+              setPickB(id ?? "");
+              setNotice("");
+              if (id && pickA) goCompare(kind, pickA, id);
             }}
           >
             <option value="">— choose —</option>

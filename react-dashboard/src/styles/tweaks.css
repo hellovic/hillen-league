@@ -184,3 +184,105 @@ body.orange .thead-pin-scroll::-webkit-scrollbar {
 body.orange .thead-pin table.data {
   margin: 0;
 }
+
+/* Mobile alignment pass (audit 2026-10-19):
+ * - Season totals chips: 7 boxes used to wrap 5 + 2 with the last two stretched
+ *   to double width. Auto-fit columns keep every chip the same size.
+ * - The season page showed two hairlines 17 px apart (topbar border-bottom plus
+ *   the stat strip's border-top); drop the strip's top border on phones.
+ * - Detail-page action rows (Compare + Copy link) used to wrap one button onto
+ *   its own line under the context text; a two-column grid keeps the buttons
+ *   together and the context on its own row. */
+@media (max-width: 767px) {
+  body.orange .qstrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  }
+  body.orange .season-stats {
+    border-top: 0;
+  }
+  body.orange .view-head .toolbar:has(> a.csv-btn) {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    align-items: center;
+    gap: 8px;
+  }
+  body.orange .view-head .toolbar:has(> a.csv-btn) > .sub {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Detail-page alignment pass (audit 2026-10-19):
+ * - Scoreboards: the dash was vertically centred against the whole team block,
+ *   so it floated at the top of the big score digits. Bottom-aligning the row
+ *   and lifting the dash by half the score line box puts it on the digits'
+ *   optical centre at every breakpoint.
+ * - Best Performance: the 客隊 header was left-aligned while its cells are
+ *   right-aligned; the NIL placeholder sat in body colour, which read as a
+ *   broken name. */
+body.orange .scoreboard {
+  align-items: flex-end;
+  --score-fs: clamp(28px, 4vw, 48px);
+}
+body.orange .scoreboard .vs {
+  margin-bottom: calc(0.8 * var(--score-fs) - 11.2px);
+}
+@media (max-width: 767px) {
+  body.orange .scoreboard {
+    --score-fs: 28px;
+  }
+}
+body.orange .best-table th.side:last-child {
+  text-align: right;
+}
+body.orange .best-table .nil {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+/* Compare: the two player summary cards were name-only, so the section read as
+ * half-rendered next to the team cards (which carry a record). */
+body.orange .cmp-mini {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+body.orange .cmp-mini b {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+/* Player page: the radar moved under Per game, so the side column is a stack. */
+body.orange .player-side .card:last-child {
+  margin-bottom: 0;
+}
+
+/* Phone table density: 12 px side padding pushed the standings table 41 px past
+ * its card; 8 px lets it fit. The Teams table additionally hides Manager and
+ * Captain on phones — without them the nine columns fit the card instead of
+ * clipping the ± column in half. */
+@media (max-width: 767px) {
+  body.orange table.data th,
+  body.orange table.data td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  body.orange #t-teams th:nth-child(n + 8),
+  body.orange #t-teams td:nth-child(n + 8) {
+    display: none;
+  }
+}
+
+/* The player points chart is now full-width; cap it so a single-game series does
+ * not stretch its bars across 1100 px. */
+body.orange .chart-fit {
+  max-width: 760px;
+  margin: 0 auto;
+}

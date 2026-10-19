@@ -116,6 +116,7 @@ export default function PlayerDetail({ ctx, id }) {
             <dt>+/-</dt><dd className="mono">{p.plus_minus > 0 ? "+" : ""}{p.plus_minus}</dd>
           </dl>
         </div>
+        <div className="player-side">
         <div className="card">
           <h3>Per game</h3>
           <div className="qstrip">
@@ -127,10 +128,6 @@ export default function PlayerDetail({ ctx, id }) {
             <div className="q"><b>{(p.eff / Math.max(p.gp, 1)).toFixed(1)}</b><span>EFF</span></div>
           </div>
         </div>
-      </div>
-
-      <div className="grid-2">
-        <div className="card"><h3>Points per game</h3>{ptsBars}</div>
         <div className="card">
           <h3>vs group average <span className="cn">per game</span></h3>
           <RadarChart
@@ -141,6 +138,12 @@ export default function PlayerDetail({ ctx, id }) {
             ]}
           />
         </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Points per game</h3>
+        <div className="chart-fit">{ptsBars}</div>
       </div>
 
       <div className="card">

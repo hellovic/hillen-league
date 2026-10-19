@@ -19,6 +19,7 @@ Format follows deployed versions; each entry lists the user-visible changes.
   needs Node.js 22+ (`npm ci --prefix react-dashboard`); both workflows install
   it. The legacy vanilla `dashboard/` stays in the repo as the local dev UI of
   `python3 server.py`.
+- **Dashboard audit pass** — a full desktop + phone screenshot review of every view fixed the remaining alignment breaks: the score separators now sit on the digits' centre line, the 最佳表現 客隊 header lines up with its column, the NIL placeholder is muted, latest results on Standings are full-width and left-aligned (an unplayed fixture reads `Home — Away` instead of a double dash), the player page pairs Per game with the radar chart and caps the points chart, Compare's player cards show GP/PPG/RPG/APG, and phone tables got tighter side padding plus hidden Manager/Captain columns so the Teams and Standings tables fit their cards. Compare's pickers were repaired as part of the same pass: choosing one side no longer snapped back, and picking both now navigates to the comparison instead of requiring a hand-built URL.
 - **Season switcher updates the overview** — changing the Season picker on the
   Overview page now swaps the whole page (stats, latest results, group cards);
   before, only the address bar changed while the old season's content stayed on
