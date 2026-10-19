@@ -9,15 +9,16 @@ import { useIsPhone } from "../useMediaQuery.js";
  * season or group should not need a popup). The season overview replaces the
  * group picker with a static "All groups" marker, because that page is
  * season-wide; the picker only appears on group-scoped pages. */
-/* “YOUTH GIRLS U13” → “U13”, “YOUTH GIRLS U11 GROUP A” → “U11 A”. The phone
- * selects sit side by side, so the group options use the short division token;
- * the select's title attribute still carries the full name. */
+/* “YOUTH GIRLS U13” → “GIRLS U13”, “YOUTH GIRLS U11 GROUP A” → “GIRLS U11 A”.
+ * The phone selects sit side by side, so the options drop only the “YOUTH”
+ * prefix — never “GIRLS”, because boys' groups will appear in the same league.
+ * The select's title attribute still carries the full name. */
 function shortGroup(seasonId, groupId) {
   const name = groupName(seasonId, groupId) || `Group ${groupId}`;
   return name
-    .replace(/^YOUTH GIRLS?\s+/i, "")
+    .replace(/^YOUTH\s+/i, "")
     .replace(/^GROUP\s+/i, "")
-    .replace(/^U(\d+)\s+GROUP\s+([A-Z])$/i, "U$1 $2");
+    .replace(/^(GIRLS\s+U\d+)\s+GROUP\s+([A-Z])$/i, "$1 $2");
 }
 
 export default function Topbar({ ctx, theme, allGroups = false, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {

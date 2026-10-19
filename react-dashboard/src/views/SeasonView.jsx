@@ -11,10 +11,12 @@ import GameStatus from "../components/GameStatus.jsx";
  * and the eyebrow says ALL GROUPS so the scope can never be mistaken for the
  * header's group picker (which only governs the group-scoped pages). */
 
+/* Card heading keeps “Girls” — boys' groups will coexist in the same season. */
 const shortGroupName = (name) =>
   String(name || "")
-    .replace(/^YOUTH GIRLS?\s+/i, "")
-    .replace(/GROUP /g, "Group ");
+    .replace(/^YOUTH\s+/i, "")
+    .replace(/GROUP /g, "Group ")
+    .replace(/^GIRLS/i, "Girls");
 
 export default function SeasonView({ ctx, seasonId }) {
   const season = +seasonId;
@@ -143,8 +145,8 @@ export default function SeasonView({ ctx, seasonId }) {
           </p>
           <div className="grid-cards">
             {groups.map((g) => {
-              const age = (g.name.match(/U\d+/) || ["—"])[0];
-              const label = g.name.match(/GROUP (.+)/)?.[0] || "YOUTH GIRLS";
+              const age = (g.name.match(/(GIRLS?\s+)?U\d+/) || ["—"])[0].replace(/^GIRLS?\s+/i, "GIRLS ");
+              const label = g.name.match(/GROUP (.+)/)?.[0] || "";
               const gResolved = gamesFor(g.group_id).filter(hasResult);
               const empty = !g.teams;
               const leader = !empty && g.played > 0 ? g.leader : null;
@@ -156,7 +158,7 @@ export default function SeasonView({ ctx, seasonId }) {
                 >
                   <div className="od-row division-top">
                     <span className="division-age">{age}</span>
-                    <span className="division-group">{label}</span>
+                    {label ? <span className="division-group">{label}</span> : null}
                     <span className="division-arrow" aria-hidden="true">↗</span>
                   </div>
                   <h3>{shortGroupName(g.name)}</h3>

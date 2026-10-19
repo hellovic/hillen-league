@@ -396,6 +396,7 @@ check("phone header is compact and under 200 px", phoneHeader.compact && phoneHe
 check("phone header shows both pickers without a popup",
   !phoneHeader.popup && phoneHeader.selects.length === 2 && phoneHeader.selects.every((s) => s.h >= 44),
   phoneHeader.selects.map((s) => `${s.id} ${s.w}px "${s.label}"`).join(", "));
+check("phone group label keeps ‘GIRLS’", /GIRLS/i.test(phoneHeader.selects[1]?.label || ""), phoneHeader.selects[1]?.label || "missing");
 
 // One change applies immediately: no panel, no Apply button.
 await evaluate(`(() => {
