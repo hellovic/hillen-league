@@ -147,6 +147,10 @@ main { padding: 20px 22px 40px; max-width: 1280px; margin: 0 auto; }
 /* season overview — one card per group; 2 per row on phones (see the 768px block) */
 /* latest results under the season cards: one row per game */
 .results { margin-top: 14px; }
+/* nothing to list: collapse the section to a single line instead of a tall block */
+.results.compact { padding: 10px 14px; }
+.results.compact h3 { display: inline; margin: 0; font-size: 13px; }
+.results-note { color: var(--muted); font-size: 12.5px; margin-left: 10px; }
 /* same size as table.data, so the game list sits with the rest of the page */
 .game-row { display: flex; align-items: center; gap: 14px; padding: 9px 0;
             border-bottom: 1px solid var(--line); text-decoration: none; color: inherit;
@@ -411,6 +415,7 @@ table.data td.lo { color: var(--muted); }
   .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   /* latest results stack into two lines per game; names to the edges, score centred */
   .game-row { flex-direction: column; align-items: stretch; gap: 3px; font-size: 12.5px; }
+  .results.compact { padding: 9px 10px; }
   .gr-top { width: auto; }
   .gr-match { flex: 1 1 auto; margin: 0; gap: 8px; }
   .gr-team.home { text-align: left; }

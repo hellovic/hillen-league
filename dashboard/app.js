@@ -910,11 +910,14 @@ async function renderSeason(view, seasonId) {
   };
   const played = (sp.latest_games || []).map(g => gameRow(g, false)).join("");
   const upcoming = (sp.upcoming_games || []).map(g => gameRow(g, true)).join("");
-  /* A payload from an older build has neither field — say so instead of "no games" */
-  const rowsOr = (rows, field, empty) => rows || `<div class="empty">${
-    field === undefined
-      ? "This build's data has no game list — restart the server or rebuild the export"
-      : empty}</div>`;
+  /* A section with no rows shrinks to one line instead of a tall centred block;
+   * a payload from an older build says so rather than "no games". */
+  const section = (title, rows, field, empty) => rows
+    ? `<div class="card results"><h3>${title}</h3>${rows}</div>`
+    : `<div class="card results compact"><h3>${title}</h3> <span class="results-note">${
+        field === undefined
+          ? "This build's data has no game list — restart the server or rebuild the export"
+          : empty}</span></div>`;
   view.innerHTML = `
     <div class="view-head">
       <h2>${esc(sp.season_name)}</h2>
@@ -925,14 +928,8 @@ async function renderSeason(view, seasonId) {
       </div>
     </div>
     <div class="grid-cards">${cards || '<div class="empty">No groups</div>'}</div>
-    <div class="card results">
-      <h3>Latest games played</h3>
-      ${rowsOr(played, sp.latest_games, "No games played yet")}
-    </div>
-    <div class="card results">
-      <h3>Upcoming games</h3>
-      ${rowsOr(upcoming, sp.upcoming_games, "No upcoming games scheduled")}
-    </div>`;
+    ${section("Latest games played", played, sp.latest_games, "No games played yet")}
+    ${section("Upcoming games", upcoming, sp.upcoming_games, "No upcoming games scheduled")}`;
   setTitle(sp.season_name);
 }
 

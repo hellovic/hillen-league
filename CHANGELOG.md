@@ -12,7 +12,8 @@ Format follows deployed versions; each entry lists the user-visible changes.
   eight results — date, group badge, both teams and the score with the winner in
   bold — and **Upcoming games** lists the next five fixtures with the tip-off time
   where the score would be. Games recorded as not played are left out of both, and
-  each row opens that game's page. The data comes from a new `season_payload()` in server.py, served as
+  each row opens that game's page. A section with nothing to list collapses to a
+  single line (heading and note side by side) instead of a tall empty card. The data comes from a new `season_payload()` in server.py, served as
   `/api/season?season=` and exported as `data/season/<id>.json`, so the page costs
   one request instead of one per group. Groups are listed in age order (the same
   rule as the group switcher, now shared), an unknown season lists the seasons that
