@@ -24,13 +24,26 @@ Format follows deployed versions; each entry lists the user-visible changes.
   before, only the address bar changed while the old season's content stayed on
   screen. The router updates its state after the `history.replaceState` URL
   write instead of waiting for a `hashchange` event that replaceState never
-  fires. The headless smoke test now covers it (20 checks).
+  fires. The headless smoke test now covers it.
+- **Season picker shortened** — the picker now reads `33 · 第33屆驍籃` instead
+  of the full `第33屆驍籃青少年籃球聯賽` (full name kept as its tooltip), and its
+  box is capped at 150 px on desktop / 152 px on phones, so the Group picker —
+  whose names are the long ones — gets the rest of the row instead of truncating.
+  Below 380 px the picker type drops one step so both labels stay intact. Label
+  derived by `seasonShortName()` in `react-dashboard/src/data.js`; widths in
+  `tweaks.css`.
 - **Players list — long names no longer steal the stat columns** — the Player
   column is sticky, so an unusually long name (for example “Sit Sung Ning Kitty”)
   widened it until it filled most of a phone screen and pushed PPG, PTS, RPG…
   out of reach. Names are now capped (9em on a phone, 13em on a desktop) and end
   in “…” with the full name in a hover tooltip; the Players table also tightens
   its gutters on desktop so a long-name group still fits its card.
+- **Phone bottom bar — six destinations** — the phone navigation now has six
+  slots: Overall, Standings, Games, Leaders, Compare, and More, with Teams and
+  Players moved into the More menu. The design layer's five-column bar is widened
+  in `tweaks.css` (9 px labels, tighter gaps) so all six fit a 360 px phone; the
+  desktop rail keeps all seven views. Smoke test now covers the order, both new
+  top-level tabs and the More menu's contents (29 checks).
 - **Game page — 最佳表現 readability** — in the Best Performance table the player
   names drop from 16 px to 13 px, and the PTS / 2PT / 3PT / FT labels change from
   16 px accent orange to 10 px body text (white on dark, near-black on light), so
@@ -44,10 +57,13 @@ Format follows deployed versions; each entry lists the user-visible changes.
   horizontal scroll box, which pinned the header to the card instead of the
   window. Whenever a table fits its card (`SortTable` measures it, and re-measures
   after sorting or changing group), the card goes back to a plain block and the
-  header sticks; a table that needs sideways scrolling — a 16-column box score on
-  a phone, or a group whose names are extra long — keeps its scroll box and inline
-  header rather than turning into a page-wide scrollbar. Scoped to
-  `react-dashboard/src/styles/tweaks.css`, design files untouched.
+  header sticks. A table that needs sideways scrolling — a 16-column box score on
+  a phone, or a group whose names are extra long — keeps its scroll box, and its
+  header row is mirrored into a fixed strip pinned to the top of the screen that
+  pans with the card, so phones get the same always-visible column titles instead
+  of a page-wide scrollbar. Scoped to `react-dashboard/src/styles/tweaks.css` and
+  `SortTable`, design files untouched; the smoke test now checks the pinned strip
+  on the Players and Game pages at 390 px (31 checks).
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
   leader with its record, each linking to that group's standings. Two cards per row

@@ -84,3 +84,103 @@ body.orange .card table.data a.nm {
     padding-right: 8px;
   }
 }
+
+/* Six bottom-bar destinations (Overall · Standings · Games · Leaders · Compare ·
+ * More). The design layer hard-codes a five-column grid, so widen it here; the
+ * tighter gap keeps six 10 px labels legible on a 360 px phone, and labels
+ * ellipsize rather than pushing the bar wider than the screen. */
+@media (max-width: 767px) {
+  body.orange .mobile-nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  /* 9 px labels + 2 px side padding: six labels fit a 360 px phone, and the
+   * ellipsis only appears on a 320 px screen. */
+  body.orange .mobile-nav button,
+  body.orange .mobile-nav summary {
+    font-size: 9px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  body.orange .mobile-nav button span,
+  body.orange .mobile-nav summary span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  body.orange .mobile-nav summary[aria-current="page"] {
+    color: var(--accent);
+  }
+}
+
+/* Season picker narrower, Group picker wider. The season label is shortened in
+ * Topbar (“31 · 第31屆驍籃” instead of the full league name), and the two pickers
+ * stop being equal columns on a phone so Group — whose names are the long ones —
+ * gets the space back. */
+@media (max-width: 767px) {
+  body.orange .topbar .controls {
+    /* 152 px is the season select's intrinsic width with the shortened label;
+     * the group picker takes every remaining pixel. */
+    grid-template-columns: minmax(0, 152px) minmax(0, 1fr);
+  }
+}
+@media (max-width: 340px) {
+  body.orange .topbar .controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 380px) {
+  /* Narrow phones (iPhone SE / 360 px Androids): drop the picker type a step so
+   * “YOUTH GIRLS U13” still fits the group box next to the season box. */
+  body.orange .topbar select {
+    font-size: 14px;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  body.orange .topbar .controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr) minmax(0, 1.1fr);
+  }
+}
+@media (min-width: 1024px) {
+  body.orange .topbar #season-select {
+    max-width: 160px;
+  }
+  body.orange .topbar #group-select {
+    max-width: 340px;
+  }
+}
+
+/* Pinned header strip for tables wider than their card (see SortTable).
+ * `position: sticky` cannot escape the card's horizontal scroll box, so the
+ * header row is mirrored into this fixed strip while the real one is off-screen.
+ * Its horizontal scroll is kept in sync with the card, and it lets the reader
+ * drag the strip itself to pan the table. Left/width/height are set inline to
+ * the card's content box, so the columns line up at any layout. */
+body.orange .thead-pin {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 45;
+  display: none;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 8px 18px -14px #000;
+}
+body.orange .thead-pin.on {
+  display: block;
+}
+body.orange .thead-pin-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+body.orange .thead-pin-scroll::-webkit-scrollbar {
+  display: none;
+}
+body.orange .thead-pin table.data {
+  margin: 0;
+}

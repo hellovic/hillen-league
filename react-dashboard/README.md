@@ -34,7 +34,7 @@ acceptance test this design needs — **zero horizontal overflow at 390 px and
 on failure:
 
 ```
-19 checks, 19 passed, 0 failed
+31 checks, 31 passed, 0 failed
 ```
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
@@ -56,8 +56,9 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
   global search with cross-group jumps, share-link copy, CSV downloads, theme
   persistence in `localStorage["courtside-theme"]`, chart palette switching.
 - `src/styles/tweaks.css` layers small product tweaks on top of the design
-  layer (currently the game page's 最佳表現 table and sticky table headers on
-  desktop, see deviations 6 and 7). It is the only other rule-bearing file
+  layer (currently the game page's 最佳表現 table, the sticky-header `.fit`
+  rule and the phone-only pinned header strip, see deviations 6, 7 and 11). It
+  is the only other rule-bearing file
   besides `desktop-fix.css`, and neither edits `base.css` or `design.css`.
 
 ## Deviations from the OD build (and why)
@@ -72,6 +73,9 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 | 6 | 最佳表現 table: player names 13 px (was 16 px), stat labels 10 px in body-text colour (was 16 px accent orange) | Requested readability tweak on the game page — the PTS/2PT labels are captions between the two point columns and should not compete with them. Scoped rules live in `src/styles/tweaks.css`. |
 | 7 | Stat-table headers stick to the top of the viewport while the table scrolls, whenever the table fits its card | `base.css` already declares `table.data th{position:sticky;top:0}`, but `design.css` turns every table card into a horizontal scroll container (`.card:has(table){overflow-x:auto}`), which defeats vertical sticky. `SortTable` measures `table.scrollWidth` against `card.clientWidth` and adds `.fit` to the card when the table fits; only then does `tweaks.css` restore `overflow:visible`, so a table that needs sideways scrolling keeps its scroll box and inline header instead of becoming a page-wide scrollbar. |
 | 8 | Player names in the pinned Player column are capped (9em on phones, 13em from 768 px) and ellipsized, with the full name in the link's `title`; Players-table gutters shrink to 8 px from 768 px | A group with long English names (e.g. “Sit Sung Ning Kitty”) widened the sticky column until it took most of a phone screen and pushed every stat out of reach. Clamping the link caps both the column and the table's intrinsic width. |
+| 9 | Phone bottom bar has six items — Overall, Standings, Games, Leaders, Compare, More (Teams, Players) — instead of four plus a three-item More menu | Requested navigation layout: the most-used views get a permanent slot, and Teams/Players move under More. Labels drop to 9 px and the grid to `repeat(6, …)` in `tweaks.css` so six labels still fit a 360 px screen; the desktop rail keeps all seven views. |
+| 10 | Season picker shows `33 · 第33屆驍籃` (and a full-name `title`) instead of the full league name, and its box is capped at 150 px on desktop / 152 px on phones so the Group picker keeps the rest of the row | Requested: the long season names squeezed the Group picker, whose names are the ones that must stay readable. The label is derived in `seasonShortName()` (`src/data.js`) by dropping the `青少年…` tail; below 380 px the picker type drops to 14 px so `YOUTH GIRLS U13` still fits next to it. |
+| 11 | On phones (and any window narrower than the table) the header row of a table that must scroll sideways is mirrored into a fixed strip pinned to the top of the screen, kept in sync with the card's horizontal scroll | `position: sticky` is resolved against the nearest scroll container; `design.css` makes the table card that container for sideways scrolling, so the header cannot follow the page. The strip is a portal inside `SortTable` (`thead-pin`), shown only while the real header is off-screen; it is `aria-hidden`, its cells are not focusable, and tapping it still sorts. Tables that fit their card keep the plain sticky header (deviation 7). |
 
 Remove the `desktop-fix.css` import in `src/main.jsx` to get pixel parity with
 the OD build at every width, including its desktop quirks. The `tweaks.css` import is independent of
@@ -163,7 +167,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 19 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 31 checks
 ```
 
 ## Syncing back to the Open Design project

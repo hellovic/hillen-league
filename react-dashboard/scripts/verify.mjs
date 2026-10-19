@@ -234,14 +234,28 @@ await open("/season/33");
 check("mobile shell shows bottom nav and hides the tab rail",
   (await evaluate(`getComputedStyle(document.querySelector("#mobile-nav")).display`)) !== "none" &&
   (await evaluate(`getComputedStyle(document.querySelector("#tabs")).display`)) === "none");
+const bottomBar = await evaluate(
+  `[...document.querySelectorAll("#mobile-nav > button, #mobile-nav > details")].map((el) => el.querySelector("span").innerText.trim())`
+);
+check("six bottom-bar destinations, in Vic's order",
+  JSON.stringify(bottomBar) === JSON.stringify(["Overall", "Standings", "Games", "Leaders", "Compare", "More"]),
+  bottomBar.join(" · "));
 await evaluate(`[...document.querySelectorAll("#mobile-nav [data-go]")].find((b) => b.dataset.go === "standings").click()`);
 await waitFor(`location.hash.startsWith("#/standings")`, "mobile nav navigation");
 check("mobile bottom nav navigates", true, await evaluate("location.hash"));
+await evaluate(`[...document.querySelectorAll("#mobile-nav [data-go]")].find((b) => b.dataset.go === "leaders").click()`);
+await waitFor(`location.hash.startsWith("#/leaders")`, "mobile Leaders navigation");
+check("mobile Leaders tab navigates", true, await evaluate("location.hash"));
+await evaluate(`[...document.querySelectorAll("#mobile-nav [data-go]")].find((b) => b.dataset.go === "compare").click()`);
+await waitFor(`location.hash.startsWith("#/compare")`, "mobile Compare navigation");
+check("mobile Compare tab navigates", true, await evaluate("location.hash"));
 await evaluate(`document.querySelector("#more-nav").open = true`);
 await sleep(100);
-await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].find((b) => b.dataset.go === "leaders").click()`);
-await waitFor(`location.hash.startsWith("#/leaders")`, "mobile more-menu navigation");
-check("mobile “More” menu reaches Leaders", true, await evaluate("location.hash"));
+const moreItems = await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].map((b) => b.dataset.go)`);
+check("More menu holds Teams and Players", JSON.stringify(moreItems) === JSON.stringify(["teams", "players"]), moreItems.join(", "));
+await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].find((b) => b.dataset.go === "players").click()`);
+await waitFor(`location.hash.startsWith("#/players")`, "mobile more-menu navigation");
+check("mobile “More” menu reaches Players", true, await evaluate("location.hash"));
 
 // The design's own acceptance test: the layout must not scroll sideways.
 const ROUTES = ["/season/33", "/standings", "/teams", "/players", "/games", "/leaders", "/compare/p/17864/15202", "/players/17864", "/teams/1595", "/games/20863"];
@@ -289,6 +303,63 @@ check(
   longNameMobile.clamped >= 1 && longNameMobile.overflow <= 1,
   `${longNameMobile.clamped} clamped, ${longNameMobile.overflow}px overflow`
 );
+
+// Widening tables keep their card scroll box on a phone (which traps
+// `position: sticky`), so SortTable mirrors the header into a fixed strip.
+// The strip must sit at the top, line up with the real header, and add no
+// horizontal page overflow.
+const pinStrip = (tableSel) => `(() => {
+  const pin = document.querySelector(".thead-pin.on");
+  const table = document.querySelector(${JSON.stringify(tableSel)});
+  if (!pin || !table) return { on: false };
+  const lefts = (els) => els.map((el) => Math.round(el.getBoundingClientRect().left));
+  const pinLefts = lefts([...pin.querySelectorAll("thead th")]);
+  const thLefts = lefts([...table.tHead.rows[0].cells]);
+  // Border-collapse distributes the column widths with sub-pixel rounding, so
+  // "aligned" allows one pixel of drift at the far end of wide tables.
+  const aligned =
+    pinLefts.length === thLefts.length && Math.max(0, ...pinLefts.map((left, i) => Math.abs(left - thLefts[i]))) <= 1;
+  return {
+    on: true,
+    top: Math.round(pin.getBoundingClientRect().top),
+    aligned,
+    pinCount: pinLefts.length,
+    thCount: thLefts.length,
+    delta: Math.round(Math.max(0, ...pinLefts.map((left, i) => Math.abs(left - thLefts[i]))) * 100) / 100,
+    pinLefts: pinLefts.slice(0, 3), thLefts: thLefts.slice(0, 3),
+    cardScrollLeft: Math.round(table.closest(".card").scrollLeft), pinScrollLeft: Math.round(pin.querySelector(".thead-pin-scroll").scrollLeft),
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  };
+})()`;
+await setViewport(390, 844, true);
+await open("/players?season=33&group=11");
+await waitFor(`document.querySelector("#group-select")?.value === "11"`, "group 11 picked on mobile");
+await evaluate("window.scrollTo(0, 700)");
+await sleep(300);
+const phonePin = await evaluate(pinStrip("#t-players"));
+check("players header pins to the top on a phone", phonePin.on && phonePin.top === 0 && phonePin.aligned && phonePin.overflow <= 1, `top ${phonePin.top}, aligned ${phonePin.aligned} (${phonePin.pinCount}/${phonePin.thCount} cols, ${phonePin.delta}px drift, card ${phonePin.cardScrollLeft}, pin ${phonePin.pinScrollLeft}, ${JSON.stringify(phonePin.pinLefts)} vs ${JSON.stringify(phonePin.thLefts)}), ${phonePin.overflow}px overflow`);
+
+await open("/games/20863");
+await waitFor(`!!document.querySelector("#t-box-1595")`, "game box score rendered");
+await evaluate("window.scrollTo(0, 1500)");
+await sleep(300);
+const gamePin = await evaluate(pinStrip("#t-box-1595"));
+check("game box-score header pins to the top on a phone", gamePin.on && gamePin.top === 0 && gamePin.aligned && gamePin.overflow <= 1, `top ${gamePin.top}, aligned ${gamePin.aligned}, ${gamePin.overflow}px overflow`);
+
+// Season picker: the label is shortened ("33 · 第33屆驍籃") and the box is
+// narrower than the Group box, which keeps the long group names readable.
+const pickers = await evaluate(`(() => {
+  const s = document.querySelector("#season-select");
+  const g = document.querySelector("#group-select");
+  return {
+    text: s.options[s.selectedIndex].text,
+    full: s.title,
+    seasonW: Math.round(s.getBoundingClientRect().width),
+    groupW: Math.round(g.getBoundingClientRect().width),
+  };
+})()`);
+check("season picker shows the short label", pickers.text === "33 · 第33屆驍籃" && !pickers.text.includes("青少年"), `${pickers.text} (title: ${pickers.full})`);
+check("group picker keeps the wider box on a phone", pickers.groupW > pickers.seasonW + 20, `season ${pickers.seasonW}px / group ${pickers.groupW}px`);
 
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 

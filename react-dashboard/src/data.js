@@ -52,6 +52,14 @@ export function seasonName(seasonId) {
   return s ? s.name : `Season ${seasonId}`;
 }
 
+/* The season picker has to fit a phone next to the group picker. Full names run
+ * to “第31屆驍籃青少年籃球聯賽”; the meaningful head is “第31屆驍籃”, so cut at
+ * the league-name tail (and fall back to the full name if a future season is
+ * named differently). */
+export function seasonShortName(seasonId) {
+  return seasonName(seasonId).replace(/青少年.*$/, "").trim();
+}
+
 export function groupName(seasonId, groupId) {
   const g = (meta.groups || []).find((x) => x.season_id === seasonId && x.group_id === groupId);
   return g ? g.name : "";

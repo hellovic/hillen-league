@@ -1,4 +1,4 @@
-import { groupName, meta, seasonGroups, seasonName } from "../data.js";
+import { groupName, meta, seasonGroups, seasonName, seasonShortName } from "../data.js";
 import SearchBox from "./SearchBox.jsx";
 
 export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
@@ -29,9 +29,18 @@ export default function Topbar({ ctx, theme, onToggleTheme, onSeasonChange, onGr
         <SearchBox ctx={ctx} onAdoptContext={onAdoptContext} />
         <label htmlFor="season-select">
           Season
-          <select id="season-select" value={ctx.season} onChange={(e) => onSeasonChange(+e.target.value)}>
+          {/* Short label (“31 · 第31屆驍籃”) so the picker stays narrow and the
+            * Group picker gets the remaining width; the full name is the tooltip. */}
+          <select
+            id="season-select"
+            title={seasonName(ctx.season)}
+            value={ctx.season}
+            onChange={(e) => onSeasonChange(+e.target.value)}
+          >
             {(meta.seasons || []).map((s) => (
-              <option key={s.season_id} value={s.season_id}>{`${s.season_id} · ${s.name}`}</option>
+              <option key={s.season_id} value={s.season_id}>
+                {`${s.season_id} · ${seasonShortName(s.season_id)}`}
+              </option>
             ))}
           </select>
         </label>

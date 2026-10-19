@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { contextHash, go, seasonHash } from "../utils.js";
 
-const PRIMARY = [["season", "Overview"], ["standings", "Standings"], ["games", "Games"], ["teams", "Teams"]];
-const MORE = [["players", "Players"], ["leaders", "Leaders"], ["compare", "Compare"]];
+/* Six bottom-bar destinations, in the order Vic asked for:
+ * Overall · Standings · Games · Leaders · Compare · More (Teams, Players).
+ * The desktop rail keeps all seven views; teams and players live under More. */
+const PRIMARY = [
+  ["season", "Overall"],
+  ["standings", "Standings"],
+  ["games", "Games"],
+  ["leaders", "Leaders"],
+  ["compare", "Compare"],
+];
+const MORE = [["teams", "Teams"], ["players", "Players"]];
 
 function IconGrid() {
   return (
@@ -26,10 +35,19 @@ function IconCalendar() {
     </svg>
   );
 }
-function IconPeople() {
+function IconTrophy() {
   return (
     <svg className="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <circle cx="9" cy="8" r="3" /><path d="M3 21v-4a6 6 0 0112 0v4M16 5a3 3 0 010 6m2 3a5 5 0 013 4v3" />
+      <path d="M8 4h8v5a4 4 0 01-8 0V4Z" />
+      <path d="M8 5H5v2a3 3 0 003 3M16 5h3v2a3 3 0 01-3 3" />
+      <path d="M12 13v4M9 20h6" />
+    </svg>
+  );
+}
+function IconCompare() {
+  return (
+    <svg className="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <path d="M4 8h13l-3-3M20 16H7l3 3" />
     </svg>
   );
 }
@@ -41,7 +59,13 @@ function IconMore() {
   );
 }
 
-const ICONS = { season: IconGrid, standings: IconBars, games: IconCalendar, teams: IconPeople };
+const ICONS = {
+  season: IconGrid,
+  standings: IconBars,
+  games: IconCalendar,
+  leaders: IconTrophy,
+  compare: IconCompare,
+};
 
 export default function MobileNav({ active, ctx }) {
   const [open, setOpen] = useState(false);
@@ -53,6 +77,7 @@ export default function MobileNav({ active, ctx }) {
     setOpen(false);
     go(view === "season" ? seasonHash(ctx.season) : contextHash(view, ctx));
   };
+  const inMore = MORE.some(([view]) => view === active);
 
   return (
     <nav className="mobile-nav" id="mobile-nav" aria-label="League navigation">
@@ -72,7 +97,7 @@ export default function MobileNav({ active, ctx }) {
         );
       })}
       <details id="more-nav" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-        <summary>
+        <summary aria-current={inMore ? "page" : "false"}>
           <IconMore />
           <span>More</span>
         </summary>
