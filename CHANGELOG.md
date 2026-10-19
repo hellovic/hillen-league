@@ -4,6 +4,17 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
+- **The published site is now the React dashboard** — `server.py --export docs`
+  builds `react-dashboard/` with Vite and writes one inline data bundle
+  (`league-data.js`, ≈3.1 MB raw / ≈270 KB gzipped) in place of the ~1,800
+  `data/*.json` files, so any route renders from a single payload with no fetch
+  waterfall. The 871 share/preview stubs and their `og:`/`twitter:` tags are
+  unchanged and "Copy link" still hands out those URLs; asset URLs keep a
+  `?v=<build stamp>` query and Vite asset names are now stable, so a deploy can
+  never 404 a page that is still cached (Pages caches for 10 minutes). PostHog route pageviews are
+  preserved (each `#/…` route reports as its own page). Building needs Node.js
+  22+ (`npm ci --prefix react-dashboard`); both workflows install it. The legacy vanilla `dashboard/` stays in the repo as the local dev UI of
+  `python3 server.py`.
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
   leader with its record, each linking to that group's standings. Two cards per row

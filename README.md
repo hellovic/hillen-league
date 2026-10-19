@@ -32,8 +32,9 @@ The schema and scraper are parameterised, so other groups/seasons can be added w
 | `scraper.py` | Stdlib-only scraper (urllib + re + sqlite3) that builds the DB |
 | `start.sh` | **One command** to refresh all data from the live site, validate, rebuild the static export, and push to GitHub — run regularly / manually. Prints a *what changed* summary (new/updated/removed games) |
 | `refresh_diff.py` | Snapshot/diff helper used by `start.sh`: captures the games state before a refresh and reports what it changed afterwards |
-| `server.py` | Stdlib-only dashboard server: static files + read-only JSON API |
-| `dashboard/` | The dashboard frontend (vanilla HTML/CSS/JS, no build step) |
+| `server.py` | Stdlib-only dashboard server: static files + read-only JSON API + the static exporter |
+| `react-dashboard/` | **The published dashboard** — React + Vite port of the "Courtside Orange" design (built by `server.py --export`) |
+| `dashboard/` | The legacy vanilla frontend (no build step); still what `python3 server.py` serves locally |
 | `validate.py` | Data validation suite (box-score/standings reconciliation) |
 | `crosscheck.py` | **Deployed-vs-source validator**: samples 10 random stats per game per player from the deployed site and compares them against hillen-sports.com |
 | `.github/workflows/refresh.yml` | GitHub Actions **scheduled refresh**: runs `./start.sh` in the cloud on a cron and pushes the result (auto rebuilds Pages) |
@@ -70,7 +71,7 @@ A zero-dependency web dashboard over the database:
 - **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
 - **Open Graph / share previews**: `og:` + `twitter:` meta tags so links shared on WhatsApp/Telegram/etc. show a proper title and description. **Deliberately no preview image** — the cards are meant to be compact text (`twitter:card` is `summary`, not `summary_large_image`), the only available image was a generic league banner that would stand in for a specific game, and a thumbnail always dominates a WhatsApp message. `make_og.py` (Pillow, not stdlib, run by hand) and `og.png` are kept but currently unreferenced, so the banner can return by restoring two `og:image` / `twitter:image` lines. The *site-level* card is static — link-preview crawlers don't run JS and a `#hash` is never sent to the server — but every game, team and player also gets its own pastable link (next bullet).
 - **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 871 = 140 games + 61 teams + 650 players + 17 season/group pages + 3 seasons).
-- **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `dashboard/index.html`.
+- **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `react-dashboard/index.html` (and the legacy `dashboard/index.html`); pageviews are fired on route change in `react-dashboard/src/analytics.js`.
 
 ```bash
 python3 server.py            # default port 8000
@@ -96,17 +97,27 @@ The frontend talks to a read-only JSON API:
 
 ## Publish to GitHub Pages (free, public URL)
 
-The dashboard also runs as a **pure static site** — the same frontend falls back to
-pre-exported JSON under `docs/` when no `/api` is available, so it works on any
-static host. GitHub Pages is free and gives a permanent URL.
+The dashboard also runs as a **pure static site**: `server.py --export docs` runs
+the React build (`vite build`) into `docs/` and writes the data the app boots
+from. It works on any static host, and GitHub Pages is free and gives a
+permanent URL.
 
 `docs/` is **build output, not source**: it is gitignored and produced by
-`python3 server.py --export docs` (which `./start.sh` runs for you). It is
-~2,000 files — the JSON the dashboard fetches plus one share/preview page per
-game, team, player and standings table — so it is published as a Pages
-**artifact** built inside the workflow, never committed. Only the ~20 source
-files and `hillen_league.db` (the data of record) live in git, and the published
-site is byte-for-byte the same either way.
+`python3 server.py --export docs` (which `./start.sh` runs for you). It contains
+the built app (`index.html` + `assets/`), one inline data bundle
+(`league-data.js`, ≈3.1 MB raw / ≈270 KB gzipped — the app needs no per-page
+fetches) and one share/preview page per game, team, player, group and season
+(871 stubs), so it is published as a Pages **artifact** built inside the
+workflow, never committed. Only the source files and `hillen_league.db` (the data
+of record) live in git.
+
+Building the export needs **Node.js 22+** (for Vite/React). Install the app's
+dependencies once after cloning:
+
+```bash
+npm ci --prefix react-dashboard          # one-off (CI does this itself)
+python3 server.py --export docs          # build the site into docs/
+```
 
 **Deploy only when asked**: normal work (edits, fixes, new features) is committed
 locally with descriptive notes; the push to GitHub happens only when a deployment
@@ -126,6 +137,12 @@ git push                            # deploy.yml rebuilds + publishes the site
 # ---- optional: look at the built site locally ----
 python3 server.py --export docs     # rebuild the static export into docs/
 python3 -m http.server 8001 --directory docs   # open http://localhost:8001/
+
+# (or develop the React dashboard with hot reload — it reads the same data)
+npm ci --prefix react-dashboard
+npm run data --prefix react-dashboard   # refresh public/league-data.js from hillen_league.db
+npm run dev  --prefix react-dashboard   # http://localhost:5173/
+npm run verify --prefix react-dashboard # headless smoke test (19 checks)
 ```
 
 Setup once:
@@ -247,8 +264,8 @@ to `main`, and publishes the site to Pages as a build artifact. A second workflo
 on `main`, so a local `./start.sh` push goes live the same way.
 
 * Publishing requires **Settings → Pages → Source = "GitHub Actions"**. The
-  built site is uploaded as an artifact, so the ~2,000 generated files never
-  enter git — the repo is source + the database only.
+  built site is uploaded as an artifact, so the generated files (~870 share
+  stubs + the built app) never enter git — the repo is source + the database only.
 * Default (Hong Kong time): **every day 06:00, plus Sat & Sun 09:00 / 12:00 /
   15:00 / 21:00** — edit the `cron` in the file (cron is UTC; must be pushed to
   `main` to take effect).
@@ -284,7 +301,7 @@ Exits non-zero on any failure. Full recommended refresh flow:
 ```bash
 python3 scraper.py --group 30      # scrape new data
 python3 validate.py                # verify (must exit 0)
-python3 server.py --export docs    # regenerate static site
+python3 server.py --export docs    # regenerate static site (runs the Vite build)
 git add -A && git commit -m "update stats" && git push   # auto-deploys
 ```
 

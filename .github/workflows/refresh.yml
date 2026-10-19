@@ -59,6 +59,19 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git checkout main 2>/dev/null || git switch main 2>/dev/null || true
 
+      # The published site is the React dashboard (react-dashboard/); start.sh
+      # runs `server.py --export docs`, which needs Node to `vite build` it.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: react-dashboard/package-lock.json
+
+      - name: Install dashboard dependencies
+        working-directory: react-dashboard
+        run: npm ci
+
       - name: Refresh, validate and rebuild the site
         run: ./start.sh
 
