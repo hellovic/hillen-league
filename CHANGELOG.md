@@ -25,6 +25,12 @@ Format follows deployed versions; each entry lists the user-visible changes.
   screen. The router updates its state after the `history.replaceState` URL
   write instead of waiting for a `hashchange` event that replaceState never
   fires. The headless smoke test now covers it (20 checks).
+- **Players list — long names no longer steal the stat columns** — the Player
+  column is sticky, so an unusually long name (for example “Sit Sung Ning Kitty”)
+  widened it until it filled most of a phone screen and pushed PPG, PTS, RPG…
+  out of reach. Names are now capped (9em on a phone, 13em on a desktop) and end
+  in “…” with the full name in a hover tooltip; the Players table also tightens
+  its gutters on desktop so a long-name group still fits its card.
 - **Game page — 最佳表現 readability** — in the Best Performance table the player
   names drop from 16 px to 13 px, and the PTS / 2PT / 3PT / FT labels change from
   16 px accent orange to 10 px body text (white on dark, near-black on light), so
@@ -36,9 +42,12 @@ Format follows deployed versions; each entry lists the user-visible changes.
   without scrolling back up to learn which column is which. `base.css` already
   declared the header sticky, but the design layer makes each table card a
   horizontal scroll box, which pinned the header to the card instead of the
-  window. At ≥1280 px the widest table fits the card, so the card goes back to a
-  plain block and the header sticks; narrower screens keep the column scroll.
-  Scoped to `react-dashboard/src/styles/tweaks.css`, design files untouched.
+  window. Whenever a table fits its card (`SortTable` measures it, and re-measures
+  after sorting or changing group), the card goes back to a plain block and the
+  header sticks; a table that needs sideways scrolling — a 16-column box score on
+  a phone, or a group whose names are extra long — keeps its scroll box and inline
+  header rather than turning into a page-wide scrollbar. Scoped to
+  `react-dashboard/src/styles/tweaks.css`, design files untouched.
 - **Season overview is the landing page** — a bare visit now opens `#/season/33`,
   a page per season listing every group as one card: teams, games played, and the
   leader with its record, each linking to that group's standings. Two cards per row

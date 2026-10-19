@@ -126,7 +126,9 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
     return [
       <td className="num mono" key="jersey">{b.jersey_no ?? "—"}</td>,
       <td key="player">
-        <a className="row-link" href={`#/players/${b.player_id}`}>{b.player_name}</a>
+        <a className="row-link nm" title={b.player_name} href={`#/players/${b.player_id}`}>
+          {b.player_name}
+        </a>
       </td>,
       <td className="num mono" key="min">
         {dnp ? <span className="badge np" aria-label="Did not play">DNP</span> : b.minutes}

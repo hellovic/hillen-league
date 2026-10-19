@@ -138,9 +138,10 @@ const open = async (hash) => {
   await sess("Page.navigate", { url: BASE + "/#" + hash });
   // Wait for the app to report the new route: navigating between two hashes of
   // the same document does not reload, so a plain "view has children" check
-  // would pass against the previous page.
-  await waitFor(`document.documentElement.dataset.route === ${JSON.stringify(hash.slice(1))}`, "route " + hash);
-  await sleep(120);
+  // would pass against the previous page. The route marker drops the query.
+  const route = hash.split("?")[0];
+  await waitFor(`document.documentElement.dataset.route === ${JSON.stringify(route.slice(1))}`, "route " + route);
+  await sleep(150);
 };
 
 // ---------------------------------------------------------------------- checks
@@ -254,6 +255,40 @@ for (const viewport of [{ w: 1440, h: 1000, m: false, name: "desktop" }, { w: 39
   }
 }
 check("no horizontal overflow on any route", overflows.length === 0, overflows.join(", ") || "all " + ROUTES.length + " routes clean");
+
+// Sticky header: the players table fits its card on a desktop, so the card must
+// stop being a scroll box and the header must follow the window while scrolling.
+await setViewport(1440, 1000, false);
+await open("/players");
+await evaluate("window.scrollTo(0, 0)");
+await evaluate("window.scrollTo(0, 800)");
+await sleep(250);
+const stickyTop = await evaluate(
+  `(() => { const th = document.querySelector("#t-players thead th"); return th ? Math.round(th.getBoundingClientRect().top) : null; })()`
+);
+check("players header sticks to the window while scrolling", stickyTop === 0, `header top ${stickyTop}`);
+
+// Long names must not stretch the name column past the card (a group with long
+// English names used to overflow the page once the scroll box was removed).
+await setViewport(1440, 1000, false);
+await open("/players?season=33&group=11");
+await waitFor(`document.querySelector("#group-select")?.value === "11"`, "group 11 picked");
+const longNameDesktop = await evaluate(
+  `(() => { const t = document.querySelector("#t-players"); return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, wide: [...t.querySelectorAll("a.nm")].filter(a => a.scrollWidth > a.clientWidth + 1).length }; })()`
+);
+check("long-name group keeps the page width", longNameDesktop.overflow <= 1, `${longNameDesktop.overflow}px overflow`);
+
+await setViewport(390, 844, true);
+await open("/players?season=33&group=11");
+await waitFor(`document.querySelector("#group-select")?.value === "11"`, "group 11 picked on mobile");
+const longNameMobile = await evaluate(
+  `(() => { const t = document.querySelector("#t-players"); return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, clamped: [...t.querySelectorAll("a.nm")].filter(a => a.scrollWidth > a.clientWidth + 1).length }; })()`
+);
+check(
+  "long player names are ellipsized on a phone",
+  longNameMobile.clamped >= 1 && longNameMobile.overflow <= 1,
+  `${longNameMobile.clamped} clamped, ${longNameMobile.overflow}px overflow`
+);
 
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 

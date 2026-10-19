@@ -101,7 +101,11 @@ export default function PlayersView({ ctx }) {
               const t3p = p.fg3a ? ((p.fg3m / p.fg3a) * 100).toFixed(1) : "—";
               const pm = p.plus_minus === undefined || p.plus_minus === null ? null : p.plus_minus;
               return [
-                <td key="name"><a className="row-link" href={`#/players/${p.player_id}`}>{p.player_name}</a></td>,
+                <td key="name">
+                  <a className="row-link nm" title={p.player_name} href={`#/players/${p.player_id}`}>
+                    {p.player_name}
+                  </a>
+                </td>,
                 <td key="team">
                   <a className="row-link" style={{ color: "var(--muted)" }} href={`#/teams/${p.team_id}`}>{p.team_name}</a>
                 </td>,
