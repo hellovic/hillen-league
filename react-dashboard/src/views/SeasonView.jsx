@@ -48,7 +48,6 @@ export default function SeasonView({ ctx, seasonId }) {
     );
   }
 
-  const t = sp.totals || {};
   const latest = (sp.latest_games || []).slice(0, 5);
   const upcoming = sp.upcoming_games || [];
   const groups = [...(sp.groups || [])].sort(groupAgeSort);
@@ -79,31 +78,12 @@ export default function SeasonView({ ctx, seasonId }) {
     </a>
   );
 
-  /* Season-wide totals (server-side counts), not a single group's numbers. */
-  const stats = [
-    [t.groups ?? groups.length, "Group"],
-    [t.teams ?? 0, "Teams"],
-    [t.games ?? 0, "Games"],
-    [t.played ?? 0, "Played"],
-  ];
-
   return (
     <>
-      <header className="scope-head">
-        <p className="scope-eyebrow">{`ALL GROUPS · SEASON ${season}`}</p>
-        <div className="scope-row">
-          <h2 className="scope-title">{sp.season_name}</h2>
-        </div>
-      </header>
-
-      <section className="season-stats" aria-label="Season totals">
-        {stats.map(([n, label]) => (
-          <div className="od-stat" key={label}>
-            <strong>{n}</strong>
-            <span>{label}</span>
-          </div>
-        ))}
-      </section>
+      {/* The owner asked for the old season hero + totals strip to be removed
+        * (2026-10-19): the header already names the season and says “All groups”,
+        * so the page opens straight on the results. */}
+      <h2 className="sr-only">{sp.season_name} overview</h2>
 
       <div className="dashboard-grid">
         <aside className="results-column">

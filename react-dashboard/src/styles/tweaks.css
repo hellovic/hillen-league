@@ -188,8 +188,6 @@ body.orange .thead-pin table.data {
 /* Mobile alignment pass (audit 2026-10-19):
  * - Season totals chips: 7 boxes used to wrap 5 + 2 with the last two stretched
  *   to double width. Auto-fit columns keep every chip the same size.
- * - The season page showed two hairlines 17 px apart (topbar border-bottom plus
- *   the stat strip's border-top); drop the strip's top border on phones.
  * - Detail-page action rows (Compare + Copy link) used to wrap one button onto
  *   its own line under the context text; a two-column grid keeps the buttons
  *   together and the context on its own row. */
@@ -197,9 +195,6 @@ body.orange .thead-pin table.data {
   body.orange .qstrip {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-  }
-  body.orange .season-stats {
-    border-top: 0;
   }
   body.orange .view-head .toolbar:has(> a.csv-btn) {
     display: grid;

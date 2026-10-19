@@ -167,7 +167,7 @@ const startSeason = await evaluate(`document.querySelector("#season-select").val
 // The season-wide overview renders no group picker; remember the group only if
 // one exists (it does on the group-scoped pages used later).
 const startGroup = await evaluate(`(() => { const sel = document.querySelector("#group-select"); return sel ? sel.value : null; })()`);
-const overviewBefore = await evaluate(`document.querySelector("#view .season-stats")?.innerText.replace(/\\s+/g, " ")`);
+const overviewBefore = await evaluate(`document.querySelector("#view .results")?.innerText.replace(/\\s+/g, " ")`);
 const switchedTo = await evaluate(`(() => {
   const sel = document.querySelector("#season-select");
   const other = [...sel.options].map((o) => o.value).find((v) => v !== sel.value);
@@ -177,7 +177,7 @@ const switchedTo = await evaluate(`(() => {
 })()`);
 await waitFor(`document.documentElement.dataset.route === "season/${switchedTo}"`, "season switch route");
 await sleep(150);
-const overviewAfter = await evaluate(`document.querySelector("#view .season-stats")?.innerText.replace(/\\s+/g, " ")`);
+const overviewAfter = await evaluate(`document.querySelector("#view .results")?.innerText.replace(/\\s+/g, " ")`);
 check("season selector re-renders the overview", !!overviewAfter && overviewAfter !== overviewBefore, `${overviewBefore} -> ${overviewAfter}`);
 await evaluate(`(() => { const sel = document.querySelector("#season-select"); sel.value = ${JSON.stringify(startSeason)}; sel.dispatchEvent(new Event("change", { bubbles: true })); })()`);
 await waitFor(`document.documentElement.dataset.route === "season/${startSeason}"`, "season restored");
@@ -414,16 +414,16 @@ check("phone group picker applies on a single change", true, await evaluate(`doc
 await setViewport(390, 844, true);
 await open("/season/33");
 const scope = await evaluate(`(() => ({
-  eyebrow: document.querySelector(".scope-eyebrow")?.innerText.trim(),
   latest: (document.querySelector(".results")?.innerText || "").replace(/\\s+/g, " "),
   current: document.querySelectorAll(".season-card[aria-current='true']").length,
   cards: document.querySelectorAll(".season-card").length,
-  stats: (document.querySelector(".season-stats")?.innerText || "").replace(/\\s+/g, " "),
+  hero: !!document.querySelector(".scope-head") || !!document.querySelector(".season-stats"),
   pill: (document.querySelector(".all-groups-pill")?.innerText || "").replace(/\\s+/g, " ").trim(),
   groupSelect: !!document.querySelector("#group-select"),
+  h2: document.querySelector("#view h2.sr-only")?.innerText.trim() || "",
 }))()`);
-check("season overview is labelled as all groups", scope.eyebrow === "ALL GROUPS · SEASON 33", scope.eyebrow);
-check("season overview totals cover the whole season", /7\s*group/i.test(scope.stats) && /24\s*teams/i.test(scope.stats) && /6\s*games/i.test(scope.stats) && /5\s*played/i.test(scope.stats), scope.stats);
+check("season overview drops the duplicate hero and totals strip", scope.hero === false, `hero ${scope.hero}, ${scope.cards} cards`);
+check("season overview keeps an accessible heading", /第33屆驍籃青少年籃球聯賽 overview/.test(scope.h2), scope.h2);
 check("season overview mixes results from every group", scope.latest.includes("培正G u9") && scope.latest.includes("Arouse U13"), scope.latest.slice(0, 90));
 check("season overview lists every group without marking one current", scope.cards === 7 && scope.current === 0, `${scope.cards} cards, ${scope.current} current`);
 check("phone header names the all-groups scope and hides the group picker", /all groups/i.test(scope.pill) && !scope.groupSelect, scope.pill);

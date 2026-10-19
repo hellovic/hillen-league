@@ -6,51 +6,21 @@
  * shared badge), view-head-copy (view heads that need a scope eyebrow) and
  * gs-section (search-dropdown scope headings). */
 
-/* ---------------------------------------------------------------- UX-01 */
-/* Scope header: "YOUTH GIRLS U13 · SEASON 33" + group-scoped page title. The
- * phone header hides .meta-line, so this is the only place the scope is named. */
-body.orange .scope-head {
-  margin: 0 0 20px;
-}
-body.orange .scope-eyebrow {
-  margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  line-height: 1.4;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-body.orange .scope-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-body.orange .scope-title {
-  margin: 0;
-  min-width: 0;
-  font-family: var(--display);
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.5px;
-}
-body.orange .scope-jump {
-  flex: none;
-}
-body.orange .scope-sub {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
+/* Screen-reader-only page heading: the overview no longer prints a visible
+ * hero, but the page still needs an h2 for document structure. */
+body.orange .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* Views that add a scope eyebrow above their h2 (standings / games / leaders). */
-body.orange .view-head-copy {
-  min-width: 0;
-}
+/* ---------------------------------------------------------------- UX-01 */
 body.orange .view-head-copy .eyebrow {
   margin: 0 0 4px;
   font-size: 10px;
@@ -238,23 +208,7 @@ body.orange .gs-section-group:first-child .gs-section {
 
 /* ------------------------------------------------------------- phones */
 @media (max-width: 767px) {
-  body.orange .scope-head {
-    margin: 0 0 16px;
-  }
-  body.orange .scope-eyebrow {
-    font-size: var(--mobile-caption);
-    letter-spacing: 1.2px;
-  }
-  body.orange .scope-title {
-    font-size: 24px;
-    line-height: 1.3;
-  }
-  body.orange .scope-sub {
-    font-size: var(--mobile-detail);
-  }
-  body.orange .view-head-copy .eyebrow {
-    font-size: var(--mobile-caption);
-  }
+
   body.orange .scope-empty-title {
     font-size: var(--mobile-body);
   }
