@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, groupName } from "../data.js";
-import { csvDownload, efgPct, setTitle, sortRows, tsPct } from "../utils.js";
+import { csvDownload, efgPct, n1, pct1, pctStr, setTitle, signed, sortRows, tsPct } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
+import StatGuide from "../components/StatGuide.jsx";
+import { GUIDE_GROUPS } from "../glossary.js";
 
 const KEYS = [
   { key: "player_name", label: "Player" },
@@ -91,6 +93,10 @@ export default function PlayersView({ ctx }) {
         </div>
       </div>
       <div className="card">
+        <div className="card-head">
+          <h3>Player statistics</h3>
+          <StatGuide items={GUIDE_GROUPS.players} />
+        </div>
         <MobileColumnsToggle
           controls="t-players"
           expanded={allCols}
@@ -110,8 +116,8 @@ export default function PlayersView({ ctx }) {
             rowKey={(p) => p.player_id}
             rowHref={(p) => `#/players/${p.player_id}`}
             renderRow={(p) => {
-              const fgp = p.fga ? ((p.fgm / p.fga) * 100).toFixed(1) : "—";
-              const t3p = p.fg3a ? ((p.fg3m / p.fg3a) * 100).toFixed(1) : "—";
+              const fgp = pct1(p.fga ? (p.fgm / p.fga) * 100 : null);
+              const t3p = pct1(p.fg3a ? (p.fg3m / p.fg3a) * 100 : null);
               const pm = p.plus_minus === undefined || p.plus_minus === null ? null : p.plus_minus;
               return [
                 <td key="name">
@@ -123,21 +129,21 @@ export default function PlayersView({ ctx }) {
                   <a className="row-link team-link" title={p.team_name} style={{ color: "var(--muted)" }} href={`#/teams/${p.team_id}`}>{p.team_name}</a>
                 </td>,
                 <td className="num" key="gp">{p.gp}</td>,
-                <td className="num mono" key="min">{p.minutes.toFixed(1)}</td>,
-                <td className="num" key="ppg">{p.ppg}</td>,
+                <td className="num mono" key="min">{n1(p.minutes)}</td>,
+                <td className="num" key="ppg">{n1(p.ppg)}</td>,
                 <td className="num" key="pts">{p.pts}</td>,
-                <td className="num" key="rpg">{p.rpg}</td>,
-                <td className="num" key="apg">{p.apg}</td>,
-                <td className="num" key="spg">{p.spg}</td>,
-                <td className="num" key="bpg">{p.bpg}</td>,
-                <td className="num" key="effpg">{p.effpg}</td>,
+                <td className="num" key="rpg">{n1(p.rpg)}</td>,
+                <td className="num" key="apg">{n1(p.apg)}</td>,
+                <td className="num" key="spg">{n1(p.spg)}</td>,
+                <td className="num" key="bpg">{n1(p.bpg)}</td>,
+                <td className="num" key="effpg">{n1(p.effpg)}</td>,
                 <td className={`num ${pm === null ? "" : pm >= 0 ? "winner" : "loser"}`} key="pm">
-                  {pm === null ? "—" : (pm > 0 ? "+" : "") + pm}
+                  {signed(pm)}
                 </td>,
                 <td className="num" key="fgp">{fgp}</td>,
                 <td className="num" key="t3p">{t3p}</td>,
-                <td className="num" key="efg">{p.efg === null ? "—" : p.efg.toFixed(1) + "%"}</td>,
-                <td className="num" key="ts">{p.ts === null ? "—" : p.ts.toFixed(1) + "%"}</td>,
+                <td className="num" key="efg">{pctStr(p.efg)}</td>,
+                <td className="num" key="ts">{pctStr(p.ts)}</td>,
               ];
             }}
           />

@@ -14,6 +14,11 @@ import "./styles/tweaks.css";
 import "./styles/ux-header.css";
 import "./styles/ux-tables.css";
 import "./styles/ux-scope.css";
+import "./styles/ux-guide.css";
+import "./styles/ux-compare.css";
+import "./styles/ux-nav.css";
+import "./styles/ux-search.css";
+import "./styles/ux-standings.css";
 
 import App from "./App.jsx";
 import { initAnalytics } from "./analytics.js";

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../data.js";
-import { contextQuery, csvDownload, fmtDate, resultOf, setTitle, sortRows } from "../utils.js";
+import { contextQuery, csvDownload, fmtDate, n1, resultOf, setTitle, signed, sortRows } from "../utils.js";
 import { GroupedBars } from "../charts.jsx";
 import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
+import StatGuide from "../components/StatGuide.jsx";
+import { GUIDE_GROUPS } from "../glossary.js";
 import { usePalette } from "../theme.jsx";
 
 const ROSTER_COLS = [
@@ -16,8 +18,8 @@ const ROSTER_COLS = [
   { key: "pts", label: "PTS", num: true },
   { key: "reb", label: "REB", num: true },
   { key: "ast", label: "AST", num: true },
-  { key: "stl", label: "ST", num: true },
-  { key: "blk", label: "BS", num: true },
+  { key: "stl", label: "STL", num: true },
+  { key: "blk", label: "BLK", num: true },
   { key: "tov", label: "TO", num: true },
   { key: "pf", label: "PF", num: true },
   { key: "eff", label: "EFF", num: true },
@@ -39,7 +41,7 @@ const LEADER_COLS = [
   { key: "pts", label: "PTS", num: true, sortable: false },
   { key: "reb", label: "REB", num: true, sortable: false },
   { key: "ast", label: "AST", num: true, sortable: false },
-  { key: "stl", label: "ST", num: true, sortable: false },
+  { key: "stl", label: "STL", num: true, sortable: false },
   { key: "eff", label: "EFF", num: true, sortable: false },
 ];
 
@@ -157,7 +159,10 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
 
       <div className="grid-2">
         <div className="card">
-          <h3>Season record</h3>
+          <div className="card-head">
+            <h3>Season record</h3>
+            <StatGuide items={GUIDE_GROUPS.standings} />
+          </div>
           <div className="scoreboard" style={{ gap: 26 }}>
             <div className="team">
               <div className="tname">W</div>
@@ -233,7 +238,7 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
                   <a className="row-link nm" title={p.player_name} href={`#/players/${p.player_id}`}>{p.player_name}</a>
                 </td>,
                 <td className="num" key="gp">{p.gp ?? "—"}</td>,
-                <td className="num mono" key="min">{p.minutes === undefined || p.minutes === null ? "—" : p.minutes.toFixed(1)}</td>,
+                <td className="num mono" key="min">{n1(p.minutes)}</td>,
                 <td className="num" key="pts">{p.pts ?? "—"}</td>,
                 <td className="num" key="reb">{p.reb ?? "—"}</td>,
                 <td className="num" key="ast">{p.ast ?? "—"}</td>,
@@ -243,7 +248,7 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
                 <td className="num" key="pf">{p.pf ?? "—"}</td>,
                 <td className="num" key="eff">{p.eff ?? "—"}</td>,
                 <td className={`num ${pm === null ? "" : pm >= 0 ? "winner" : "loser"}`} key="pm">
-                  {pm === null ? "—" : (pm > 0 ? "+" : "") + pm}
+                  {signed(pm)}
                 </td>,
               ];
             }}

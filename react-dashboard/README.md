@@ -34,7 +34,7 @@ acceptance test this design needs — **zero horizontal overflow at 390 px and
 on failure:
 
 ```
-63 checks, 63 passed, 0 failed
+84 checks, 84 passed, 0 failed
 ```
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
@@ -85,6 +85,16 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 | 17 | Search ranks the current season+group first (exact → prefix → substring), then other groups of the season, then older seasons, and labels the dropdown `This group` / `Season N` / `Other seasons` | Brief UX-04: typing `Arouse` listed a season-31 player and two season-31 teams above the current `Arouse U13`. The ladder is documented in `searchMatches()`; the 30-result cap and cross-group adoption are unchanged. |
 | 18 | Phone tables default to a compact column set (Players Player/Team/GP/PPG/RPG/APG; box score #/Player/MIN/PTS/REB/AST; roster and game log likewise) with an “Advanced stats” / “Full box score” disclosure; expanded tables gain a “Swipe sideways for more columns →” hint and right-edge shadow; headers expose `aria-sort`; Compare tables fit 320 px and the radar is hidden on phones | Brief UX-05/UX-21/UX-18. Column budgets are CSS in `ux-tables.css`, the disclosure is `components/MobileColumnsToggle.jsx` (44 px, `aria-expanded`), and desktop keeps every column exactly as before (verified 0 px diff). |
 | 19 | Phone views default to compact column sets for **Standings** (`# / Team / W / L / Pts`) and **Teams** (`Team / GP / W / L / ±`), with “Full table” / “Full stats” disclosures; long club names are clamped with a `title` tooltip and points-for rows ellipsize | Owner review of UX-05/UX-21: the points column sat off-screen on a phone and long club names forced sideways scrolling at 320/375/390 px. Column budgets are CSS in `ux-tables.css`; the disclosure reuses `components/MobileColumnsToggle.jsx`; desktop is unchanged (all columns, no disclosure). |
+| 20 | Points-for/against is a paired bar chart: PF solid, PA striped, both totals printed, a named legend (“PF points scored / PA points conceded”), a scale note and a screen-reader table; teams without games say “No games played yet” | Brief UX-06: one orange bar per team could not say whether it was scored or conceded, and the chart's SVG labels shrank to ~5 px on a phone. CSS bars in `ux-standings.css` (no `GroupedBars`, which is 560 px wide and meant for desktop). |
+| 21 | Every stats view has a “Stat guide” disclosure that defines its columns, the points and tie-break rules, the totals-vs-per-game convention and the dash | Brief UX-07/UX-08: the league's 2/1/0 points, its live-scraped EFF/MVP and the `—` vs `0` difference were nowhere on the page. `components/StatGuide.jsx` + `src/glossary.js`; a native `<details>` (works from the keyboard) that opens full-width under the card title. |
+| 22 | Numbers are formatted once: percentages always carry `%`, per-game averages one decimal, totals whole numbers, `+/-` signed | Brief UX-09: `55.6` vs `55.6%` and `15` vs `15.0` differed by view. `pct1/n1/nInt/signed` in `src/utils.js`. |
+| 23 | Totals are labelled `STL`/`BLK` and averages `SPG`/`BPG`; every stat table names its unit | Brief UX-08: the player totals card said `ST`/`BS` while the season table said `SPG`/`BPG`. Chips, player log, box score, roster and Compare all use the same pair. |
+| 24 | Sortable headers keep their `columnheader` semantics: no `role="button"`, `scope="col"`, `aria-label="Sort by …"`, `aria-sort`, and Enter/Space still sorts | Brief UX-11: `role="button"` on `<th>` erased the column-header role for screen readers. `components/SortTable.jsx`. |
+| 25 | The bottom bar says “Overview” (matching the desktop rail), six labels stay unclipped at 320 px (10–11 px type), and More marks itself with `aria-current`, a 5 px dot and a tint when Teams/Players is open | Brief UX-12/UX-16: the bar said “Overall” at 9 px and a nested page never marked the More tab. `components/MobileNav.jsx` + `ux-nav.css`. |
+| 26 | Leaders get a sticky, labelled category strip — 8 chips, `aria-current` + ✓ — that jumps to a leaderboard without scrolling through the others | Brief UX-17: reaching 封阻王 meant scrolling past five full tables. `LeadersView.jsx` + `ux-nav.css`; the ranking and table order are unchanged. |
+| 27 | Phone search opens a full-height sheet: query field with a 44 px close beside it, internally scrolling results, two-line rows (entity chip + name, then `Season N · group`), sized to the visible viewport, page scroll locked and restored, Escape/Back/tap-out close, combobox with Arrow/Home/End/Enter | Brief UX-20: the 340 px dropdown covered the page and its rows had no season/group context. `SearchBox.jsx` + `ux-search.css`; desktop keeps the anchored dropdown. |
+| 28 | Compare labels its pickers (“Compare / First player / Second player”, options carry the team), leads with 8 core metrics, hides 11 advanced metrics behind a disclosure, and fits 320 px with an identity strip instead of summary cards | Brief UX-10/UX-18: unlabelled selects and two wide summary cards made a 320 px comparison unreadable. `CompareView.jsx` + `ux-compare.css`. |
+| 29 | Empty standings and leaders explain the state and link to fixtures; the all-zero tables and fake bar charts are gone | Brief UX-19; shared `components/ScopeEmpty.jsx`. |
 
 Remove the `desktop-fix.css` import in `src/main.jsx` to get pixel parity with
 the OD build at every width, including its desktop quirks. The `tweaks.css` import is independent of
@@ -176,7 +186,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 63 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 84 checks
 ```
 
 ## Syncing back to the Open Design project

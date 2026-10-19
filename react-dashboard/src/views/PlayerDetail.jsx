@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { api, groupName } from "../data.js";
-import { contextQuery, csvDownload, efgPct, fmtDate, pctStr, resultOf, setTitle, tsPct } from "../utils.js";
+import { contextQuery, csvDownload, efgPct, fmtDate, n1, pctStr, resultOf, setTitle, signed, tsPct } from "../utils.js";
 import { GroupedBars, RadarChart } from "../charts.jsx";
 import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
+import StatGuide from "../components/StatGuide.jsx";
+import { GUIDE_GROUPS } from "../glossary.js";
 import SortTable from "../components/SortTable.jsx";
 import { usePalette } from "../theme.jsx";
 
@@ -19,8 +21,8 @@ const GAMELOG_COLS = [
   { key: "ft", label: "FT", num: true, sortable: false },
   { key: "tot_reb", label: "REB", num: true, sortable: false },
   { key: "ast", label: "AST", num: true, sortable: false },
-  { key: "stl", label: "ST", num: true, sortable: false },
-  { key: "blk", label: "BS", num: true, sortable: false },
+  { key: "stl", label: "STL", num: true, sortable: false },
+  { key: "blk", label: "BLK", num: true, sortable: false },
   { key: "tov", label: "TO", num: true, sortable: false },
   { key: "pf", label: "PF", num: true, sortable: false },
   { key: "eff", label: "EFF", num: true, sortable: false },
@@ -78,7 +80,7 @@ export default function PlayerDetail({ ctx, id }) {
   const downloadCsv = () =>
     csvDownload(
       "player_games.csv",
-      ["Date", "Opponent", "Result", "MIN", "PTS", "2PT", "3PT", "FT", "REB", "AST", "ST", "BS", "TO", "PF", "EFF", "+/-"],
+      ["Date", "Opponent", "Result", "MIN", "PTS", "2PT", "3PT", "FT", "REB", "AST", "STL", "BLK", "TO", "PF", "EFF", "+/-"],
       p.games.map((x) => {
         const isHome = x.home_team_id === x.team_id;
         const r = resultOf(x, x.team_id);
@@ -106,19 +108,22 @@ export default function PlayerDetail({ ctx, id }) {
 
       <div className="grid-2">
         <div className="card">
-          <h3>Season totals</h3>
+          <div className="card-head">
+            <h3>Season totals</h3>
+            <StatGuide items={GUIDE_GROUPS.player} />
+          </div>
           <div className="qstrip">
             <div className="q"><b>{p.gp}</b><span>GP</span></div>
             <div className="q"><b>{p.pts}</b><span>PTS</span></div>
             <div className="q"><b>{p.reb}</b><span>REB</span></div>
             <div className="q"><b>{p.ast}</b><span>AST</span></div>
-            <div className="q"><b>{p.stl}</b><span>ST</span></div>
-            <div className="q"><b>{p.blk}</b><span>BS</span></div>
+            <div className="q"><b>{p.stl}</b><span>STL</span></div>
+            <div className="q"><b>{p.blk}</b><span>BLK</span></div>
             <div className="q"><b>{p.eff}</b><span>EFF</span></div>
           </div>
           <dl className="kv" style={{ marginTop: 12 }}>
             <dt>Minutes</dt>
-            <dd className="mono">{p.minutes.toFixed(1)} ({p.gp ? (p.minutes / p.gp).toFixed(1) : 0}/g)</dd>
+            <dd className="mono">{n1(p.minutes)} ({n1(p.gp ? p.minutes / p.gp : null)}/g)</dd>
             <dt>Shooting</dt>
             <dd className="mono sstats">
               <span>{p.fgm}/{p.fga} FG</span>
@@ -135,7 +140,7 @@ export default function PlayerDetail({ ctx, id }) {
             <dt>Off / Def reb</dt><dd className="mono">{p.off_reb} / {p.def_reb}</dd>
             <dt>Turnovers / fouls</dt><dd className="mono">{p.tov} / {p.pf}</dd>
             <dt>Fast-break / blk-against</dt><dd className="mono">{p.fb} / {p.ba}</dd>
-            <dt>+/-</dt><dd className="mono">{p.plus_minus > 0 ? "+" : ""}{p.plus_minus}</dd>
+            <dt>+/-</dt><dd className="mono">{signed(p.plus_minus)}</dd>
           </dl>
         </div>
         <div className="player-side">

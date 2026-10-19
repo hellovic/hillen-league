@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../data.js";
-import { csvDownload, setTitle } from "../utils.js";
+import { csvDownload, setTitle, signed } from "../utils.js";
 import { ShareButton } from "../components/Buttons.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
+import StatGuide from "../components/StatGuide.jsx";
+import { GUIDE_GROUPS } from "../glossary.js";
 
 const BOX_COLS = [
   { kh: "MIN", key: "minutes", num: true },
@@ -14,8 +16,8 @@ const BOX_COLS = [
   { kh: "PTS", key: "pts", num: true },
   { kh: "REB", key: "tot_reb", num: true },
   { kh: "AST", key: "ast", num: true },
-  { kh: "ST", key: "stl", num: true },
-  { kh: "BS", key: "blk", num: true },
+  { kh: "STL", key: "stl", num: true },
+  { kh: "BLK", key: "blk", num: true },
   { kh: "TO", key: "tov", num: true },
   { kh: "PF", key: "pf", num: true },
   { kh: "EFF", key: "eff", num: true },
@@ -24,7 +26,7 @@ const BOX_COLS = [
 
 const BEST_STATS = [
   ["pts", "PTS"], ["fg2m", "2PT"], ["fg3m", "3PT"], ["ftm", "FT"],
-  ["tot_reb", "REB"], ["ast", "AST"], ["stl", "ST"], ["blk", "BS"], ["eff", "EFF"],
+  ["tot_reb", "REB"], ["ast", "AST"], ["stl", "STL"], ["blk", "BLK"], ["eff", "EFF"],
 ];
 
 function teamTotals(rows) {
@@ -149,7 +151,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
       <td className="num" key="pf">{b.pf}</td>,
       <td className="num" key="eff">{b.eff}</td>,
       <td className={`num ${b.plus_minus >= 0 ? "winner" : "loser"}`} key="pm">
-        {b.plus_minus > 0 ? "+" : ""}{b.plus_minus}
+{signed(b.plus_minus)}
       </td>,
     ];
   };
@@ -157,7 +159,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
   const downloadBoxCsv = () =>
     csvDownload(
       "box_score.csv",
-      ["Team", "Jersey", "Player", "MIN", "2PT", "3PT", "FG", "FT", "REB", "AST", "ST", "BS", "TO", "PF", "EFF", "+/-", "PTS"],
+      ["Team", "Jersey", "Player", "MIN", "2PT", "3PT", "FG", "FT", "REB", "AST", "STL", "BLK", "TO", "PF", "EFF", "+/-", "PTS"],
       g.box.map((b) => [
         b.team_id === g.home_team_id ? g.home_name : g.away_name, b.jersey_no, b.player_name,
         b.minutes, `${b.fg2m}-${b.fg2a}`, `${b.fg3m}-${b.fg3a}`, `${b.fgm}-${b.fga}`, `${b.ftm}-${b.fta}`,
@@ -171,6 +173,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
     const win = tid === g.home_team_id ? hw : aw;
     return (
       <div className="card" key={`box-${tid}`}>
+        <div className="card-head">
         <h3>
           {name} {color ? <span className="pill">{color}</span> : null}{" "}
           <span className="cn">{win ? "WINNER" : "LOSER"}</span>
@@ -178,6 +181,8 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
             CSV
           </button>
         </h3>
+          <StatGuide items={GUIDE_GROUPS.boxscore} />
+        </div>
         <MobileColumnsToggle
           controls={`t-box-${tid}`}
           expanded={!!fullBox[tid]}

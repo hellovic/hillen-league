@@ -622,6 +622,220 @@ for (const route of ROUTES) {
 }
 check("no horizontal overflow at 320 px", narrowOverflows.length === 0, narrowOverflows.join(", ") || "all " + ROUTES.length + " routes clean");
 
+// ------------------------------------------ Medium UX items (2026-10-19)
+// UX-11: sortable headers keep their columnheader semantics (a role="button"
+// on <th> would erase them), stay focusable and carry aria-sort.
+await setViewport(1440, 1000, false);
+await open("/players");
+const sortSemantics = await evaluate(`(() => {
+  const table = document.querySelector("#t-players");
+  const ths = [...table.querySelectorAll("thead th")];
+  return {
+    buttonRoles: table.querySelectorAll("thead th[role='button']").length,
+    scopes: ths.every((th) => th.scope === "col"),
+    label: ths[0].getAttribute("aria-label") || "",
+    sort: ths[0].getAttribute("aria-sort") || "",
+  };
+})()`);
+check("sort headers keep column semantics", sortSemantics.buttonRoles === 0 && sortSemantics.scopes && /^Sort by /.test(sortSemantics.label) && sortSemantics.sort === "none", `${sortSemantics.label} / ${sortSemantics.sort}`);
+
+// UX-09: percentages keep their percent sign and averages keep one decimal.
+const formatting = await evaluate(`(() => {
+  const headers = [...document.querySelectorAll("#t-players thead th")].map((th) => th.textContent.replace(/[▲▼]/g, "").trim());
+  const col = (name) => headers.indexOf(name);
+  const cells = (idx) => [...document.querySelectorAll("#t-players tbody tr")].map((tr) => (tr.children[idx]?.textContent || "").trim());
+  const fg = cells(col("FG%"));
+  const ppg = cells(col("PPG"));
+  const pts = cells(col("PTS"));
+  return {
+    fg: fg.slice(0, 3),
+    ppg: ppg.slice(0, 3),
+    pts: pts.slice(0, 3),
+    fgOk: fg.length > 0 && fg.every((c) => c === "—" || c.endsWith("%")),
+    ppgOk: ppg.length > 0 && ppg.every((c) => c === "—" || (c.includes(".") && c.split(".")[1].length === 1 && !isNaN(Number(c)))),
+    ptsOk: pts.length > 0 && pts.every((c) => c === "—" || /^[0-9]+$/.test(c)),
+  };
+})()`);
+check("percentage columns carry a percent sign", formatting.fgOk, formatting.fg.join(" "));
+check("per-game averages use one decimal, totals stay whole", formatting.ppgOk && formatting.ptsOk, `PPG ${formatting.ppg.join(" ")} · PTS ${formatting.pts.join(" ")}`);
+
+// UX-07: one native-disclosure stat guide per stats view.
+const guideBefore = await evaluate(`(() => { const d = document.querySelector("#view .stat-guide"); return { exists: !!d, open: d ? d.open : false }; })()`);
+await evaluate(`(() => { const d = document.querySelector("#view .stat-guide"); d.querySelector("summary").click(); })()`);
+await sleep(120);
+const guideAfter = await evaluate(`(() => { const d = document.querySelector("#view .stat-guide"); return { open: d.open, text: (d.innerText || "").replace(/\s+/g, " ") }; })()`);
+check("stat guide is an expandable disclosure", guideBefore.exists && guideBefore.open === false && guideAfter.open === true);
+check("stat guide defines eFG%, TS% and the per-game convention", /eFG%/.test(guideAfter.text) && /TS%/.test(guideAfter.text) && /per game/i.test(guideAfter.text), guideAfter.text.slice(0, 120));
+
+// UX-08: the same measure uses STL/BLK for totals, SPG/BPG for averages.
+await open("/players/17864");
+const detailLabels = await evaluate(`(() => {
+  const chips = [...document.querySelectorAll("#view .qstrip .q span")].map((s) => s.textContent.trim());
+  const tableHeaders = [...document.querySelectorAll("#view table.data thead th")].map((th) => th.textContent.replace(/[▲▼]/g, "").trim());
+  return { chips, tableHeaders };
+})()`);
+check("player totals label steals/blocks as STL/BLK", detailLabels.chips.includes("STL") && detailLabels.chips.includes("BLK"), detailLabels.chips.join(","));
+check("player game log uses STL/BLK", detailLabels.tableHeaders.includes("STL") && detailLabels.tableHeaders.includes("BLK"), detailLabels.tableHeaders.slice(8, 13).join(","));
+
+await open("/games/20863");
+const boxHeaders = await evaluate(`([...document.querySelectorAll('#view table.data thead th')].map((th) => th.textContent.replace(/[▲▼]/g, "").trim()))`);
+check("box score uses STL/BLK", boxHeaders.includes("STL") && boxHeaders.includes("BLK"), boxHeaders.filter((h) => /ST|BLK/.test(h)).join(","));
+
+// UX-06: the points chart pairs scored/conceded bars and names the pattern.
+await setViewport(1440, 1000, false);
+await open("/standings");
+const chart = await evaluate(`(() => {
+  const card = document.querySelector(".pfpa-card");
+  const rows = [...card.querySelectorAll(".pfpa-row")];
+  const legend = card.querySelector(".pfpa-legend").textContent.split("\\n").map((s) => s.trim()).filter(Boolean).join(" ");
+  return {
+    title: card.querySelector("h3").textContent.trim(),
+    legend,
+    rows: rows.length,
+    fills: card.querySelectorAll(".pfpa-fill").length,
+    emptyRows: card.querySelectorAll(".pfpa-none").length,
+    srCaption: (card.querySelector(".sr-only caption") || {}).textContent || "",
+    oldBars: document.querySelectorAll(".bar-row").length,
+  };
+})()`);
+check("points chart pairs scored and conceded bars", chart.title === "Points scored vs conceded" && chart.legend.includes("PF points scored") && chart.legend.includes("PA points conceded") && chart.fills % 2 === 0 && chart.fills / 2 + chart.emptyRows === chart.rows && /PF/.test(chart.srCaption) && chart.oldBars === 0, `${chart.rows} rows / ${chart.fills} fills / ${chart.emptyRows} empty`);
+
+// UX-19: a group with no games explains itself instead of showing empty cards.
+await open("/standings?season=33&group=28");
+const emptyStandings = await evaluate(`(() => {
+  const empty = document.querySelector("#view .scope-empty");
+  return {
+    exists: !!empty,
+    title: empty ? empty.querySelector(".scope-empty-title").textContent.trim() : "",
+    link: empty && empty.querySelector("a") ? empty.querySelector("a").getAttribute("href") : "",
+    rows: document.querySelectorAll("#view .pfpa-row").length,
+  };
+})()`);
+check("standings with no games explains the empty state", emptyStandings.exists && /no games/i.test(emptyStandings.title) && emptyStandings.link.includes("#/games") && emptyStandings.rows === 0, emptyStandings.title);
+
+// UX-10: comparison pickers are labelled and options carry team context.
+await open("/compare?season=33&group=16");
+const cmpLabels = await evaluate(`(() => {
+  const sels = [...document.querySelectorAll("#view .compare-pickers select")];
+  const opt = (sels[2] ? [...sels[2].options].map((o) => o.textContent.trim()).find((o) => o !== "— choose —") : "") || "";
+  return {
+    labels: sels.map((s) => (s.labels && s.labels[0] ? s.labels[0].textContent.trim() : "")),
+    opt,
+    empty: (document.querySelector("#view .cmp-empty") || {}).textContent ? document.querySelector("#view .cmp-empty").textContent.split("\\n").map((s) => s.trim()).filter(Boolean).join(" ") : "",
+  };
+})()`);
+check("comparison pickers are labelled", cmpLabels.labels.join(",") === "Compare,First player,Second player" && cmpLabels.opt.includes("("), cmpLabels.labels.join(","));
+check("comparison explains that both sides are required", /Both sides are required/i.test(cmpLabels.empty), cmpLabels.empty.slice(0, 80));
+
+// UX-18: advanced metrics live behind a disclosure that still fits 320 px.
+await setViewport(320, 568, true);
+await open("/compare/p/17864/15202?season=33&group=16");
+const advanced = await evaluate(`(() => {
+  const d = document.querySelector("#view details.cmp-advanced");
+  const t = d ? d.querySelector("table") : null;
+  return {
+    exists: !!d,
+    closed: d ? !d.open : false,
+    tableW: t ? Math.round(t.getBoundingClientRect().width) : 0,
+    contentW: d ? Math.round(d.closest(".card").clientWidth) : 0,
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  };
+})()`);
+check("comparison keeps advanced metrics behind a disclosure", advanced.exists && advanced.closed && advanced.tableW > 0 && advanced.tableW <= advanced.contentW + 1 && advanced.overflow === 0, `${advanced.tableW}/${advanced.contentW}px`);
+await evaluate(`document.querySelector("#view details.cmp-advanced summary").click()`);
+await sleep(150);
+const advRows = await evaluate(`document.querySelectorAll("#view details.cmp-advanced table tbody tr").length`);
+check("advanced comparison disclosure opens 11 metrics", advRows === 11, `${advRows} rows`);
+
+// UX-17: leaders get a category jump strip that marks the current category.
+await setViewport(1440, 1000, false);
+await open("/leaders");
+const jump = await evaluate(`(() => {
+  const chips = [...document.querySelectorAll(".leader-jump .leader-chip")];
+  return {
+    count: chips.length,
+    current: chips.filter((c) => c.getAttribute("aria-current") === "true").length,
+    height: chips.length ? Math.round(chips[0].getBoundingClientRect().height) : 0,
+    last: chips.length ? chips[chips.length - 1].textContent.trim() : "",
+  };
+})()`);
+check("leaders expose a category jump strip", jump.count === 8 && jump.current === 1 && jump.height >= 32, `${jump.count} chips`);
+await evaluate(`document.querySelector(".leader-jump .leader-chip:last-child").click()`);
+await sleep(400);
+const jumped = await evaluate(`(() => {
+  const c = [...document.querySelectorAll(".leader-jump .leader-chip")].find((x) => x.getAttribute("aria-current") === "true");
+  return { label: c ? c.textContent.trim() : "", current: document.querySelectorAll(".leader-jump .leader-chip[aria-current='true']").length };
+})()`);
+check("category chip marks itself after a jump", jumped.current === 1 && jumped.label.length > 0 && jumped.label !== jump.last.replace("✓", "").trim(), jumped.label);
+
+// UX-12/16: six phone nav labels stay readable and unclipped at 320 px.
+await setViewport(320, 700, true);
+await open("/standings");
+const nav = await evaluate(`(() => {
+  const labels = [...document.querySelectorAll("#mobile-nav .nav-label")].slice(0, 6).map((el) => ({
+    text: el.textContent.trim(),
+    size: parseFloat(getComputedStyle(el).fontSize),
+    clip: el.scrollWidth - el.clientWidth,
+  }));
+  return { labels, navH: Math.round(document.querySelector("#mobile-nav").getBoundingClientRect().height) };
+})()`);
+check("phone nav labels are readable and unclipped", nav.labels.map((l) => l.text).join(",") === "Overview,Standings,Games,Leaders,Compare,More" && nav.labels.every((l) => l.size >= 9.5) && nav.labels.every((l) => l.clip <= 1) && nav.navH <= 70, nav.labels.map((l) => `${l.text} ${l.size}px`).join(" "));
+
+// UX-12: the More tab marks itself while a nested page (teams/players) is open.
+await open("/players");
+const more = await evaluate(`(() => {
+  const details = document.querySelector("#mobile-nav details");
+  return {
+    current: details ? details.querySelector("summary").getAttribute("aria-current") : null,
+    dot: details && details.querySelector(".nav-dot") ? details.querySelector(".nav-dot").dataset.visible : null,
+  };
+})()`);
+check("More marks itself on nested pages", more.current === "page" && more.dot === "true", `aria-current=${more.current} dot=${more.dot}`);
+
+// UX-20: on a phone the search opens a full sheet with a 44 px close.
+await open("/standings");
+await evaluate(`document.querySelector("#global-search").click()`);
+await sleep(320);
+const sheet = await evaluate(`(() => {
+  const input = document.querySelector("#global-search");
+  const wrap = input.closest(".gsearch");
+  const close = document.querySelector(".gs-close");
+  const r = close ? close.getBoundingClientRect() : { width: 0, height: 0 };
+  return {
+    surface: wrap.classList.contains("gsearch-surface"),
+    expanded: input.getAttribute("aria-expanded"),
+    closeW: Math.round(r.width),
+    closeH: Math.round(r.height),
+  };
+})()`);
+check("phone search opens a full sheet with a 44 px close", sheet.surface && sheet.expanded === "true" && sheet.closeW >= 44 && sheet.closeH >= 44, `${sheet.closeW}x${sheet.closeH}`);
+await evaluate(`(() => {
+  const i = document.querySelector("#global-search");
+  const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+  set.call(i, "何希言");
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+})()`);
+await sleep(400);
+const phoneHits = await evaluate(`(() => {
+  const items = [...document.querySelectorAll("#global-results .gs-item")];
+  return {
+    count: items.length,
+    scope: items[0] ? (items[0].querySelector(".gs-scope") || {}).textContent || "" : "",
+    sub: items[0] ? (items[0].querySelector(".gs-sub") || {}).textContent || "" : "",
+  };
+})()`);
+check("phone search rows carry their season/group scope", phoneHits.count > 0 && /Season 33/.test(phoneHits.scope), `${phoneHits.count} hits · ${phoneHits.scope.trim()}`);
+await evaluate(`(() => {
+  const i = document.querySelector("#global-search");
+  i.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+})()`);
+await sleep(320);
+const sheetClosed = await evaluate(`(() => ({
+  surface: !!document.querySelector(".gsearch-surface"),
+  expanded: document.querySelector("#global-search").getAttribute("aria-expanded"),
+}))()`);
+check("phone search sheet closes with Escape", !sheetClosed.surface && sheetClosed.expanded === "false", `expanded=${sheetClosed.expanded}`);
+
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 
 const failed = results.filter((r) => !r.ok);

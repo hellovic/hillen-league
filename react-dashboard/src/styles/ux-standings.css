@@ -1,0 +1,291 @@
+/* UX-06 — Points scored vs conceded chart (StandingsView).
+ *
+ * The old chart drew one solid orange bar per team and printed one number, so
+ * it was impossible to tell which total was scored and which was conceded.
+ * The replacement draws two labelled bars per team on one shared scale:
+ *   PF = points scored, solid accent bar
+ *   PA = points conceded, striped bar (pattern, not colour alone)
+ * Both totals are printed next to their bars, the legend names both series,
+ * and a visually hidden table repeats the numbers for screen readers.
+ *
+ * UX-17 — Leaders category strip (LeadersView): a sticky, horizontally
+ * scrollable row of category chips. Chips never wrap long bilingual labels;
+ * the current category carries aria-current, a ✓, a border and bold text, and
+ * the strip stays in view while the eight tables scroll past.
+ *
+ * UX-19 — Empty states on these two views use the shared .scope-empty block, so
+ * no styles are added here beyond spacing (valid results keep their content). */
+
+/* ---------------------------------------------------------------- UX-06 */
+body.orange .pfpa-card .card-head {
+  margin-bottom: 10px;
+}
+body.orange .pfpa-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+body.orange .pfpa-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+body.orange .pfpa-legend-item b {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+body.orange .pfpa-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+body.orange .pfpa-swatch.pf {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+body.orange .pfpa-swatch.pa {
+  background: repeating-linear-gradient(135deg, var(--accent) 0 2px, transparent 2px 4px);
+  border: 1px solid var(--accent);
+}
+
+body.orange .pfpa-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+body.orange .pfpa-row {
+  display: grid;
+  gap: 3px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+body.orange .pfpa-row:first-child {
+  padding-top: 0;
+}
+body.orange .pfpa-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+body.orange .pfpa-team {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+body.orange .pfpa-team .row-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+body.orange .pfpa-bars {
+  display: grid;
+  gap: 3px;
+}
+body.orange .pfpa-line {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+}
+body.orange .pfpa-tag {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+body.orange .pfpa-track {
+  display: block;
+  height: 10px;
+  background: var(--bg2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+body.orange .pfpa-fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+}
+body.orange .pfpa-fill.pf {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+/* Stripes make PA distinguishable without relying on colour perception. */
+body.orange .pfpa-fill.pa {
+  background: repeating-linear-gradient(135deg, var(--accent) 0 3px, transparent 3px 6px);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+body.orange .pfpa-val {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+body.orange .pfpa-row-empty .pfpa-none {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-style: italic;
+  line-height: 1.5;
+}
+body.orange .pfpa-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- UX-17 */
+body.orange .leader-jump {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 10px 0 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+body.orange .leader-jump-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+body.orange .leader-jump-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+body.orange .leader-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+body.orange .leader-chip:hover {
+  border-color: var(--accent);
+}
+body.orange .leader-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+body.orange .leader-chip-cn {
+  font-weight: 600;
+}
+body.orange .leader-chip-en {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+body.orange .leader-chip-check {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+body.orange .leader-chip.is-current {
+  background: var(--card2);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+body.orange .leader-chip.is-current .leader-chip-cn {
+  font-weight: 750;
+}
+body.orange .leader-chip.is-current .leader-chip-en {
+  color: var(--accent);
+}
+/* The scroll anchor leaves room for the sticky strip when a chip is tapped. */
+body.orange .leaderboard-card {
+  scroll-margin-top: calc(var(--leader-jump-h, 56px) + 14px);
+}
+
+/* ------------------------------------------------------------- phones */
+@media (max-width: 767px) {
+  body.orange .pfpa-legend {
+    gap: 6px 14px;
+    font-size: var(--mobile-caption);
+  }
+  body.orange .pfpa-row {
+    padding: 10px 0;
+    gap: 4px;
+  }
+  body.orange .pfpa-team {
+    font-size: var(--mobile-body);
+    line-height: 1.4;
+  }
+  body.orange .pfpa-line {
+    grid-template-columns: 24px minmax(0, 1fr) 40px;
+    gap: 6px;
+  }
+  body.orange .pfpa-tag {
+    font-size: 10px;
+  }
+  body.orange .pfpa-track {
+    height: 12px;
+  }
+  body.orange .pfpa-val {
+    font-size: 13px;
+  }
+  body.orange .pfpa-row-empty .pfpa-none {
+    font-size: var(--mobile-caption);
+  }
+  body.orange .pfpa-note {
+    font-size: var(--mobile-caption);
+    line-height: 1.5;
+  }
+
+  /* Strip bleeds to the screen edges so the scroll affordance is obvious on a
+   * 320 px phone; chips keep a 44 px touch height. */
+  body.orange .leader-jump {
+    margin: 0 -16px 14px;
+    padding: 8px 16px;
+  }
+  body.orange .leader-jump-strip {
+    gap: 6px;
+    padding: 2px 0 4px;
+  }
+  body.orange .leader-chip {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: var(--mobile-detail);
+  }
+  body.orange .leader-chip-en {
+    font-size: 10px;
+  }
+  body.orange .leaderboard-card {
+    scroll-margin-top: calc(var(--leader-jump-h, 64px) + 10px);
+  }
+}

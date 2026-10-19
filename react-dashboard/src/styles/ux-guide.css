@@ -1,0 +1,99 @@
+/* Stat-guide disclosure (UX-07 / UX-08): a native <details> so it works with
+ * tap, keyboard and screen readers; no hover-only tooltips. */
+body.orange .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+body.orange .card-head h3 {
+  margin: 0;
+  flex: 1 1 auto;
+}
+body.orange .stat-guide {
+  flex: 0 0 auto;
+  max-width: 640px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* While open the guide drops to its own full-width row, so the definitions read
+ * under the card title instead of squeezing into a half-width column. */
+body.orange .stat-guide[open] {
+  flex: 1 1 100%;
+  max-width: 760px;
+}
+body.orange .stat-guide dl {
+  max-width: 72ch;
+}
+body.orange .stat-guide summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 2px 4px;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12px;
+  list-style: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+body.orange .stat-guide summary::-webkit-details-marker {
+  display: none;
+}
+body.orange .stat-guide summary::before {
+  content: "?";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+body.orange .stat-guide[open] summary {
+  margin-bottom: 8px;
+}
+body.orange .stat-guide dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+body.orange .stat-guide dt {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+body.orange .stat-guide dd {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 767px) {
+  body.orange .stat-guide summary {
+    min-height: 44px;
+  }
+}
+
+/* Desktop: the header is one line — title left, guide affordance right. Once
+ * the guide opens it drops to a full-width block under the title, so the
+ * definitions are not squeezed into a half-width column. */
+@media (min-width: 768px) {
+  body.orange .card-head {
+    display: block;
+    position: relative;
+    padding-right: 120px;
+  }
+  body.orange .card-head > .stat-guide:not([open]) {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}

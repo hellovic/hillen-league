@@ -4,7 +4,9 @@ import { contextHash, go, seasonHash } from "../utils.js";
 /* Six bottom-bar destinations, in the order Vic asked for:
  * Overview · Standings · Games · Leaders · Compare · More (Teams, Players).
  * The desktop rail keeps all seven views; teams and players live under More.
- * The first destination is called “Overview” on both breakpoints (UX-12). */
+ * The first destination is called “Overview” on both breakpoints (UX-12), and
+ * an active Teams/Players page marks the More control with aria-current plus a
+ * visible dot, so the nested destination is discoverable (UX-12/UX-16). */
 const PRIMARY = [
   ["season", "Overview"],
   ["standings", "Standings"],
@@ -68,6 +70,14 @@ const ICONS = {
   compare: IconCompare,
 };
 
+/* The dot is a non-colour selected cue (UX-16): it is shown on the current
+ * destination and on More when a nested Teams/Players page is current. */
+function SelectedDot({ visible }) {
+  return (
+    <span className="nav-dot" aria-hidden="true" data-visible={visible ? "true" : "false"} />
+  );
+}
+
 export default function MobileNav({ active, ctx }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -89,18 +99,25 @@ export default function MobileNav({ active, ctx }) {
             key={view}
             type="button"
             data-go={view}
-            aria-current={active === view ? "page" : "false"}
+            aria-current={active === view ? "page" : undefined}
             onClick={() => pick(view)}
           >
             <Icon />
-            <span>{label}</span>
+            <span className="nav-label">{label}</span>
+            <SelectedDot visible={active === view} />
           </button>
         );
       })}
-      <details id="more-nav" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-        <summary aria-current={inMore ? "page" : "false"}>
+      <details
+        id="more-nav"
+        open={open}
+        onToggle={(e) => setOpen(e.currentTarget.open)}
+        className={inMore ? "nav-more-current" : undefined}
+      >
+        <summary aria-current={inMore ? "page" : undefined}>
           <IconMore />
-          <span>More</span>
+          <span className="nav-label">More</span>
+          <SelectedDot visible={inMore} />
         </summary>
         <div className="more-menu">
           {MORE.map(([view, label]) => (
@@ -108,10 +125,11 @@ export default function MobileNav({ active, ctx }) {
               key={view}
               type="button"
               data-go={view}
-              aria-current={active === view ? "page" : "false"}
+              aria-current={active === view ? "page" : undefined}
               onClick={() => pick(view)}
             >
-              {label}
+              <span className="nav-label">{label}</span>
+              <SelectedDot visible={active === view} />
             </button>
           ))}
         </div>

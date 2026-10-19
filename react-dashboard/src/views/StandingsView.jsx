@@ -16,6 +16,8 @@ import SortTable from "../components/SortTable.jsx";
 import GameStatus from "../components/GameStatus.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
+import StatGuide from "../components/StatGuide.jsx";
+import { GUIDE_GROUPS } from "../glossary.js";
 
 const KEYS = [
   { key: "pos", label: "#", num: true },
@@ -32,7 +34,13 @@ const KEYS = [
  * UX-19): a group with no results keeps its table but the points chart is
  * replaced by an explanation; a group with no teams shows a plain empty state
  * instead of an empty table. Unplayed fixtures are skipped and never shown as
- * results. */
+ * results.
+ *
+ * UX-06: the "Points for / against" card used to show one orange bar per team
+ * and one number — it was impossible to tell whether the bar was scored or
+ * conceded points. The chart now renders a paired PF (solid) bar and PA
+ * (striped) bar with both totals printed, a named legend, and a screen-reader
+ * table. A team that has not played says so instead of drawing a zero bar. */
 export default function StandingsView({ ctx }) {
   const [sort, setSort] = useState(null);
   /* UX-05/UX-21: phones get # / Team / W / L / Pts by default (the eight-column
@@ -44,10 +52,20 @@ export default function StandingsView({ ctx }) {
     setTitle(groupName(ctx.season, ctx.group), "Standings", "Season " + ctx.season);
   }, [ctx.season, ctx.group]);
 
-  const maxPf = Math.max(...teams.map((t) => t.pts_for), 1);
   const resolved = sortByKickoff(games.filter(hasResult), "desc");
   const latest = resolved.slice(0, 5);
   const rows = sort ? sortRows(standings, sort.key, sort.dir) : standings;
+
+  /* PF/PA chart (UX-06): both series share one scale so a team's scored and
+   * conceded totals are directly comparable. Bar length is relative to the
+   * group's highest single total, and every bar prints its number. */
+  const maxPts = Math.max(
+    1,
+    ...teams.map((t) => Math.max(t.pts_for || 0, t.pts_against || 0))
+  );
+  const barPct = (v) => (v > 0 ? Math.max((v / maxPts) * 100, 2) : 0);
+  const hasScores = teams.some((t) => (t.pts_for || 0) > 0 || (t.pts_against || 0) > 0);
+  const playedTeams = teams.filter((t) => (t.gp || 0) > 0);
 
   const downloadCsv = () =>
     csvDownload(
@@ -133,22 +151,98 @@ export default function StandingsView({ ctx }) {
           )}
         </div>
         <div>
-          <div className="card">
-            <h3>Points for / against</h3>
-            {resolved.length ? (
-              teams.map((t) => (
-                <div className="bar-row" key={t.team_id}>
-                  <span className="bl"><a className="row-link nm" title={t.team_name} href={`#/teams/${t.team_id}`}>{t.team_name}</a></span>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${Math.max((t.pts_for / maxPf) * 100, 2)}%` }} />
-                  </div>
-                  <span className="bv">{t.pts_for}</span>
+          <div className="card pfpa-card">
+            <div className="card-head">
+              <h3>Points scored vs conceded</h3>
+              <StatGuide items={GUIDE_GROUPS.standings} />
+            </div>
+            {hasScores ? (
+              <>
+                <p className="pfpa-legend">
+                  <span className="pfpa-legend-item">
+                    <span className="pfpa-swatch pf" aria-hidden="true" />
+                    <b>PF</b> points scored
+                  </span>
+                  <span className="pfpa-legend-item">
+                    <span className="pfpa-swatch pa" aria-hidden="true" />
+                    <b>PA</b> points conceded
+                  </span>
+                </p>
+                <ul className="pfpa-list">
+                  {teams.map((t) => {
+                    const played = (t.gp || 0) > 0;
+                    return (
+                      <li className={`pfpa-row${played ? "" : " pfpa-row-empty"}`} key={t.team_id}>
+                        <span className="pfpa-team">
+                          <a className="row-link" title={t.team_name} href={`#/teams/${t.team_id}`}>
+                            {t.team_name}
+                          </a>
+                        </span>
+                        {played ? (
+                          <span className="pfpa-bars">
+                            <span className="pfpa-line">
+                              <span className="pfpa-tag">PF</span>
+                              <span className="pfpa-track">
+                                <span className="pfpa-fill pf" style={{ width: `${barPct(t.pts_for)}%` }} />
+                              </span>
+                              <span className="pfpa-val">{t.pts_for ?? 0}</span>
+                            </span>
+                            <span className="pfpa-line">
+                              <span className="pfpa-tag">PA</span>
+                              <span className="pfpa-track">
+                                <span className="pfpa-fill pa" style={{ width: `${barPct(t.pts_against)}%` }} />
+                              </span>
+                              <span className="pfpa-val">{t.pts_against ?? 0}</span>
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="pfpa-none">No games played yet</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="pfpa-note">
+                  Scored and conceded totals share one scale (group maximum {maxPts}); completed results only.
+                  {playedTeams.length < teams.length
+                    ? " Teams that have not played yet are listed without bars."
+                    : ""}
+                </p>
+                <div className="sr-only">
+                  <table>
+                  <caption>Points scored (PF) and conceded (PA) by team in this group</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Team</th>
+                      <th scope="col">Games played</th>
+                      <th scope="col">PF, points scored</th>
+                      <th scope="col">PA, points conceded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teams.map((t) => (
+                      <tr key={t.team_id}>
+                        <th scope="row">{t.team_name}</th>
+                        <td>{(t.gp || 0) > 0 ? t.gp : 0}</td>
+                        <td>{(t.gp || 0) > 0 ? t.pts_for ?? 0 : "—"}</td>
+                        <td>{(t.gp || 0) > 0 ? t.pts_against ?? 0 : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  </table>
                 </div>
-              ))
+              </>
+            ) : resolved.length ? (
+              <ScopeEmpty
+                title="No scoring totals yet"
+                text="Results are recorded for this group, but no points have been counted yet (forfeits or no recorded score)."
+                href={contextHash("games", ctx)}
+                linkLabel="View fixtures ↗"
+              />
             ) : (
               <ScopeEmpty
                 title="No games played yet"
-                text="Points for / against appears after this group's first result."
+                text="Points scored and conceded appear after this group's first final score."
                 href={contextHash("games", ctx)}
                 linkLabel="View fixtures ↗"
               />

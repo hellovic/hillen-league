@@ -97,6 +97,33 @@ export function pctStr(v) {
   return v === null || v === undefined || isNaN(v) ? "—" : v.toFixed(1) + "%";
 }
 
+/* Display formatting shared by every table and stat card (UX-09). Values keep
+ * their numeric type in the data; only rendering goes through these helpers, so
+ * sorting still compares numbers. `—` means "no record / not applicable" and is
+ * never rendered as a zero. */
+export const MISSING = "—";
+
+export function n1(v) {
+  const n = Number(v);
+  return v === null || v === undefined || v === "" || Number.isNaN(n) ? MISSING : n.toFixed(1);
+}
+
+export function nInt(v) {
+  const n = Number(v);
+  return v === null || v === undefined || v === "" || Number.isNaN(n) ? MISSING : String(Math.round(n));
+}
+
+export function pct1(v) {
+  const n = Number(v);
+  return v === null || v === undefined || v === "" || Number.isNaN(n) ? MISSING : `${n.toFixed(1)}%`;
+}
+
+export function signed(v) {
+  const n = Number(v);
+  if (v === null || v === undefined || v === "" || Number.isNaN(n)) return MISSING;
+  return n > 0 ? `+${n}` : String(n);
+}
+
 /* ---------------- routing fragments ---------------- */
 
 export function contextQuery(ctx) {

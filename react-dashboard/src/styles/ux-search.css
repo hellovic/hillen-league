@@ -1,0 +1,211 @@
+/* UX-20 — phone search context.
+ *
+ * On a phone, focusing the header search opens a full-screen sheet instead of a
+ * 340 px dropdown: it is sized to window.visualViewport (set as --vv-* custom
+ * properties from SearchBox.jsx), so the software keyboard shrinks the sheet
+ * and never covers the results. Page scroll is locked while it is open and
+ * restored on close. Rows become two lines: entity type + name, then
+ * “Season 33 · group”, with scope headings above each block.
+ *
+ * Desktop keeps the familiar anchored dropdown: only .gs-actions, the sheet and
+ * .gs-scope are phone/surface-only, and the desktop .gs-sub context line is
+ * untouched. The #global-results a[data-kind] contract used by verify.mjs is
+ * preserved (headings stay plain divs). */
+body.orange .gs-actions {
+  display: none;
+}
+body.orange .gs-scope {
+  display: none;
+}
+body.orange .gs-hint {
+  padding: 18px 12px;
+  color: var(--muted);
+  font-size: var(--mobile-detail);
+  line-height: 1.5;
+}
+
+/* The page is scroll-locked by body{position:fixed} in SearchBox; block the
+ * rubber-band while the sheet is open. */
+@media (max-width: 767px) {
+  body.orange.search-open {
+    overflow: hidden;
+  }
+
+  body.orange .topbar .gsearch.gsearch-surface {
+    position: fixed;
+    top: var(--vv-top, 0);
+    left: var(--vv-left, 0);
+    width: var(--vv-width, 100%);
+    height: var(--vv-height, 100dvh);
+    max-height: var(--vv-height, 100dvh);
+    margin: 0;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    /* Two-column sheet header: the query field takes the width, the close
+     * button sits beside it (a search field with a lone “Clear” floating above
+     * it read as a stray button). */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 8px;
+    background: var(--card);
+    z-index: 120;
+    overscroll-behavior: contain;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  /* The close button rides next to the query field; the field's native clear
+   * affordance replaces the old “Clear” button (Escape and Back also close). */
+  body.orange .gsearch-surface .gs-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 48px;
+  }
+  body.orange .gsearch-surface .gs-actions .gs-clear {
+    display: none;
+  }
+  body.orange .gsearch-surface .gs-clear,
+  body.orange .gsearch-surface .gs-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card2);
+    color: var(--text);
+    font-size: var(--mobile-detail);
+    font-weight: 600;
+    line-height: 1;
+  }
+  body.orange .gsearch-surface .gs-close {
+    font-size: 18px;
+  }
+  body.orange .gsearch-surface .gs-actions:only-child .gs-clear {
+    margin-right: auto;
+  }
+
+  /* The input becomes the sheet's query field. */
+  body.orange .topbar .gsearch.gsearch-surface input[type="search"] {
+    grid-column: 1;
+    grid-row: 1;
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    min-height: 48px;
+    height: 48px;
+    padding: 0 12px;
+    font-size: var(--mobile-body);
+    line-height: 1.4;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  body.orange .gsearch-surface .search-label {
+    display: none;
+  }
+
+  /* Results fill the rest of the visible viewport and scroll internally. */
+  body.orange .topbar .gsearch-surface .global-results,
+  body.orange .topbar .gsearch-surface .global-results.open {
+    display: block;
+    position: relative;
+    inset: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    min-height: 0;
+    margin: 0 -12px;
+    padding: 0 0 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body.orange .gsearch-surface .gs-section {
+    background: var(--card);
+    border-top: 1px solid var(--line);
+    padding: 12px 4px 6px;
+    font-size: 11px;
+  }
+  body.orange .gsearch-surface .gs-section-group:first-child .gs-section {
+    border-top: 0;
+  }
+
+  /* Two-line, comfortably tappable result rows. */
+  body.orange .gsearch-surface .gs-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: center;
+    min-height: 56px;
+    padding: 10px 12px;
+  }
+  body.orange .gsearch-surface .gs-item .gs-k {
+    grid-row: 1 / span 2;
+    align-self: center;
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+  body.orange .gsearch-surface .gs-label {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--mobile-body);
+    line-height: 1.3;
+    font-weight: 600;
+  }
+  /* Replace the desktop context line with “Season 33 · group” on the phone. */
+  body.orange .gsearch-surface .gs-item .gs-sub {
+    display: none;
+  }
+  body.orange .gsearch-surface .gs-item .gs-scope {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--muted);
+    font-size: var(--mobile-caption);
+    line-height: 1.4;
+  }
+  body.orange .gsearch-surface .gs-item[aria-selected="true"] {
+    background: var(--card2);
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+  body.orange .gsearch-surface .gs-empty {
+    padding: 20px 12px;
+    font-size: var(--mobile-body);
+    line-height: 1.5;
+    text-align: left;
+  }
+}
+
+/* Desktop: no sheet, no extra controls — the anchored dropdown stays as-is. */
+@media (min-width: 768px) {
+  body.orange .gsearch .gs-actions {
+    display: none;
+  }
+  body.orange .gsearch .global-results {
+    max-width: calc(100vw - 32px);
+  }
+}

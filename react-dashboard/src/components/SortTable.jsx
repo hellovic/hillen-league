@@ -159,8 +159,12 @@ export default function SortTable({
       return (
         <th
           key={col.key ?? col.label}
+          scope="col"
           tabIndex={mirror ? -1 : clickable ? 0 : undefined}
-          role={clickable ? "button" : undefined}
+          /* Keep the columnheader role: a role="button" here would erase the
+           * header semantics screen readers need. The header stays focusable,
+           * Enter/Space sorts it, and aria-sort carries the state (UX-11). */
+          aria-label={clickable ? `Sort by ${col.label}` : undefined}
           data-key={clickable ? col.key : undefined}
           className={cls || undefined}
           aria-sort={

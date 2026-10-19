@@ -1,0 +1,138 @@
+/* UX-12 / UX-16 — bottom navigation.
+ *
+ * Six destinations: Overview · Standings · Games · Leaders · Compare · More.
+ * “Overview” matches the label the desktop rail uses for the season page — no
+ * “Overall” left on mobile. Teams/Players stay nested under More, and when one is
+ * current the More control carries aria-current="page" plus a filled dot, so the
+ * nested destination is visible without opening the menu (UX-12).
+ *
+ * Labels move from the 9 px of tweaks.css to 10–11 px. The size is fluid so the
+ * longest label (“Standings”, 9 characters) fits without an ellipsis at
+ * 320/375/390/430 CSS px; the column maths is in the comment below. Every
+ * destination keeps a ≥44 px touch box, and the selected state is not colour
+ * alone: accent text + tinted background + a dot/label weight change.
+ *
+ * Loaded last (after design.css and tweaks.css), so these win at equal
+ * specificity. Everything here is phone-only. */
+body.orange .mobile-nav .nav-dot {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* Column budget at the narrowest supported width (320 px):
+   *   320 − 8 (2×4 padding) − 10 (5×2 gap) = 302 → 50.3 px per destination.
+   * 10 px system sans “Standings” measures ~47–49 px, so it fits at 320; the
+   * fluid size caps at 11 px on wider phones, where there is more room.
+   * Touch boxes stay ≥44 px in both dimensions (50 px column × 52 px row). */
+  body.orange .mobile-nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: var(--bg2);
+    border-top: 1px solid var(--line);
+  }
+  body.orange .mobile-nav button,
+  body.orange .mobile-nav summary {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    min-height: 52px;
+    padding: 7px 1px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--muted);
+    font-size: clamp(10px, 2.66vw, 11px);
+    line-height: 1.2;
+    font-weight: 500;
+    letter-spacing: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body.orange .mobile-nav .od-icon {
+    --od-icon-size: 19px;
+    flex: none;
+  }
+  body.orange .mobile-nav .nav-label {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* A 320 px phone leaves 48.3 px of label box per destination (50.3 px column
+   * minus 2×1 px padding). Bold "Standings" measures 52 px at 10 px, so narrow
+   * phones tighten the tracking instead of clipping the label. */
+  @media (max-width: 360px) {
+    body.orange .mobile-nav button .nav-label,
+    body.orange .mobile-nav summary .nav-label {
+      letter-spacing: -0.5px;
+    }
+  }
+
+  /* Selected state: never colour alone. Accent + card tint + a dot above the
+   * icon + heavier label. The dot is the non-colour cue required by UX-16. */
+  body.orange .mobile-nav button[aria-current="page"],
+  body.orange .mobile-nav summary[aria-current="page"] {
+    background: var(--card2);
+    color: var(--accent);
+  }
+  body.orange .mobile-nav [aria-current="page"] .nav-label {
+    font-weight: 700;
+  }
+  body.orange .mobile-nav [aria-current="page"] .nav-dot,
+  body.orange .mobile-nav .nav-dot[data-visible="true"] {
+    display: block;
+  }
+  body.orange .mobile-nav .nav-dot {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* Keyboard focus must stay visible inside the fixed bar. */
+  body.orange .mobile-nav button:focus-visible,
+  body.orange .mobile-nav summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  /* More menu: above the bar, clear of the thumb zone, never wider than the
+   * screen; rows keep a 44 px touch target and the same dot cue. */
+  body.orange .mobile-nav .more-menu {
+    right: 8px;
+    bottom: calc(100% + 6px);
+    width: min(220px, calc(100vw - 16px));
+    padding: 6px;
+    border-radius: 10px;
+  }
+  body.orange .mobile-nav .more-menu button {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: var(--mobile-body);
+  }
+  body.orange .mobile-nav .more-menu button .nav-label {
+    font-weight: 500;
+  }
+  body.orange .mobile-nav .more-menu button[aria-current="page"] .nav-label {
+    font-weight: 700;
+  }
+  body.orange .mobile-nav .more-menu .nav-dot {
+    position: static;
+    margin: 0;
+    flex: none;
+  }
+}

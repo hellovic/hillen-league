@@ -1,0 +1,606 @@
+/* Comparison layout for narrow widths (UX-10 / UX-18).
+ *
+ * Loaded after ux-tables.css, so rules here can refine the phone treatment
+ * that file already gives the compare card. Desktop keeps the familiar
+ * side-by-side cards; phones collapse the nested cards into one reading
+ * column with section rules, then lead with a three-column core table.
+ */
+
+/* ==========================================================================
+   UX-10 — selectors
+   ========================================================================== */
+
+body.orange .compare-pickers {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.5fr) minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+body.orange .cmp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+body.orange .cmp-field label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+body.orange .cmp-field select {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+body.orange .compare-pickers .cmp-vs {
+  align-self: end;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 767px) {
+  body.orange .compare-pickers {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  body.orange .compare-pickers .cmp-vs {
+    display: none;
+  }
+  body.orange .cmp-field label {
+    font-size: 12px;
+    letter-spacing: 0.4px;
+  }
+}
+
+/* ==========================================================================
+   Result header — identities attached to the numbers
+   ========================================================================== */
+
+body.orange .cmp-identities {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 16px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+body.orange .cmp-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.orange .cmp-identity-right {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+body.orange .cmp-identity-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+body.orange .cmp-identity-name {
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+body.orange .cmp-identity-sub {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+body.orange .cmp-swatch {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+body.orange .cmp-identity-vs {
+  color: var(--muted);
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 767px) {
+  body.orange .cmp-identities {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: 0;
+  }
+  body.orange .cmp-identity-name {
+    font-size: 16px;
+  }
+  body.orange .cmp-identity-sub {
+    font-size: 10.5px;
+  }
+}
+
+/* ==========================================================================
+   Core / advanced tables
+   ========================================================================== */
+
+body.orange .cmp-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+body.orange .cmp-section-head h3 {
+  margin: 0;
+}
+
+body.orange .cmp-section-head .stat-guide {
+  flex: none;
+}
+
+body.orange .cmp-th-name {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+body.orange .cmp-th-team {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+body.orange .cmp-legend {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+body.orange .cmp-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.orange .cmp-scroll:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+body.orange .cmp-scroll > table {
+  min-width: 100%;
+}
+
+body.orange .cmp-scroll-hint {
+  display: none;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+body.orange .cmp-scroll-wrap.is-scrollable .cmp-scroll-hint {
+  display: block;
+}
+
+/* Advanced metrics: one disclosure per comparison, with a full-width 44 px
+   summary so it is a comfortable touch and keyboard target. */
+body.orange .cmp-advanced {
+  padding: 0;
+}
+
+body.orange .cmp-advanced-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 14px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+body.orange .cmp-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+body.orange .cmp-advanced-label {
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+body.orange .cmp-advanced-count {
+  color: var(--muted);
+  font-size: 12px;
+  margin-right: auto;
+}
+
+body.orange .cmp-advanced-caret {
+  width: 9px;
+  height: 9px;
+  margin-top: -4px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+  transition: transform var(--duration) ease-out;
+}
+
+body.orange .cmp-advanced[open] .cmp-advanced-caret {
+  margin-top: 4px;
+  transform: rotate(225deg);
+}
+
+body.orange .cmp-advanced-body {
+  padding: 0 20px 20px;
+}
+
+@media (max-width: 767px) {
+  /* Flatten the repeated nested cards into one reading column separated by
+     hairlines; this gives the table ~24 px more width and removes the
+     card-in-card padding that made the phone result feel narrow. */
+  body.orange .card.compare-card #cmp-result > .card,
+  body.orange .card.compare-card #cmp-result > .grid-2 {
+    margin: 14px 0 0;
+    padding: 14px 0 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: none;
+    overflow: visible;
+  }
+
+  body.orange .card.compare-card #cmp-result > .cmp-advanced {
+    padding-top: 0;
+  }
+
+  body.orange .card.compare-card #cmp-result .grid-2 > .card {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    overflow: visible;
+  }
+
+  body.orange .card.compare-card #cmp-result .grid-2 > .card + .card {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  body.orange .card.compare-card .cmp-section-head {
+    margin-bottom: 8px;
+  }
+
+  /* Fixed layout: the three columns can never push the card wider than the
+     phone, even with long team names or a wrapped metric label. */
+  body.orange .card.compare-card .cmp-core-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  body.orange .card.compare-card .cmp-core-table th:first-child,
+  body.orange .card.compare-card .cmp-core-table td:first-child {
+    width: 36%;
+  }
+
+  body.orange .card.compare-card .cmp-core-table th:nth-child(2),
+  body.orange .card.compare-card .cmp-core-table th:nth-child(3),
+  body.orange .card.compare-card .cmp-core-table td:nth-child(2),
+  body.orange .card.compare-card .cmp-core-table td:nth-child(3) {
+    width: 32%;
+  }
+
+  body.orange .card.compare-card .cmp-core-table th,
+  body.orange .card.compare-card .cmp-core-table td {
+    padding: 8px 4px;
+    font-size: 12.5px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+
+  body.orange .card.compare-card .cmp-core-table th {
+    font-size: 11px;
+  }
+
+  body.orange .card.compare-card .cmp-core-table th:first-child {
+    vertical-align: bottom;
+  }
+
+  body.orange .cmp-th-name {
+    font-size: 11.5px;
+  }
+
+  body.orange .cmp-th-team {
+    font-size: 9.5px;
+  }
+
+  body.orange .cmp-legend {
+    margin-top: 8px;
+    font-size: 10.5px;
+  }
+
+  body.orange .cmp-advanced-summary {
+    min-height: 48px;
+    padding: 12px 0;
+  }
+
+  body.orange .cmp-advanced-label {
+    font-size: 15px;
+  }
+
+  body.orange .cmp-advanced-body {
+    padding: 0 0 12px;
+  }
+}
+
+/* ==========================================================================
+   Per-game profile — phone replacement for the radar chart
+   ========================================================================== */
+
+body.orange .cmp-profile {
+  display: none;
+}
+
+body.orange .cmp-bars {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+body.orange .cmp-bars-head,
+body.orange .cmp-bar-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+body.orange .cmp-bars-head {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+body.orange .cmp-bars-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+body.orange .cmp-bar-label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+
+body.orange .cmp-bar-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+body.orange .cmp-bar-cell b {
+  flex: none;
+  width: 34px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+
+body.orange .cmp-bar-track {
+  flex: 1 1 auto;
+  height: 8px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg2);
+}
+
+body.orange .cmp-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+@media (max-width: 767px) {
+  body.orange .cmp-profile {
+    display: block;
+  }
+}
+
+/* ==========================================================================
+   Charts and their textual data
+   ========================================================================== */
+
+body.orange .cmp-chart-legend {
+  display: none;
+}
+
+body.orange .cmp-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+body.orange .cmp-chart-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+body.orange .cmp-chart-data {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 767px) {
+  /* The SVG is drawn in a 560-unit viewBox; at a phone card width its native
+     9.5-unit labels render around 4 px. Bump the SVG text to ~11 px effective,
+     drop the tiny SVG legend and put a readable HTML one above the chart. */
+  body.orange .cmp-trend .chart-label {
+    font-size: 24px;
+  }
+
+  body.orange .cmp-trend .chart-tick {
+    font-size: 17px;
+  }
+
+  body.orange .cmp-trend .chart-val {
+    display: none;
+  }
+
+  body.orange .cmp-trend .chart > g:last-child {
+    display: none;
+  }
+
+  body.orange .cmp-chart-legend {
+    display: flex;
+    gap: 14px;
+    margin: 0 0 6px;
+  }
+
+  /* Chart data table: screen-reader-only on desktop, visible here so the
+     chart's numbers are always available as text on a phone. */
+  body.orange .cmp-chart-data {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 10px 0 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  body.orange .cmp-trend-table {
+    width: 100%;
+  }
+
+  body.orange .cmp-trend-table caption {
+    caption-side: top;
+    padding: 0 0 4px;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: left;
+  }
+
+  body.orange .cmp-trend-table th,
+  body.orange .cmp-trend-table td {
+    padding: 6px 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  body.orange .cmp-trend-table th {
+    position: static;
+    font-size: 10px;
+  }
+}
+
+/* ==========================================================================
+   Empty state — explain how to start, and what is still missing
+   ========================================================================== */
+
+body.orange .cmp-empty {
+  padding: 18px 4px 8px;
+}
+
+body.orange .cmp-empty-title {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+body.orange .cmp-empty-body {
+  max-width: 52ch;
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+body.orange .cmp-empty-tip {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 767px) {
+  body.orange .cmp-empty {
+    padding: 14px 2px 4px;
+  }
+  body.orange .cmp-empty-title {
+    font-size: 15px;
+  }
+  body.orange .cmp-empty-body {
+    font-size: 13.5px;
+  }
+  body.orange .cmp-empty-tip {
+    font-size: 11.5px;
+  }
+}
