@@ -5,8 +5,9 @@ name: Scheduled data refresh
 # doesn't need to be on.
 #
 # The site is published as a **Pages artifact**, not from a folder in the repo.
-# docs/ is build output (~2,000 files: the JSON the dashboard fetches plus one
-# share page per game, team, player and standings table), so it is gitignored
+# docs/ is build output (~1,000 files: the inline league-data.js bundle, the
+# built app and one share page per game, team, player, season and standings
+# table), so it is gitignored
 # and never committed — only the refreshed database, which is the data of
 # record, is committed back to main.
 #

@@ -16,9 +16,13 @@ cache/
 
 # generated static site — build output, not source: `python3 server.py --export docs`
 # (the Vite build, the inline data bundle and one share/preview page per game,
-# team, player and standings table — ~870 files). The workflows publish it as a
+# team, player and standings table — 963 files). The workflows publish it as a
 # GitHub Pages artifact, so it never needs to be committed.
 docs/
+
+# design/ is untracked evidence (screenshots, baselines, audit captures): never
+# commit it, and keep it out of `git add -A` when refreshing data.
+design/
 
 # Node dependencies (react-dashboard installs its own; this covers the root)
 node_modules/

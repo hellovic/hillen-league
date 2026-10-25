@@ -34,7 +34,7 @@ acceptance test this design needs — **zero horizontal overflow at 390 px and
 on failure:
 
 ```
-84 checks, 84 passed, 0 failed
+97 checks, 97 passed, 0 failed
 ```
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
@@ -168,7 +168,7 @@ react-dashboard/
 1. `vite build --base ./ --outDir docs` — relative asset paths, so it works
    under `/hillen-league/` on GitHub Pages (or any sub-path).
 2. writes `docs/league-data.js` (the bundle above, ≈270 KB gzipped).
-3. writes the 871 share/preview stub pages (`games/<id>/`, `teams/<id>/`,
+3. writes the 963 share/preview stub pages (`games/<id>/`, `teams/<id>/`,
    `players/<id>/`, `groups/<s>/<g>/`, `seasons/<id>/`) whose `og:`/`twitter:`
    tags preview individual entities and then forward into the hash route.
 4. injects `?v=<build stamp>` into every asset URL. Vite is configured with
@@ -190,7 +190,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm run verify:site   # 84 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm --prefix react-dashboard run verify:site   # 97 checks
 ```
 
 ## Syncing back to the Open Design project

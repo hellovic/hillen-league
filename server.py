@@ -17,7 +17,7 @@ API:
     GET /api/teams?season=&group=
     GET /api/teams/<team_id>?season=
     GET /api/players?season=&group=
-    GET /api/players/<player_id>?season=
+    GET /api/players/<player_id>?season=&group=
     GET /api/games?season=&group=
     GET /api/games/<event_id>
     GET /api/leaders?season=&group=

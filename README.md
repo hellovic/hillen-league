@@ -14,7 +14,7 @@ https://www.hillen-sports.com/hillenyouth/ for analysis.
 * **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
   U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
 
-Combined: 61 teams, 837 players, 149 games, 3,458 player-game box-score rows.
+Combined: 61 teams, 837 players, 149 games, 3,599 player-game box-score rows.
 
 Season 33 has only just started, so most of its seven divisions have played nothing
 yet — a group is scraped whether or not it has results, so the dashboard's group
@@ -54,7 +54,7 @@ A zero-dependency web dashboard over the database:
   that season as one small card — teams, games played, and the leader with its
   record — each linking to that group's standings. Two cards per row on a phone,
   as many as fit on a desktop. One request feeds it (`/api/season?season=`,
-  pre-exported as `data/season/<id>.json`), so it costs nothing per group; the
+  pre-exported into the inline `league-data.js` bundle), so it costs nothing per group; the
   export also carries each group's top scorer, which the card does not show.
   Below the cards, **Latest games played** lists the season's eight most recent
   results (newest first, each tagged with its group's short name such as `U11 A`;
@@ -70,7 +70,7 @@ A zero-dependency web dashboard over the database:
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 - **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
 - **Open Graph / share previews**: `og:` + `twitter:` meta tags so links shared on WhatsApp/Telegram/etc. show a proper title and description. **Deliberately no preview image** — the cards are meant to be compact text (`twitter:card` is `summary`, not `summary_large_image`), the only available image was a generic league banner that would stand in for a specific game, and a thumbnail always dominates a WhatsApp message. `make_og.py` (Pillow, not stdlib, run by hand) and `og.png` are kept but currently unreferenced, so the banner can return by restoring two `og:image` / `twitter:image` lines. The *site-level* card is static — link-preview crawlers don't run JS and a `#hash` is never sent to the server — but every game, team and player also gets its own pastable link (next bullet).
-- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 871 = 140 games + 61 teams + 650 players + 17 season/group pages + 3 seasons).
+- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 963 = 149 games + 61 teams + 733 players + 17 season/group pages + 3 seasons).
 - **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `react-dashboard/index.html` (and the legacy `dashboard/index.html`); pageviews are fired on route change in `react-dashboard/src/analytics.js`.
 
 ```bash
@@ -90,7 +90,7 @@ The frontend talks to a read-only JSON API:
 | `/api/teams?season=&group=` | teams with season record |
 | `/api/teams/<team_id>?season=` | profile, roster, results, leaders |
 | `/api/players?season=&group=` | all players with season totals/averages |
-| `/api/players/<player_id>?season=` | totals + per-game log |
+| `/api/players/<player_id>?season=&group=` | totals + per-game log |
 | `/api/games?season=&group=` | all games with scores |
 | `/api/games/<event_id>` | quarters, team stats, full box scores |
 | `/api/leaders?season=&group=` | league top-5 per category (MVP, pts, 3p, ast, stl, ft, reb, blk) |
@@ -105,9 +105,9 @@ permanent URL.
 `docs/` is **build output, not source**: it is gitignored and produced by
 `python3 server.py --export docs` (which `./start.sh` runs for you). It contains
 the built app (`index.html` + `assets/`), one inline data bundle
-(`league-data.js`, ≈3.1 MB raw / ≈270 KB gzipped — the app needs no per-page
+(`league-data.js`, ≈3.2 MB raw / ≈270 KB gzipped — the app needs no per-page
 fetches) and one share/preview page per game, team, player, group and season
-(871 stubs), so it is published as a Pages **artifact** built inside the
+(963 stubs), so it is published as a Pages **artifact** built inside the
 workflow, never committed. Only the source files and `hillen_league.db` (the data
 of record) live in git.
 
@@ -142,7 +142,7 @@ python3 -m http.server 8001 --directory docs   # open http://localhost:8001/
 npm ci --prefix react-dashboard
 npm run data --prefix react-dashboard   # refresh public/league-data.js from hillen_league.db
 npm run dev  --prefix react-dashboard   # http://localhost:5173/
-npm run verify --prefix react-dashboard # headless smoke test (19 checks)
+npm run verify --prefix react-dashboard # headless smoke test (97 checks)
 ```
 
 Setup once:
@@ -264,7 +264,7 @@ to `main`, and publishes the site to Pages as a build artifact. A second workflo
 on `main`, so a local `./start.sh` push goes live the same way.
 
 * Publishing requires **Settings → Pages → Source = "GitHub Actions"**. The
-  built site is uploaded as an artifact, so the generated files (~870 share
+  built site is uploaded as an artifact, so the generated files (963 share
   stubs + the built app) never enter git — the repo is source + the database only.
 * Default (Hong Kong time): **weekdays 08:05; weekends 09:05, 11:05, 13:05,
   15:05, 18:05, 21:05 and 23:05** — the weekend slots follow the match day, and
@@ -295,6 +295,7 @@ Run after any scrape to verify the database:
 | Forfeit games | All box rows are DNP (0:00); scores present |
 | Not-played games | No box rows; NULL scores |
 | DNP rule | Season stats count exactly the games with minutes > 0 |
+| Scoring averages | `v_player_season_averages` per-game values equal totals / GP (guards against integer-division truncation) |
 | Referential integrity | No orphan rows across games/players/teams/rosters |
 
 Exits non-zero on any failure. Full recommended refresh flow:
@@ -303,7 +304,8 @@ Exits non-zero on any failure. Full recommended refresh flow:
 python3 scraper.py --group 30      # scrape new data
 python3 validate.py                # verify (must exit 0)
 python3 server.py --export docs    # regenerate static site (runs the Vite build)
-git add -A && git commit -m "update stats" && git push   # auto-deploys
+git add -- hillen_league.db CHANGELOG.md
+git commit -m "update stats" && git push   # auto-deploys
 ```
 
 ## Cross-checking the deployed site against the source (`crosscheck.py`)
@@ -311,13 +313,13 @@ git add -A && git commit -m "update stats" && git push   # auto-deploys
 Verifies the **published dashboard** (https://hellovic.github.io/hillen-league/)
 against the **source of truth** (https://www.hillen-sports.com/hillenyouth/).
 For **every game, every player**, it randomly samples 10 per-player box-score
-stats from the deployed JSON and compares each value with the same stat parsed
+stats from the deployed `league-data.js` bundle and compares each value with the same stat parsed
 live from the source `scores.php` page.
 
 ```bash
 python3 crosscheck.py                   # deployed site vs LIVE source pages
 python3 crosscheck.py --use-cache       # vs cached source snapshots (offline/fast)
-python3 crosscheck.py --local-docs      # read deployed JSON from ./docs instead
+python3 crosscheck.py --local-docs      # read the deployed bundle from ./docs instead
 python3 crosscheck.py --sample 10 --seed 42   # tune sample size / RNG seed
 python3 crosscheck.py --group 26        # restrict to one group
 ```

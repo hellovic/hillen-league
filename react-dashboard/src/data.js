@@ -1,7 +1,7 @@
 /* Data access for the React dashboard.
  *
- * The OD build embeds every payload inline as `window.LEAGUE_DATA`, keyed exactly
- * like the static JSON export: `meta`, `season/<id>` and
+ * The OD build embeds every payload inline as `window.LEAGUE_DATA`, keyed as
+ * `meta`, `season/<id>` and
  * `<season>/<group>/<path>`. Reads are synchronous, so views render in one pass
  * without a fetch waterfall. */
 
