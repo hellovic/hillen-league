@@ -902,6 +902,175 @@ const sheetClosed = await evaluate(`(() => ({
 }))()`);
 check("phone search sheet closes with Escape", !sheetClosed.surface && sheetClosed.expanded === "false", `expanded=${sheetClosed.expanded}`);
 
+// ------------------------------------------------- review regression checks
+await setViewport(1440, 1000, false);
+
+// F1: a player who moved club mid-season has a stats row per team; the roster
+// must join the row for the team being viewed, not whichever row came last.
+await open("/teams/1515?season=32&group=26");
+const dreamsRoster = await evaluate(`(() => {
+  const row = [...document.querySelectorAll("#t-roster tbody tr")].find((tr) => tr.innerText.includes("胡靖翹"));
+  const lead = [...document.querySelectorAll("#t-leaders tbody tr")].find((tr) => tr.innerText.includes("胡靖翹"));
+  return {
+    cells: row ? [...row.children].map((td) => td.innerText.trim()) : null,
+    leadPts: lead ? lead.children[2].innerText.trim() : null,
+  };
+})()`);
+await open("/teams/1530?season=32&group=26");
+const dnaRoster = await evaluate(`(() => {
+  const row = [...document.querySelectorAll("#t-roster tbody tr")].find((tr) => tr.innerText.includes("胡靖翹"));
+  return row ? [...row.children].map((td) => td.innerText.trim()) : null;
+})()`);
+check(
+  "roster joins stats from the player's own team",
+  dreamsRoster.cells?.[4] === "23" && dreamsRoster.cells?.[5] === "11" &&
+    dreamsRoster.leadPts === "23" &&
+    dnaRoster?.[4] === "7" && dnaRoster?.[5] === "2",
+  `Dreams ${dreamsRoster.cells?.[4]}/${dreamsRoster.cells?.[5]} · DNA ${dnaRoster?.[4]}/${dnaRoster?.[5]} · leaders ${dreamsRoster.leadPts}`
+);
+
+// F2: FG% / 3P% must sort by the percentages the headers name. The player rows
+// ship attempts, not fg_pct/fg3_pct, so the view derives them.
+await open("/players?season=32&group=26");
+const pctColumn = (index) => evaluate(`(() => {
+  const rows = [...document.querySelectorAll("#t-players tbody tr")];
+  return rows.map((tr) => (tr.children[${index}] ? tr.children[${index}].innerText.trim() : ""));
+})()`);
+const toNumbers = (cells) => cells.map((cell) => (cell && cell.endsWith("%") ? parseFloat(cell) : null));
+const ordered = (values, direction) => {
+  const nums = values.filter((n) => n !== null);
+  return nums.every((n, i) => i === 0 || (direction === "desc" ? nums[i - 1] >= n - 1e-9 : nums[i - 1] <= n + 1e-9));
+};
+const sortBothWays = async (key, index) => {
+  await evaluate(`document.querySelector('#t-players th[data-key="${key}"]').click()`);
+  await sleep(280);
+  const first = toNumbers(await pctColumn(index));
+  await evaluate(`document.querySelector('#t-players th[data-key="${key}"]').click()`);
+  await sleep(280);
+  const second = toNumbers(await pctColumn(index));
+  const ok = (ordered(first, "desc") && ordered(second, "asc")) || (ordered(first, "asc") && ordered(second, "desc"));
+  return { ok: ok && first.join(",") !== second.join(","), first, second };
+};
+const fgSort = await sortBothWays("fg_pct", 12);
+check("FG% column sorts by the displayed percentage", fgSort.ok, `${fgSort.first.slice(0, 3).join("/")} → ${fgSort.second.slice(0, 3).join("/")}`);
+const t3Sort = await sortBothWays("fg3_pct", 13);
+check("3P% column sorts by the displayed percentage", t3Sort.ok, `${t3Sort.first.slice(0, 3).join("/")} → ${t3Sort.second.slice(0, 3).join("/")}`);
+
+// F3: Enter on a focused link must follow the link; Enter on a focused row
+// still opens the row.
+const pressEnter = async () => {
+  for (const type of ["keyDown", "keyUp"]) {
+    await sess("Input.dispatchKeyEvent", {
+      type, key: "Enter", code: "Enter",
+      windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+    });
+  }
+  await sleep(400);
+};
+await open("/players?season=32&group=26");
+const linkTarget = await evaluate(`(() => {
+  const tr = [...document.querySelectorAll("#t-players tbody tr")].find((row) => row.querySelector('a[href^="#/teams/"]'));
+  const a = tr.querySelector('a[href^="#/teams/"]');
+  a.focus();
+  return { link: a.getAttribute("href"), row: tr.dataset.href };
+})()`);
+await pressEnter();
+const afterLinkEnter = await evaluate("location.hash");
+check(
+  "Enter on a focused link follows the link, not the row",
+  linkTarget.link !== linkTarget.row && afterLinkEnter === linkTarget.link,
+  `link ${linkTarget.link} · row ${linkTarget.row} · got ${afterLinkEnter}`
+);
+await open("/players?season=32&group=26");
+const rowTarget = await evaluate(`(() => {
+  const tr = document.querySelector("#t-players tbody tr");
+  tr.focus();
+  return tr.dataset.href;
+})()`);
+await pressEnter();
+const afterRowEnter = await evaluate("location.hash");
+check("Enter on a focused row opens the row", afterRowEnter === rowTarget, `${rowTarget} → ${afterRowEnter}`);
+
+// F4: clearing one side of a comparison clears the stale result and URL.
+await open("/compare/p/17864/15202?season=33&group=16");
+await waitFor(`!!document.querySelector("#cmp-a")`, "comparison pickers");
+await evaluate(`(() => {
+  const select = document.querySelector("#cmp-a");
+  select.value = "";
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+})()`);
+await sleep(400);
+const clearedCompare = await evaluate(`(() => ({
+  hash: location.hash,
+  empty: (document.querySelector("#cmp-result .cmp-empty-body") || {}).innerText || "",
+  tables: document.querySelectorAll("#cmp-result table").length,
+}))()`);
+check(
+  "clearing a comparison picker clears the stale result",
+  !clearedCompare.hash.includes("17864") && clearedCompare.tables === 0 &&
+    /Both sides are required/.test(clearedCompare.empty),
+  `${clearedCompare.hash} · tables=${clearedCompare.tables}`
+);
+
+// F5: the positional player scope the vanilla dashboard accepted (and README
+// documents) must still resolve in the React app.
+await open("/players/15376/32/31");
+const positional = await evaluate(`(() => {
+  const sub = document.querySelector(".view-head .sub");
+  const chips = [...document.querySelectorAll(".qstrip .q")].map((q) => q.innerText.replace(/\\s+/g, ""));
+  return { hash: location.hash, body: document.body.innerText, sub: sub ? sub.innerText : "", chips };
+})()`);
+check(
+  "legacy positional player link resolves its season+group",
+  positional.hash.includes("15376/32/31") && positional.body.includes("陳熹妍") &&
+    /season 32/i.test(positional.sub) && positional.chips.includes("43PTS") &&
+    !/Not found/i.test(positional.body),
+  `${positional.hash} · ${positional.sub} · ${positional.chips.slice(0, 3).join(" ")}`
+);
+
+// F9: a forfeit has a recorded score, so the Results table and scoreboard must
+// show the W/L instead of "—" and draw colours.
+await open("/teams/1598?season=33&group=11");
+const forfeitWin = await evaluate(`(() => {
+  const row = [...document.querySelectorAll("#t-team-results tbody tr")].find((tr) => (tr.dataset.href || "").includes("20953"));
+  return row ? { text: row.children[2].innerText.trim(), cls: row.children[2].className } : null;
+})()`);
+await open("/teams/1582?season=33&group=11");
+const forfeitLoss = await evaluate(`(() => {
+  const row = [...document.querySelectorAll("#t-team-results tbody tr")].find((tr) => (tr.dataset.href || "").includes("20953"));
+  return row ? { text: row.children[2].innerText.trim(), cls: row.children[2].className } : null;
+})()`);
+check(
+  "forfeit results show the awarded win/loss",
+  forfeitWin?.text === "W 20-0" && /winner/.test(forfeitWin?.cls || "") &&
+    forfeitLoss?.text === "L 0-20" && /loser/.test(forfeitLoss?.cls || ""),
+  `dreams ${forfeitWin?.text} · kidult ${forfeitLoss?.text}`
+);
+await open("/games/20953?season=33&group=11");
+const forfeitScores = await evaluate(`[...document.querySelectorAll(".scoreboard .score")].map((el) => el.className)`);
+check(
+  "forfeit scoreboard uses win/lose colours",
+  forfeitScores.length === 2 && /loser/.test(forfeitScores[0]) && /winner/.test(forfeitScores[1]),
+  forfeitScores.join(" | ")
+);
+
+// Both h2h rows in CompareView are clickable; the team table must answer the
+// keyboard too, not just the player table.
+await open("/compare/t/1595/1599?season=33&group=16");
+const teamH2H = await evaluate(`(() => {
+  const tr = document.querySelector('#cmp-result tr[data-href^="#/games/"]');
+  if (!tr) return null;
+  tr.focus();
+  return tr.dataset.href;
+})()`);
+await pressEnter();
+const teamH2HHit = await evaluate("location.hash");
+check(
+  "Enter on a focused team comparison row opens its game",
+  teamH2H !== null && teamH2HHit === teamH2H,
+  `${teamH2H} → ${teamH2HHit}`
+);
+
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 
 const failed = results.filter((r) => !r.ok);
