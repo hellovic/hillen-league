@@ -3,6 +3,9 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v5.4] — Unreleased — Match-day refresh schedule
+- **The bot now refreshes around the games, not just once a day** — weekdays at 08:05 HKT, and weekends at 09:05, 11:05, 13:05, 15:05, 18:05, 21:05 and 23:05 HKT (cron stays UTC; Hong Kong has no DST, so the offsets hold all year). Weekday games still wait for the next morning run; the weekend cadence means a result is on the site within about two hours of the final whistle. Slots sit at `:05` because GitHub delays top-of-the-hour crons when its queue is busy.
+
 ## [v5.3] — Unreleased — Courts on the fixture list
 - **“Next on court” names the venue** — each upcoming fixture on the season overview now shows its court under the team names (e.g. `青衣體育館(B)`), or `Venue TBC` when the league has not published one. The Games table and a game page pick the same value up for unplayed fixtures.
 - **Venues are scraped for scheduled games** — the league only prints the court on its schedule listing; a game page carries it after the game has been played, so scheduled fixtures previously had `venue = NULL` everywhere. `parse_schedule_season` now reads it and the scrape merges it into the fixture rows (`upsert_game` keeps the last known court, so a page without one cannot blank it). Verified on 25 Oct: season 33's U13 fixtures now carry `青衣體育館(B)` and `牛頭角道體育館A`, and every other upcoming fixture with a published court was filled by the same refresh.

@@ -122,9 +122,9 @@ python3 server.py --export docs          # build the site into docs/
 **Deploy only when asked**: normal work (edits, fixes, new features) is committed
 locally with descriptive notes; the push to GitHub happens only when a deployment
 is requested. Pushing is what publishes — `.github/workflows/deploy.yml` rebuilds
-the site from the committed database and puts it live (~1-2 min), and the daily
-`.github/workflows/refresh.yml` does the same for scraped data on its own
-schedule.
+the site from the committed database and puts it live (~1-2 min), and the
+scheduled `.github/workflows/refresh.yml` does the same for scraped data on its
+own match-day schedule.
 
 ```bash
 # ---- normal development: commit locally, do NOT push ----
@@ -266,12 +266,13 @@ on `main`, so a local `./start.sh` push goes live the same way.
 * Publishing requires **Settings → Pages → Source = "GitHub Actions"**. The
   built site is uploaded as an artifact, so the generated files (~870 share
   stubs + the built app) never enter git — the repo is source + the database only.
-* Default (Hong Kong time): **every day 06:00, plus Sat & Sun 09:00 / 12:00 /
-  15:00 / 21:00** — edit the `cron` in the file (cron is UTC; must be pushed to
-  `main` to take effect).
+* Default (Hong Kong time): **weekdays 08:05; weekends 09:05, 11:05, 13:05,
+  15:05, 18:05, 21:05 and 23:05** — the weekend slots follow the match day, and
+  the `:05` avoids GitHub's top-of-the-hour queue. Edit the `cron` lines in the
+  file (cron is UTC; must be pushed to `main` to take effect).
 * Runs in GitHub's cloud on **Hong Kong time** (the cron entries are converted
   from HK to UTC).
-* Also triggerable **manually** from the repo's **Actions** tab → *Daily data
+* Also triggerable **manually** from the repo's **Actions** tab → *Scheduled data
   refresh* → *Run workflow*.
 * The commit is authored by "Hillen League Bot" (`actions@users.noreply.github.com`).
 * If validation fails, the workflow aborts before committing — it will not push

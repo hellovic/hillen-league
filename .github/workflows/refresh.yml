@@ -1,4 +1,4 @@
-name: Daily data refresh
+name: Scheduled data refresh
 
 # Refresh Hillen League data from the live site, validate it, rebuild the static
 # site, and publish it to GitHub Pages. Runs in GitHub's cloud, so your Mac
@@ -11,7 +11,8 @@ name: Daily data refresh
 # record, is committed back to main.
 #
 # Triggers:
-#   - on a schedule (cron below is UTC; these correspond to Hong Kong time)
+#   - on a schedule: weekdays 08:05 HKT, weekends every two hours or so from
+#     09:05 to 23:05 HKT (cron below is UTC; comments give Hong Kong time)
 #   - manually from the Actions tab ("Run workflow")
 #
 # Because the scheduled workflow lives in the default branch (main), any change
@@ -21,16 +22,15 @@ name: Daily data refresh
 
 on:
   schedule:
-    # Every day 06:00 HKT = 22:00 UTC the previous day
-    - cron: '0 22 * * *'
-    # Sat & Sun 09:00 HKT = 01:00 UTC
-    - cron: '0 1  * * 0,6'
-    # Sat & Sun 12:00 HKT = 04:00 UTC
-    - cron: '0 4  * * 0,6'
-    # Sat & Sun 15:00 HKT = 07:00 UTC
-    - cron: '0 7  * * 0,6'
-    # Sat & Sun 21:00 HKT = 13:00 UTC
-    - cron: '0 13 * * 0,6'
+    # Match-day cadence, Hong Kong time. Hong Kong has no DST, so these UTC
+    # offsets hold all year. Every slot is :05 past the hour because GitHub
+    # delays top-of-the-hour crons when its queue is busy, and a 09:00 run that
+    # starts at 09:40 is useless to a family leaving for the 10:00 game.
+    #
+    # Weekdays: one run, so a Monday-night game shows up on Tuesday morning.
+    - cron: '5 0 * * 1-5'                  # Mon-Fri 08:05 HKT = 00:05 UTC
+    # Weekends: seven runs across the playing day, 09:00-23:00 HKT.
+    - cron: '5 1,3,5,7,10,13,15 * * 0,6'   # 09:05, 11:05, 13:05, 15:05, 18:05, 21:05, 23:05 HKT
   workflow_dispatch:
 
 permissions:
