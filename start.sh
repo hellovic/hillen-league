@@ -152,7 +152,9 @@ if git diff --quiet && git diff --cached --quiet; then
   fi
   exit 0
 fi
-git add -A
+# Explicit paths only: `git add -A` would also stage the untracked
+# design/ screenshots and UX brief.
+git add -- hillen_league.db CHANGELOG.md
 git commit -m "Refresh data from live site ($(date +%Y-%m-%d))"
 if [ "$PUSH" = "1" ]; then
   # HEAD:main works both locally (on main) and on GitHub Actions (detached HEAD)
