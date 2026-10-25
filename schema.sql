@@ -223,15 +223,20 @@ JOIN teams   t  ON t.team_id    = pgs.team_id
 JOIN groups  gr ON gr.season_id = g.season_id AND gr.group_id = g.group_id
 GROUP BY pgs.player_id, g.season_id, pgs.team_id, g.group_id;
 
--- Per-player season averages
-CREATE VIEW IF NOT EXISTS v_player_season_averages AS
+-- Per-player season averages. SQLite divides two integers as integers
+-- (100 / 6 = 16), so scale by 1.0 before rounding or every average loses its
+-- fraction. DROP + CREATE (instead of CREATE VIEW IF NOT EXISTS) lets
+-- `sqlite3 hillen_league.db < schema.sql` migrate a database whose view was
+-- created with the old formula.
+DROP VIEW IF EXISTS v_player_season_averages;
+CREATE VIEW v_player_season_averages AS
 SELECT *,
-       ROUND(pts / gp, 2)  AS pts_per_game,
-       ROUND(ast / gp, 2)  AS ast_per_game,
-       ROUND(tot_reb / gp, 2) AS reb_per_game,
-       ROUND(stl / gp, 2)  AS stl_per_game,
-       ROUND(blk / gp, 2)  AS blk_per_game,
-       ROUND(eff / gp, 2)  AS eff_per_game
+       ROUND(pts * 1.0 / gp, 2)  AS pts_per_game,
+       ROUND(ast * 1.0 / gp, 2)  AS ast_per_game,
+       ROUND(tot_reb * 1.0 / gp, 2) AS reb_per_game,
+       ROUND(stl * 1.0 / gp, 2)  AS stl_per_game,
+       ROUND(blk * 1.0 / gp, 2)  AS blk_per_game,
+       ROUND(eff * 1.0 / gp, 2)  AS eff_per_game
 FROM v_player_season_totals;
 
 -- Per-team season totals (from completed + forfeit games; 'not_played' and

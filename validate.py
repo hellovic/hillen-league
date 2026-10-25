@@ -226,6 +226,29 @@ def main():
             warn(f"box-score player {r['player_id']} not on official roster of team {r['team_id']}")
         return bad
 
+    # ---- 8. per-game averages keep their fractions ----
+    @check("player season averages are not integer-truncated")
+    def _(c):
+        bad = 0
+        averages = {
+            "pts_per_game": "pts",
+            "ast_per_game": "ast",
+            "reb_per_game": "tot_reb",
+            "stl_per_game": "stl",
+            "blk_per_game": "blk",
+            "eff_per_game": "eff",
+        }
+        sql = ("SELECT gp, " + ", ".join(averages) + ", "
+               + ", ".join(averages.values()) + " FROM v_player_season_averages")
+        for r in c.execute(sql):
+            for out_col, total_col in averages.items():
+                expected = r[total_col] / r["gp"]
+                if abs(r[out_col] - expected) > 0.005 + 1e-9:
+                    bad += 1
+                    fail(f"player average {out_col} = {r[out_col]} but "
+                         f"{r[total_col]}/{r['gp']} = {expected:.4f}")
+        return bad
+
     total_failures = 0
     for name, fn in CHECKS.items():
         total_failures += fn(conn)
