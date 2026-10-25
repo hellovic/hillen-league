@@ -3,14 +3,15 @@
 crosscheck.py — deployed-dashboard vs source-site validator.
 
 For every game and every player in the deployed dashboard
-(https://hellovic.github.io/hillen-league/, the static JSON export of this
-repo), randomly sample 10 per-player stats and compare each value against the
-source of truth (https://www.hillen-sports.com/hillenyouth/ scores.php pages).
+(https://hellovic.github.io/hillen-league/, which ships a single inline
+`league-data.js` bundle), randomly sample 10 per-player stats and compare each
+value against the source of truth
+(https://www.hillen-sports.com/hillenyouth/ scores.php pages).
 
 Usage:
-    python3 crosscheck.py                   # deployed JSON vs LIVE source pages
+    python3 crosscheck.py                   # deployed bundle vs LIVE source pages
     python3 crosscheck.py --use-cache       # vs cached source snapshots (offline / fast)
-    python3 crosscheck.py --local-docs      # read deployed JSON from ./docs instead of GitHub Pages
+    python3 crosscheck.py --local-docs      # read the deployed bundle from ./docs instead of GitHub Pages
     python3 crosscheck.py --sample 10 --seed 42
 
 Exit codes:
@@ -34,7 +35,7 @@ LOCAL_DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
-# Comparable per-player stat fields: deployed JSON key -> source parse key.
+# Comparable per-player stat fields: deployed bundle key -> source parse key.
 # Both sides carry every field below (28 fields; the validator samples 10).
 STAT_FIELDS = [
     ("jersey_no", "jersey_no"), ("minutes", "minutes"),
@@ -66,28 +67,64 @@ def values_equal(a, b):
 
 
 class DeployedReader:
-    """Reads the deployed dashboard's JSON, either live from GitHub Pages or
-    from the local ./docs export."""
+    """Reads the deployed dashboard's data bundle, either live from GitHub Pages
+    or from the local ./docs export.
+
+    The dashboard no longer ships a `data/*.json` tree: it inlines one
+    `league-data.js` (`window.LEAGUE_DATA = {...}`). read_json() maps the old
+    static-export paths onto that bundle's keys, so callers keep the same shape:
+        meta.json              -> meta
+        <season>/<group>/games.json          -> <season>/<group>/games
+        <season>/<group>/games/<event>.json  -> <season>/<group>/games/<event>
+    """
 
     def __init__(self, base):
         self.base = base
         self.local = not base.startswith("http")
+        self._bundle = None
 
-    def read_json(self, rel):
-        if self.local:
-            path = os.path.join(self.base, "data", *rel.split("/"))
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        url = f"{self.base}/data/{rel}"
+    def _fetch(self, url):
         last = None
-        for attempt in range(3):
+        for _attempt in range(3):
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": UA})
                 with urllib.request.urlopen(req, timeout=30) as resp:
-                    return json.loads(resp.read().decode("utf-8"))
+                    return resp.read().decode("utf-8")
             except Exception as exc:  # noqa: BLE001
                 last = exc
-        raise RuntimeError(f"deployed data unreachable: {url} ({last})")
+        raise RuntimeError(f"deployed bundle unreachable: {url} ({last})")
+
+    def read_bundle(self):
+        if self._bundle is not None:
+            return self._bundle
+        if self.local:
+            path = os.path.join(self.base, "league-data.js")
+            try:
+                with open(path, encoding="utf-8") as f:
+                    text = f.read()
+            except OSError as exc:
+                raise RuntimeError(f"deployed bundle unreadable: {path} ({exc})") from exc
+        else:
+            text = self._fetch(f"{self.base}/league-data.js")
+        marker = "window.LEAGUE_DATA"
+        start = text.find(marker)
+        if start < 0 or "=" not in text[start:]:
+            raise RuntimeError("league-data.js: window.LEAGUE_DATA assignment not found")
+        body = text[start:].split("=", 1)[1].strip()
+        if body.endswith(";"):
+            body = body[:-1]
+        try:
+            self._bundle = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"league-data.js: invalid JSON ({exc})") from exc
+        return self._bundle
+
+    def read_json(self, rel):
+        key = rel[:-5] if rel.endswith(".json") else rel
+        try:
+            return self.read_bundle()[key]
+        except KeyError as exc:
+            raise RuntimeError(f"deployed bundle has no key {key!r} (requested {rel})") from exc
 
 
 def check_group(deployed, fetcher, season, group, rng, sample):
@@ -168,7 +205,7 @@ def main():
     ap.add_argument("--use-cache", action="store_true",
                     help="compare against cached source pages instead of fetching live")
     ap.add_argument("--local-docs", action="store_true",
-                    help="read deployed JSON from ./docs instead of the live GitHub Pages site")
+                    help="read the deployed league-data.js bundle from ./docs instead of the live GitHub Pages site")
     ap.add_argument("--season", type=int, default=None, help="restrict to one season (default: all in meta)")
     ap.add_argument("--group", type=int, default=None, help="restrict to one group id")
     args = ap.parse_args()
