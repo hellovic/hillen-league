@@ -7,14 +7,14 @@ https://www.hillen-sports.com/hillenyouth/ for analysis.
 
 * **Season 33** (第三十三屆驍籃青少年籃球聯賽) — the **live season**:
   YOUTH GIRLS U9 GROUP A (25), U9 GROUP B (26), U11 GROUP A (11), U11 GROUP B (27),
-  U11 GROUP C (28), U13 (16), U15 (29) — 24 teams, 6 games (4 played). The league
+  U11 GROUP C (28), U13 (16), U15 (29) — 28 teams, 14 games (6 played). The league
   lists seven Youth Girls divisions this season; U15 is registered but has no teams yet.
 * **Season 32** (第三十二屆驍籃青少年籃球聯賽): U9 (27), U11A (28), U11B (31),
-  U13 (26), U15 (30) — 27 teams, 63 games.
+  U13 (26), U15 (30) — 27 teams, 64 games.
 * **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
   U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
 
-Combined: 61 teams, 796 players, 140 games, 3,351 player-game box-score rows.
+Combined: 61 teams, 837 players, 149 games, 3,413 player-game box-score rows.
 
 Season 33 has only just started, so most of its seven divisions have played nothing
 yet — a group is scraped whether or not it has results, so the dashboard's group

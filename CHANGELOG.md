@@ -6,6 +6,7 @@ Format follows deployed versions; each entry lists the user-visible changes.
 ## [v5.2] — Unreleased — Division reconciliation
 - **Standings no longer keep ghost teams** — the scraper only ever upserted, so when the league moved a team out of a division its old row stayed behind at its old rank. Season 33’s U13 table briefly listed seven teams (including 1609 Wishful U11 on 20 Oct and 1428 嘉諾撒U11A on 21 Oct); after the official table settled at five, the published page still showed seven. A scrape now prunes the standings and registrations that the freshly parsed table and group page no longer list (guarded so an empty parse never wipes a group). Verified on a copy of the 25 Oct database: group 16 goes 7 rows → 5, group 28 5 → 4, and no team sits in two groups.
 - **A team can change division again** — `upsert_season_team` left `group_id` out of its `ON CONFLICT` update list, so UNION 1601 stayed in U11 C after the league moved it to U13. The upsert now writes the group too.
+- **Season 33 reconciled against the league site** — a full refresh with the fixed scraper lands the U13/U11 C swap (1609 Wishful U11 → U11 C, 1601 UNION → U13), removes the three ghost rows, and picks up `Wishful U9 24–4 德望A` from 25 Oct. Standings rows for season 33 go 31 → 28; all seven divisions now match the official team lists and tables (verified group by group).
 
 ## [v5.1] — Unreleased — Dashboard feature bundle
 - Data refresh 2026-10-21: 149 games, 3392 box-score rows (seasons 31, 32, 33). 9 new, 0 updated, 0 removed, 140 unchanged.
