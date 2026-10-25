@@ -77,7 +77,14 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
   /* The roster payload only carries jersey + name; join the group player rows so
    * the phone roster can show per-player stats. Players who appear in the roster
    * but not in this group's stats (e.g. moved age group) keep em-dashes. */
-  const statsById = new Map(api("players", ctx).map((p) => [p.player_id, p]));
+  /* Key on the rendered team too: a player who moves club mid-season has one
+   * stats row per team in the same season+group, so indexing by player_id
+   * alone let the other team's row overwrite this roster's stats. */
+  const statsById = new Map(
+    api("players", ctx)
+      .filter((p) => p.team_id === id)
+      .map((p) => [p.player_id, p])
+  );
   const rosterRows = t.roster.map((p) => {
     const s = statsById.get(p.player_id) || {};
     return {
