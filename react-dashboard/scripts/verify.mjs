@@ -442,6 +442,22 @@ const latestMeta = await evaluate(`(() => {
 })()`);
 check("latest results name the tip-off time and court", latestMeta.rows > 0 && latestMeta.lines.every((l) => /\d{1,2}:\d{2}\s(AM|PM)/i.test(l)) && latestMeta.lines.some((l) => /體育館/.test(l)), `${latestMeta.rows} rows · ${latestMeta.lines.slice(0, 3).join(" / ")}`);
 
+// Newest first means by the clock, not by the 12-hour text: as a string
+// "02:00 PM" sorts before "09:00 AM", which buried the afternoon game.
+const latestKickoffs = await evaluate(`(((window.LEAGUE_DATA || {})["season/33"] || {}).latest_games || []).map((g) => [g.game_date, g.start_time || ""])`);
+const clock = (t) => {
+  const m = /^(\d{1,2}):(\d{2})\s*(am|pm)$/i.exec(String(t).trim());
+  if (!m) return -1;
+  return (Number(m[1]) % 12 + (/pm/i.test(m[3]) ? 12 : 0)) * 60 + Number(m[2]);
+};
+const kickoffOrder = (latestKickoffs || []).every((cur, i, all) => {
+  if (i === 0) return true;
+  const [prevDate, prevTime] = all[i - 1];
+  const [date, time] = cur;
+  return date < prevDate || (date === prevDate && clock(time) <= clock(prevTime));
+});
+check("latest results run newest first by the clock", (latestKickoffs || []).length > 1 && kickoffOrder, (latestKickoffs || []).map(([d, t]) => `${d} ${t}`).join(" / "));
+
 // Venue: a family planning a trip needs the court on the fixture list itself,
 // not one tap deeper. A live fixture has no court on the league page yet, so it
 // must say so rather than leave a silent gap.

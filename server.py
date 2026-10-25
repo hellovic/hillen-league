@@ -48,6 +48,14 @@ DB_PATH = os.path.join(HERE, "hillen_league.db")
 # any host. Update here (and in dashboard/index.html) if the site ever moves.
 SITE_URL = "https://hellovic.github.io/hillen-league/"
 
+# `start_time` keeps the league's 12-hour clock ("02:00 PM"), which sorts wrong
+# as text — "02:00 PM" < "09:00 AM". Fixture lists order by this expression
+# instead: minutes since midnight, or -1 when the league has not set a time.
+KICKOFF_MINUTES = """COALESCE(
+            (CAST(substr(g.start_time, 1, 2) AS INTEGER) % 12
+             + CASE WHEN g.start_time LIKE '%PM' THEN 12 ELSE 0 END) * 60
+            + CAST(substr(g.start_time, 4, 2) AS INTEGER), -1)"""
+
 QUERIES = {
     "meta": """
         SELECT 'seasons' AS k, COUNT(*) AS v FROM seasons
@@ -205,7 +213,7 @@ QUERIES = {
                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS played,
                MIN(game_date) AS first_game, MAX(game_date) AS last_game
         FROM games WHERE season_id = ?""",
-    "season_latest_games": """
+    "season_latest_games": f"""
         SELECT g.event_id, g.game_date, g.start_time, g.status, g.venue,
                g.group_id, gr.name AS group_name,
                ht.name AS home_name, at.name AS away_name,
@@ -215,9 +223,9 @@ QUERIES = {
         JOIN teams  at ON at.team_id = g.away_team_id
         JOIN groups gr ON gr.group_id = g.group_id AND gr.season_id = g.season_id
         WHERE g.season_id = ? AND g.status IN ('completed', 'forfeit')
-        ORDER BY g.game_date DESC, COALESCE(g.start_time, '') DESC, g.event_id DESC
+        ORDER BY g.game_date DESC, {KICKOFF_MINUTES} DESC, g.event_id DESC
         LIMIT 8""",
-    "season_upcoming_games": """
+    "season_upcoming_games": f"""
         SELECT g.event_id, g.game_date, g.start_time, g.status, g.venue,
                g.group_id, gr.name AS group_name,
                ht.name AS home_name, at.name AS away_name,
@@ -227,7 +235,7 @@ QUERIES = {
         JOIN teams  at ON at.team_id = g.away_team_id
         JOIN groups gr ON gr.group_id = g.group_id AND gr.season_id = g.season_id
         WHERE g.season_id = ? AND g.status = 'scheduled'
-        ORDER BY g.game_date, COALESCE(g.start_time, ''), g.event_id
+        ORDER BY g.game_date, {KICKOFF_MINUTES}, g.event_id
         LIMIT 5""",
     "season_teams_total": """
         SELECT COUNT(DISTINCT team_id) AS teams FROM season_teams WHERE season_id = ?""",

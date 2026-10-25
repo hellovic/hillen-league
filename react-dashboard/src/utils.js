@@ -52,9 +52,26 @@ export function kickoffKey(g) {
   return `${g.game_date || ""} ${g.start_time || ""}`;
 }
 
+/* Minutes since midnight from the league's 12-hour clock ("02:00 PM" → 840).
+   Sorting fixtures needs this: as text, "02:00 PM" sorts before "09:00 AM".
+   `kickoffKey` stays as-is because gameStatus compares it to a bare date. */
+export function kickoffMinutes(g) {
+  const m = /^(\d{1,2}):(\d{2})\s*(am|pm)$/i.exec((g.start_time || "").trim());
+  if (!m) return -1;
+  const hour = Number(m[1]) % 12 + (/pm/i.test(m[3]) ? 12 : 0);
+  return hour * 60 + Number(m[2]);
+}
+
 /* Oldest-first unless `dir === "desc"`. Returns a new array. */
 export function sortByKickoff(games, dir = "asc") {
-  const list = [...games].sort((a, b) => kickoffKey(a).localeCompare(kickoffKey(b)));
+  const list = [...games].sort((a, b) => {
+    const dateA = a.game_date || "";
+    const dateB = b.game_date || "";
+    if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+    const diff = kickoffMinutes(a) - kickoffMinutes(b);
+    if (diff) return diff;
+    return (a.event_id || 0) - (b.event_id || 0);
+  });
   return dir === "desc" ? list.reverse() : list;
 }
 
