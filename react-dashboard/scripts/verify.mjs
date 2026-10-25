@@ -460,16 +460,24 @@ check("latest results run newest first by the clock", (latestKickoffs || []).len
 
 // Venue: a family planning a trip needs the court on the fixture list itself,
 // not one tap deeper. A live fixture has no court on the league page yet, so it
-// must say so rather than leave a silent gap.
+// must say so rather than leave a silent gap. Late in a season there can be no
+// upcoming fixtures at all; the empty state must say so instead.
 const upcoming = await evaluate(`(() => {
+  const section = document.querySelector(".upcoming");
   const rows = [...document.querySelectorAll(".upcoming .game-row")];
   return {
     rows: rows.length,
     venues: rows.map((r) => r.querySelector(".gr-venue")?.innerText.trim() || ""),
     arrows: rows.filter((r) => r.querySelector(".row-arrow")).length,
+    empty: section ? section.innerText.replace(/\\s+/g, " ").trim() : "",
   };
 })()`);
-check("every upcoming fixture names its court", upcoming.rows > 0 && upcoming.venues.every((v) => v.length > 0) && upcoming.venues.some((v) => /體育館|venue tbc/i.test(v)) && upcoming.arrows === upcoming.rows, `${upcoming.rows} rows · ${upcoming.venues.join(" / ")}`);
+const upcomingOk = upcoming.rows
+  ? upcoming.venues.every((v) => v.length > 0) &&
+    upcoming.venues.some((v) => /體育館|venue tbc/i.test(v)) &&
+    upcoming.arrows === upcoming.rows
+  : /no upcoming games scheduled/i.test(upcoming.empty);
+check("every upcoming fixture names its court", upcomingOk, upcoming.rows ? `${upcoming.rows} rows · ${upcoming.venues.join(" / ")}` : upcoming.empty);
 
 // Desktop: the group picker is replaced by a static marker, so the control can
 // never suggest that the overview is filtered.
@@ -485,6 +493,21 @@ await setViewport(390, 844, true);
 await open("/season/33");
 
 // UX-03: groups with no played games must not show a fabricated leader.
+// Which groups are still empty moves as fixtures are played, so derive the
+// expected counts from the bundle instead of hardcoding them.
+const emptyCards = await evaluate(`(() => {
+  const data = window.LEAGUE_DATA || {};
+  const groups = ((data.meta || {}).groups || []).filter((g) => g.season_id === 33);
+  let noGames = 0;
+  let noTeams = 0;
+  for (const g of groups) {
+    const games = data[\`33/\${g.group_id}/games\`] || [];
+    const teams = data[\`33/\${g.group_id}/teams\`] || [];
+    if (!teams.length) noTeams += 1;
+    else if (!games.length) noGames += 1;
+  }
+  return { noGames, noTeams };
+})()`);
 const cards = await evaluate(`(() => {
   const all = [...document.querySelectorAll(".season-card")];
   const withFakeLeader = all.filter((c) => c.innerText.includes("LEADING TEAM") && /0W · 0L/.test(c.innerText));
@@ -495,7 +518,7 @@ const cards = await evaluate(`(() => {
     noTeams: all.filter((c) => c.innerText.includes("No teams entered yet")).length,
   };
 })()`);
-check("group cards hide leaders for groups that have not played", cards.fakeLeaders === 0 && cards.noGames >= 2 && cards.noTeams >= 1, `${cards.fakeLeaders} fake leaders, ${cards.noGames} no-games, ${cards.noTeams} no-teams`);
+check("group cards hide leaders for groups that have not played", cards.fakeLeaders === 0 && cards.noGames === emptyCards.noGames && cards.noTeams === emptyCards.noTeams, `${cards.fakeLeaders} fake leaders, ${cards.noGames}/${emptyCards.noGames} no-games, ${cards.noTeams}/${emptyCards.noTeams} no-teams`);
 
 // UX-02: fixtures without a score are labelled, never rendered as 0 – 0.
 // Which division holds a past, unplayed fixture moves as the league reschedules,
@@ -767,17 +790,33 @@ const chart = await evaluate(`(() => {
 check("points chart pairs scored and conceded bars", chart.title === "Points scored vs conceded" && chart.legend.includes("PF points scored") && chart.legend.includes("PA points conceded") && chart.fills % 2 === 0 && chart.fills / 2 + chart.emptyRows === chart.rows && /PF/.test(chart.srCaption) && chart.oldBars === 0, `${chart.rows} rows / ${chart.fills} fills / ${chart.emptyRows} empty`);
 
 // UX-19: a group with no games explains itself instead of showing empty cards.
-await open("/standings?season=33&group=28");
-const emptyStandings = await evaluate(`(() => {
-  const empty = document.querySelector("#view .scope-empty");
-  return {
-    exists: !!empty,
-    title: empty ? empty.querySelector(".scope-empty-title").textContent.trim() : "",
-    link: empty && empty.querySelector("a") ? empty.querySelector("a").getAttribute("href") : "",
-    rows: document.querySelectorAll("#view .pfpa-row").length,
-  };
+// Pick a group that still has teams but no games from the bundle, so this keeps
+// working as divisions fill in.
+const emptyStandingsGroup = await evaluate(`(() => {
+  const data = window.LEAGUE_DATA || {};
+  const groups = ((data.meta || {}).groups || []).filter((g) => g.season_id === 33);
+  for (const g of groups) {
+    const games = data[\`33/\${g.group_id}/games\`] || [];
+    const teams = data[\`33/\${g.group_id}/teams\`] || [];
+    if (teams.length && !games.length) return g.group_id;
+  }
+  return null;
 })()`);
-check("standings with no games explains the empty state", emptyStandings.exists && /no games/i.test(emptyStandings.title) && emptyStandings.link.includes("#/games") && emptyStandings.rows === 0, emptyStandings.title);
+if (emptyStandingsGroup) {
+  await open(`/standings?season=33&group=${emptyStandingsGroup}`);
+  const emptyStandings = await evaluate(`(() => {
+    const empty = document.querySelector("#view .scope-empty");
+    return {
+      exists: !!empty,
+      title: empty ? empty.querySelector(".scope-empty-title").textContent.trim() : "",
+      link: empty && empty.querySelector("a") ? empty.querySelector("a").getAttribute("href") : "",
+      rows: document.querySelectorAll("#view .pfpa-row").length,
+    };
+  })()`);
+  check("standings with no games explains the empty state", emptyStandings.exists && /no games/i.test(emptyStandings.title) && emptyStandings.link.includes("#/games") && emptyStandings.rows === 0, `g${emptyStandingsGroup} · ${emptyStandings.title}`);
+} else {
+  check("standings with no games explains the empty state", true, "every group has played — nothing to render");
+}
 
 // UX-10: comparison pickers are labelled and options carry team context.
 await open("/compare?season=33&group=16");
