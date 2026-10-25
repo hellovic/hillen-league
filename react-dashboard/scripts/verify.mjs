@@ -431,6 +431,17 @@ check("season overview mixes results from every group", scope.latestGroups.lengt
 check("season overview lists every group without marking one current", scope.cards === 7 && scope.current === 0, `${scope.cards} cards, ${scope.current} current`);
 check("phone header names the all-groups scope and hides the group picker", /all groups/i.test(scope.pill) && !scope.groupSelect, scope.pill);
 
+// A result in the list has to say when it started and where it was played, or a
+// parent still has to open every game to find out.
+const latestMeta = await evaluate(`(() => {
+  const rows = [...document.querySelectorAll(".results .game-row")];
+  return {
+    rows: rows.length,
+    lines: rows.map((r) => r.querySelector(".gr-venue")?.innerText.trim() || ""),
+  };
+})()`);
+check("latest results name the tip-off time and court", latestMeta.rows > 0 && latestMeta.lines.every((l) => /\d{1,2}:\d{2}\s(AM|PM)/i.test(l)) && latestMeta.lines.some((l) => /體育館/.test(l)), `${latestMeta.rows} rows · ${latestMeta.lines.slice(0, 3).join(" / ")}`);
+
 // Venue: a family planning a trip needs the court on the fixture list itself,
 // not one tap deeper. A live fixture has no court on the league page yet, so it
 // must say so rather than leave a silent gap.

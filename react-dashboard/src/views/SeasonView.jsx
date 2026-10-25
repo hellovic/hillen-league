@@ -60,29 +60,42 @@ export default function SeasonView({ ctx, seasonId }) {
     }
   };
 
-  // `venue` is only passed for upcoming fixtures: a played game's court is
-  // already on its detail page, and the listing that supplies the court for a
-  // scheduled one can still be blank, hence the "Venue TBC" fallback.
-  const row = (g, { venue = false } = {}) => (
-    <a className="game-row" href={`#/games/${g.event_id}`} key={g.event_id}>
-      <div className="gr-top">
-        <span className="gr-when">{fmtDate(g.game_date)}</span>
-        {g.group_short ? <span className="gr-group">{g.group_short}</span> : null}
-        <GameStatus game={g} className="gr-status" />
-      </div>
-      <div className="gr-match">
-        <span className="gr-team home">{g.home_name}</span>
-        <strong className="gr-score od-nowrap">
-          {hasResult(g) ? scoreText(g) : g.start_time || "vs"}
-        </strong>
-        <span className="gr-team away">{g.away_name}</span>
-      </div>
-      {/* After the arrow in the DOM so the venue takes its own full-width row
-        * instead of pushing the arrow onto a fourth grid row. */}
-      <span className="row-arrow" aria-hidden="true">↗</span>
-      {venue ? <span className="gr-venue">{g.venue || "Venue TBC"}</span> : null}
-    </a>
-  );
+  // The small line under a row. A result names when it tipped off and the court
+  // it was played on (the court is on the game page too, but a parent scanning
+  // the list wants both without a tap). An upcoming fixture already shows its
+  // time in the middle of the row, so it only needs the court — or "Venue TBC"
+  // while the league has not assigned one.
+  const detailLine = (g, kind) => {
+    const bits = [];
+    if (kind === "result" && g.start_time) bits.push(g.start_time);
+    if (kind === "result" && g.venue) bits.push(g.venue);
+    if (kind === "fixture") bits.push(g.venue || "Venue TBC");
+    return bits.length ? bits.join(" · ") : "";
+  };
+
+  const row = (g, kind) => {
+    const detail = detailLine(g, kind);
+    return (
+      <a className="game-row" href={`#/games/${g.event_id}`} key={g.event_id}>
+        <div className="gr-top">
+          <span className="gr-when">{fmtDate(g.game_date)}</span>
+          {g.group_short ? <span className="gr-group">{g.group_short}</span> : null}
+          <GameStatus game={g} className="gr-status" />
+        </div>
+        <div className="gr-match">
+          <span className="gr-team home">{g.home_name}</span>
+          <strong className="gr-score od-nowrap">
+            {hasResult(g) ? scoreText(g) : g.start_time || "vs"}
+          </strong>
+          <span className="gr-team away">{g.away_name}</span>
+        </div>
+        {/* After the arrow in the DOM so the detail takes its own full-width row
+          * instead of pushing the arrow onto a fourth grid row. */}
+        <span className="row-arrow" aria-hidden="true">↗</span>
+        {detail ? <span className="gr-venue">{detail}</span> : null}
+      </a>
+    );
+  };
 
   return (
     <>
@@ -100,7 +113,7 @@ export default function SeasonView({ ctx, seasonId }) {
               </div>
             </div>
             {latest.length ? (
-              latest.map(row)
+              latest.map((g) => row(g, "result"))
             ) : (
               <p className="scope-note">No completed games yet in this season.</p>
             )}
@@ -112,7 +125,7 @@ export default function SeasonView({ ctx, seasonId }) {
               <span className="small-dot" aria-hidden="true" />
             </div>
             {upcoming.length ? (
-              upcoming.slice(0, 5).map((g) => row(g, { venue: true }))
+              upcoming.slice(0, 5).map((g) => row(g, "fixture"))
             ) : (
               <p>No upcoming games scheduled.</p>
             )}
