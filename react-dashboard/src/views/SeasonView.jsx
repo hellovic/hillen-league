@@ -60,7 +60,10 @@ export default function SeasonView({ ctx, seasonId }) {
     }
   };
 
-  const row = (g) => (
+  // `venue` is only passed for upcoming fixtures: a played game's court is
+  // already on its detail page, and the listing that supplies the court for a
+  // scheduled one can still be blank, hence the "Venue TBC" fallback.
+  const row = (g, { venue = false } = {}) => (
     <a className="game-row" href={`#/games/${g.event_id}`} key={g.event_id}>
       <div className="gr-top">
         <span className="gr-when">{fmtDate(g.game_date)}</span>
@@ -74,7 +77,10 @@ export default function SeasonView({ ctx, seasonId }) {
         </strong>
         <span className="gr-team away">{g.away_name}</span>
       </div>
+      {/* After the arrow in the DOM so the venue takes its own full-width row
+        * instead of pushing the arrow onto a fourth grid row. */}
       <span className="row-arrow" aria-hidden="true">↗</span>
+      {venue ? <span className="gr-venue">{g.venue || "Venue TBC"}</span> : null}
     </a>
   );
 
@@ -106,7 +112,7 @@ export default function SeasonView({ ctx, seasonId }) {
               <span className="small-dot" aria-hidden="true" />
             </div>
             {upcoming.length ? (
-              upcoming.slice(0, 5).map(row)
+              upcoming.slice(0, 5).map((g) => row(g, { venue: true }))
             ) : (
               <p>No upcoming games scheduled.</p>
             )}

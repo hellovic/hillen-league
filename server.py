@@ -218,7 +218,7 @@ QUERIES = {
         ORDER BY g.game_date DESC, COALESCE(g.start_time, '') DESC, g.event_id DESC
         LIMIT 8""",
     "season_upcoming_games": """
-        SELECT g.event_id, g.game_date, g.start_time, g.status,
+        SELECT g.event_id, g.game_date, g.start_time, g.status, g.venue,
                g.group_id, gr.name AS group_name,
                ht.name AS home_name, at.name AS away_name,
                g.home_score, g.away_score

@@ -251,6 +251,29 @@ def parse_leaderboards(html):
     return out
 
 
+# The schedule listing reuses the map-marker icon for a live fixture's status
+# ("進行中" = in progress), so these values are never a court name.
+VENUE_STATUS_LABELS = {"進行中", "已完場", "已完成", "取消", "延期", "待定"}
+
+
+def match_venue(block):
+    """Court name from one fixture block.
+
+    Listings (schedule.php, a team page) wrap it in
+    `<a class="match-info"><p><i class="fa fa-map-marker"></i>…`, while a played
+    game's scores.php page uses a `<div class="match-info">`. Both are handled.
+
+    A live fixture puts its status in that space instead of a court ("進行中",
+    in progress), so a known status label is not mistaken for a venue.
+    """
+    m = (re.search(r'<a class="match-info"[^>]*>\s*<p><i class="fa fa-map-marker"></i>([^<]+)</p>', block)
+         or re.search(r'fa-map-marker"></i>([^<]+)</p>', block))
+    if not m:
+        return None
+    name = m.group(1).strip()
+    return None if name in VENUE_STATUS_LABELS else name
+
+
 def parse_schedule_season(html, group_label):
     """Events from schedule.php?season_id=.. filtered by group label."""
     out = []
@@ -267,6 +290,10 @@ def parse_schedule_season(html, group_label):
             "date": dt.group(1) if dt else None,
             "start": dt.group(2) if dt else None,
             "end": dt.group(3) if dt else None,
+            # The venue lives in the listing, not on the game page: scores.php
+            # only carries it once a game has been played, so scheduled fixtures
+            # would otherwise have no court to show anywhere in the dashboard.
+            "venue": match_venue(b),
         })
     return out
 
@@ -560,7 +587,8 @@ class Store:
             "VALUES(?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(event_id) DO UPDATE SET "
             "group_id=excluded.group_id, game_date=excluded.game_date, start_time=excluded.start_time, "
-            "end_time=excluded.end_time, venue=excluded.venue, home_team_id=excluded.home_team_id, "
+            "end_time=excluded.end_time, venue=COALESCE(excluded.venue, games.venue), "
+            "home_team_id=excluded.home_team_id, "
             "away_team_id=excluded.away_team_id, home_score=excluded.home_score, "
             "away_score=excluded.away_score, status=excluded.status",
             (rec["event_id"], rec["season_id"], rec["group_id"], rec["date"], rec["start"], rec["end"],
@@ -681,6 +709,10 @@ def main():
     # 4. events from season schedule
     events = parse_schedule_season(cache.get(f"{BASE}schedule.php?season_id={season_id}"), group_name)
     log(f"events from season schedule: {len(events)}")
+    # The listing is the only page that carries a *scheduled* fixture's court:
+    # team pages never show it and scores.php only has it after the game is
+    # played. Key it by event so the game rows written below can pick it up.
+    sched_venue = {e["event_id"]: e["venue"] for e in events if e.get("venue")}
 
     # 5. team pages: profile, roster, schedule
     team_events = set()
@@ -704,7 +736,8 @@ def main():
                 continue
             team_events.add(si["event_id"])
             if (si["home_team_id"] in group_team_ids and si["away_team_id"] in group_team_ids):
-                store.upsert_game({**si, "season_id": season_id, "group_id": group_id,
+                store.upsert_game({**si, "venue": sched_venue.get(si["event_id"]),
+                                   "season_id": season_id, "group_id": group_id,
                                    "status": "completed" if si["home_score"] is not None else "scheduled"})
     log(f"events from team schedules: {len(team_events)}")
 
@@ -720,6 +753,8 @@ def main():
             log(f"    !! no team info parsed, skipping")
             continue
         g["group_id"] = group_id
+        # a scheduled game's page has no court; keep the one from the listing
+        g["venue"] = g["venue"] or sched_venue.get(eid)
         store.upsert_game(g)
         for q in g["quarters"]:
             store.upsert_quarters({**q, "event_id": eid})

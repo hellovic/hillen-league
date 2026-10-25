@@ -58,7 +58,7 @@ body.orange .skip-link:focus{transform:translateY(0)}
  body.orange .game-row{padding:16px 0}
  body.orange .gr-team{font-size:var(--mobile-body);line-height:1.5}
  body.orange .gr-score{font-size:24px;font-weight:750;letter-spacing:-.5px}
- body.orange .gr-group,body.orange .gr-when,body.orange .final-label{font-size:var(--mobile-caption)}
+ body.orange .gr-group,body.orange .gr-when,body.orange .final-label,body.orange .gr-venue{font-size:var(--mobile-caption)}
  body.orange .final-label{letter-spacing:0}
  body.orange .row-arrow{display:none}
  body.orange .game-row{grid-template-columns:1fr}

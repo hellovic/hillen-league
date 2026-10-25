@@ -415,6 +415,7 @@ await setViewport(390, 844, true);
 await open("/season/33");
 const scope = await evaluate(`(() => ({
   latest: (document.querySelector(".results")?.innerText || "").replace(/\\s+/g, " "),
+  latestGroups: [...new Set([...document.querySelectorAll(".results .gr-group")].map((n) => n.innerText.trim()).filter(Boolean))],
   current: document.querySelectorAll(".season-card[aria-current='true']").length,
   cards: document.querySelectorAll(".season-card").length,
   hero: !!document.querySelector(".scope-head") || !!document.querySelector(".season-stats"),
@@ -424,9 +425,24 @@ const scope = await evaluate(`(() => ({
 }))()`);
 check("season overview drops the duplicate hero and totals strip", scope.hero === false, `hero ${scope.hero}, ${scope.cards} cards`);
 check("season overview keeps an accessible heading", /第33屆驍籃青少年籃球聯賽 overview/.test(scope.h2), scope.h2);
-check("season overview mixes results from every group", scope.latest.includes("培正G u9") && scope.latest.includes("Arouse U13"), scope.latest.slice(0, 90));
+// Which teams happen to sit in the latest eight changes with every result, so
+// the check counts the division labels in that list instead of naming teams.
+check("season overview mixes results from every group", scope.latestGroups.length >= 2, scope.latestGroups.join(" / ") || scope.latest.slice(0, 90));
 check("season overview lists every group without marking one current", scope.cards === 7 && scope.current === 0, `${scope.cards} cards, ${scope.current} current`);
 check("phone header names the all-groups scope and hides the group picker", /all groups/i.test(scope.pill) && !scope.groupSelect, scope.pill);
+
+// Venue: a family planning a trip needs the court on the fixture list itself,
+// not one tap deeper. A live fixture has no court on the league page yet, so it
+// must say so rather than leave a silent gap.
+const upcoming = await evaluate(`(() => {
+  const rows = [...document.querySelectorAll(".upcoming .game-row")];
+  return {
+    rows: rows.length,
+    venues: rows.map((r) => r.querySelector(".gr-venue")?.innerText.trim() || ""),
+    arrows: rows.filter((r) => r.querySelector(".row-arrow")).length,
+  };
+})()`);
+check("every upcoming fixture names its court", upcoming.rows > 0 && upcoming.venues.every((v) => v.length > 0) && upcoming.venues.some((v) => /體育館|venue tbc/i.test(v)) && upcoming.arrows === upcoming.rows, `${upcoming.rows} rows · ${upcoming.venues.join(" / ")}`);
 
 // Desktop: the group picker is replaced by a static marker, so the control can
 // never suggest that the overview is filtered.
@@ -455,25 +471,48 @@ const cards = await evaluate(`(() => {
 check("group cards hide leaders for groups that have not played", cards.fakeLeaders === 0 && cards.noGames >= 2 && cards.noTeams >= 1, `${cards.fakeLeaders} fake leaders, ${cards.noGames} no-games, ${cards.noTeams} no-teams`);
 
 // UX-02: fixtures without a score are labelled, never rendered as 0 – 0.
-await open("/games?season=33&group=16");
+// Which division holds a past, unplayed fixture moves as the league reschedules,
+// so ask the bundle for one instead of hardcoding a group.
+const skippedGroup = await evaluate(`(() => {
+  const data = window.LEAGUE_DATA || {};
+  const today = new Date().toLocaleDateString("en-CA");
+  const past = Object.entries(data)
+    .filter(([k]) => /^33\\/\\d+\\/games$/.test(k))
+    .map(([k, games]) => ({
+      group: +k.split("/")[1],
+      count: (games || []).filter((g) => g.game_date < today && !["completed", "forfeit"].includes(g.status)).length,
+    }))
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count);
+  return past.length ? past[0].group : 16;
+})()`);
+await open(`/games?season=33&group=${skippedGroup}`);
 const statuses = await evaluate(`(() => ({
   final: document.querySelectorAll('[data-status="final"]').length,
   skipped: document.querySelectorAll('[data-status="skipped"]').length,
   skippedText: document.querySelector('[data-status="skipped"]')?.innerText.trim(),
+  skippedScore: document.querySelector('[data-status="skipped"]')?.closest("tr")?.children[2]?.innerText.trim(),
   pageText: document.querySelector("#view").innerText.replace(/\\s+/g, " "),
   rows: [...document.querySelectorAll("#t-games tbody tr")].map((r) => r.innerText.replace(/\\s+/g, " ")),
 }))()`);
-check("past fixtures without a score are marked Skipped", statuses.skipped === 1 && /^skipped$/i.test(statuses.skippedText || ""), statuses.skippedText);
+check("past fixtures without a score are marked Skipped", statuses.skipped >= 1 && /^skipped$/i.test(statuses.skippedText || ""), `${statuses.skipped} skipped · ${statuses.skippedText}`);
 check("no Results pending wording survives anywhere", !/result pending/i.test(statuses.pageText) && !/\\bpending\\b/i.test(statuses.pageText), statuses.pageText.includes("pending") ? "found 'pending'" : "no pending wording");
-check("a skipped fixture never shows a 0 score", statuses.final === 1 && !statuses.rows.some((r) => /Arouse U13\\s+0/.test(r)), statuses.rows.join(" | ").slice(0, 90));
+check("a skipped fixture never shows a 0 score", /^—$/.test(statuses.skippedScore || ""), `score cell "${statuses.skippedScore}"`);
 
 // UX-03: empty groups explain themselves instead of showing all-zero tables.
-await open("/standings?season=33&group=28");
+// "Empty" also moves with the season, so pick a group that has teams but no
+// played game from the bundle rather than naming one.
+const emptyGroup = await evaluate(`(() => {
+  const groups = (window.LEAGUE_DATA || {})["season/33"]?.groups || [];
+  const empty = groups.filter((g) => g.played === 0 && g.teams > 0);
+  return empty.length ? empty[0].group_id : 27;
+})()`);
+await open(`/standings?season=33&group=${emptyGroup}`);
 const zeroTable = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), bars: document.querySelectorAll(".bar-row").length })`);
-check("standings explain an empty group instead of a zero chart", zeroTable.text.includes("No games played yet") && zeroTable.bars === 0, `${zeroTable.bars} bar rows`);
-await open("/leaders?season=33&group=26");
+check("standings explain an empty group instead of a zero chart", zeroTable.text.includes("No games played yet") && zeroTable.bars === 0, `group ${emptyGroup} · ${zeroTable.bars} bar rows`);
+await open(`/leaders?season=33&group=${emptyGroup}`);
 const zeroLeaders = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), tables: document.querySelectorAll("#view table.data").length })`);
-check("leaders explain an empty group instead of zero tables", zeroLeaders.text.includes("No games played yet") && zeroLeaders.text.includes("View fixtures") && zeroLeaders.tables === 0, zeroLeaders.tables + " tables");
+check("leaders explain an empty group instead of zero tables", zeroLeaders.text.includes("No games played yet") && zeroLeaders.text.includes("View fixtures") && zeroLeaders.tables === 0, `group ${emptyGroup} · ${zeroLeaders.tables} tables`);
 
 // UX-04: search ranks the current group first and labels the scope.
 await open("/season/33?season=33&group=16");
