@@ -270,6 +270,16 @@ export default function LeadersView({ ctx }) {
                       if (e.target.closest("a")) return;
                       go(`#/players/${r.player_id}`);
                     }}
+                    onKeyDown={(e) => {
+                      /* Same keyboard contract as SortTable rows: Enter/Space
+                       * opens the row, but a focused link keeps its own
+                       * destination. */
+                      if (e.target.closest("a")) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        go(`#/players/${r.player_id}`);
+                      }
+                    }}
                   >
                     <td className="num">{r.rank}</td>
                     <td>

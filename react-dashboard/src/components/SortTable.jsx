@@ -226,6 +226,10 @@ export default function SortTable({
                   onKeyDown={
                     href
                       ? (e) => {
+                          /* Enter on a focused link is the link's own activation:
+                           * let the browser follow it instead of hijacking it
+                           * to the row destination. */
+                          if (e.target.closest("a")) return;
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             go(href);
