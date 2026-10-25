@@ -494,7 +494,10 @@ class Store:
         cols = ["season_id", "team_id", "group_id", "manager", "captain_player_id",
                 "home_color", "away_color", "season_pts_for", "season_pts_against"]
         vals = [rec.get(c) for c in cols]
-        sets = ",".join(f"{c}=excluded.{c}" for c in cols[3:])
+        # cols[2:] — include group_id: the league moves teams between divisions
+        # mid-season (season 33 moved UNION 1601 from U11 C to U13), and leaving
+        # it out of the SET kept the old division forever.
+        sets = ",".join(f"{c}=excluded.{c}" for c in cols[2:])
         self.conn.execute(
             f"INSERT INTO season_teams({','.join(cols)}) VALUES({','.join('?' * len(cols))}) "
             f"ON CONFLICT(season_id, team_id) DO UPDATE SET {sets}", vals)
@@ -508,6 +511,41 @@ class Store:
             "forfeits=excluded.forfeits, diff=excluded.diff, points=excluded.points",
             (rec["season_id"], rec["group_id"], rec["team_id"], rec["rank"], rec["gp"],
              rec["wins"], rec["losses"], rec["forfeits"], rec["diff"], rec["points"]))
+
+    def prune_standings(self, season_id, group_id, keep_team_ids):
+        """Drop rows for teams the official table no longer lists in this group.
+
+        Upserts alone cannot mirror a table: when the league moves a team to
+        another division (season 33's U13 table swapped 1609 Wishful U11 for
+        1601 UNION) the old row survived at its old rank and the group showed
+        more teams than the official page. `keep` is the freshly parsed table,
+        so an empty parse (markup change) never wipes a group.
+        """
+        keep = sorted(set(keep_team_ids))
+        if not keep:
+            return 0
+        marks = ",".join("?" * len(keep))
+        cur = self.conn.execute(
+            f"DELETE FROM standings WHERE season_id=? AND group_id=? AND team_id NOT IN ({marks})",
+            (season_id, group_id, *keep))
+        return cur.rowcount
+
+    def prune_season_teams(self, season_id, group_id, keep_team_ids):
+        """Drop registrations for teams the group page no longer lists.
+
+        A team belongs to one group per season (PRIMARY KEY season_id, team_id),
+        so a mid-season move is normally fixed by the next upsert; this removes
+        a team that was dropped from the group altogether. Guarded on an empty
+        parse for the same reason as prune_standings().
+        """
+        keep = sorted(set(keep_team_ids))
+        if not keep:
+            return 0
+        marks = ",".join("?" * len(keep))
+        cur = self.conn.execute(
+            f"DELETE FROM season_teams WHERE season_id=? AND group_id=? AND team_id NOT IN ({marks})",
+            (season_id, group_id, *keep))
+        return cur.rowcount
 
     def upsert_roster(self, rec):
         self.conn.execute(
@@ -619,12 +657,18 @@ def main():
     for tid, name in teams:
         store.upsert_team(tid, name)
         store.upsert_season_team({"season_id": season_id, "team_id": tid, "group_id": group_id})
+    dropped = store.prune_season_teams(season_id, group_id, [t for t, _ in teams])
+    if dropped:
+        log(f"  dropped {dropped} registration(s) the group page no longer lists")
 
     # 2. standings
     standings = parse_standings(cache.get(f"{BASE}division.php?season_id={season_id}"), group_name)
     log(f"standings: {len(standings)}")
     for s in standings:
         store.upsert_standings({**s, "season_id": season_id, "group_id": group_id})
+    dropped = store.prune_standings(season_id, group_id, [s["team_id"] for s in standings])
+    if dropped:
+        log(f"  dropped {dropped} stale standings row(s) the table no longer lists")
 
     # 3. leaderboards
     boards = parse_leaderboards(cache.get(f"{BASE}statistics.php?season_id={season_id}&group_id={group_id}"))
