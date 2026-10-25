@@ -47,6 +47,11 @@ export default function PlayersView({ ctx }) {
         ...p,
         efg: efgPct(p.fgm, p.fga, p.fg3m),
         ts: tsPct(p.pts, p.fga, p.fta),
+        /* The player rows carry shooting attempts, not the fg_pct/fg3_pct
+         * fields the columns are named after, so derive them here: they are
+         * rendered as percentages and now sort numerically too. */
+        fg_pct: p.fga ? (p.fgm / p.fga) * 100 : null,
+        fg3_pct: p.fg3a ? (p.fg3m / p.fg3a) * 100 : null,
       })),
     [rows0]
   );
@@ -113,7 +118,9 @@ export default function PlayersView({ ctx }) {
             compactExpanded={allCols}
             sort={sort}
             onSort={(next) => setSort(next)}
-            rowKey={(p) => p.player_id}
+            /* A mid-season mover has one row per team; player_id alone would
+             * duplicate the React key. */
+            rowKey={(p) => `${p.player_id}-${p.team_id}`}
             rowHref={(p) => `#/players/${p.player_id}`}
             renderRow={(p) => {
               const fgp = pct1(p.fga ? (p.fgm / p.fga) * 100 : null);
