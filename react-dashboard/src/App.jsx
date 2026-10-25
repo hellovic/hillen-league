@@ -50,17 +50,37 @@ function routeSeasonId(parts) {
   return validSeason(id) ? id : null;
 }
 
+/* The published app only supports the query form (#/players/15376?season=32&
+ * group=31), but the old vanilla dashboard also accepted a positional scope
+ * (#/players/15376/32/31) and README documents that compatibility. Parse it so
+ * an old shared link opens the same player in the same season+group. */
+function routePlayerScope(parts) {
+  if (parts[0] !== "players") return null;
+  const season = +parts[2];
+  const group = +parts[3];
+  if (!validSeason(season) || !Number.isFinite(group)) return null;
+  return {
+    season,
+    group: validGroup(season, group) ? group : seasonGroups(season)[0]?.group_id,
+  };
+}
+
 function initialCtx() {
   const { parts, params } = parseHash();
   const qSeason = +params.get("season");
   const qGroup = +params.get("group");
   const pathSeason = routeSeasonId(parts);
-  const season = validSeason(qSeason) ? qSeason : pathSeason || DEFAULT_SEASON;
+  const playerScope = routePlayerScope(parts);
+  const season = validSeason(qSeason)
+    ? qSeason
+    : pathSeason || playerScope?.season || DEFAULT_SEASON;
   const group = validGroup(season, qGroup)
     ? qGroup
-    : validGroup(season, DEFAULT_GROUP)
-      ? DEFAULT_GROUP
-      : seasonGroups(season)[0]?.group_id;
+    : playerScope && playerScope.season === season
+      ? playerScope.group
+      : validGroup(season, DEFAULT_GROUP)
+        ? DEFAULT_GROUP
+        : seasonGroups(season)[0]?.group_id;
   return { season, group };
 }
 
@@ -101,6 +121,7 @@ export default function App() {
       const qSeason = +next.params.get("season");
       const qGroup = +next.params.get("group");
       const pathSeason = routeSeasonId(next.parts);
+      const playerScope = routePlayerScope(next.parts);
       if (validSeason(qSeason)) {
         setCtx((prev) => ({
           season: qSeason,
@@ -111,6 +132,8 @@ export default function App() {
           season: pathSeason,
           group: validGroup(pathSeason, prev.group) ? prev.group : seasonGroups(pathSeason)[0]?.group_id,
         }));
+      } else if (playerScope) {
+        setCtx(() => ({ season: playerScope.season, group: playerScope.group }));
       }
       setRoute(next);
       window.scrollTo(0, 0);
