@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../data.js";
-import { csvDownload, setTitle, signed } from "../utils.js";
+import { csvDownload, hasResult, setTitle, signed } from "../utils.js";
 import { ShareButton } from "../components/Buttons.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
@@ -292,7 +292,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
           <div className="team">
             <div className="tname"><a className="row-link" href={`#/teams/${g.home_team_id}`}>{g.home_name}</a></div>
             <div className="tcolor">{tsOf(g.home_team_id).shirt_color || ""}</div>
-            <div className={`score ${g.status === "completed" ? (hw ? "winner" : aw ? "loser" : "draw") : "draw"}`}>
+            <div className={`score ${hasResult(g) ? (hw ? "winner" : aw ? "loser" : "draw") : "draw"}`}>
               {g.home_score ?? "—"}
             </div>
           </div>
@@ -300,7 +300,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
           <div className="team">
             <div className="tname"><a className="row-link" href={`#/teams/${g.away_team_id}`}>{g.away_name}</a></div>
             <div className="tcolor">{tsOf(g.away_team_id).shirt_color || ""}</div>
-            <div className={`score ${g.status === "completed" ? (aw ? "winner" : hw ? "loser" : "draw") : "draw"}`}>
+            <div className={`score ${hasResult(g) ? (aw ? "winner" : hw ? "loser" : "draw") : "draw"}`}>
               {g.away_score ?? "—"}
             </div>
           </div>

@@ -9,7 +9,9 @@ export function setTitle(...parts) {
 }
 
 export function resultOf(g, teamId) {
-  if (g.status !== "completed") return { text: "—", cls: "draw" };
+  /* A forfeit carries a recorded score like a completed game, so derive W/L
+   * from it too; only games without a result (skipped/scheduled) are "—". */
+  if (!hasResult(g)) return { text: "—", cls: "draw" };
   const mine = g.home_team_id === teamId ? g.home_score : g.away_score;
   const opp = g.home_team_id === teamId ? g.away_score : g.home_score;
   if (mine > opp) return { text: `W ${mine}-${opp}`, cls: "winner" };
