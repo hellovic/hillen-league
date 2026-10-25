@@ -357,7 +357,22 @@ function ComparePlayers({ pa, pb, palette }) {
         </thead>
         <tbody>
           {shared.map((id) => (
-            <tr key={id} tabIndex={0} data-href={`#/games/${id}`} onClick={() => go(`#/games/${id}`)}>
+            <tr
+              key={id}
+              tabIndex={0}
+              data-href={`#/games/${id}`}
+              onClick={(e) => {
+                if (e.target.closest("a")) return;
+                go(`#/games/${id}`);
+              }}
+              onKeyDown={(e) => {
+                if (e.target.closest("a")) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  go(`#/games/${id}`);
+                }
+              }}
+            >
               <td className="h2h-date">{gamesA.get(id).game_date}</td>
               <td className="mono h2h-line">
                 <span className="h2h-tag">{pa.player_name}</span>
@@ -470,7 +485,22 @@ function TeamHeadToHead({ ta, tb }) {
                   ? tb.team_name
                   : "Draw";
             return (
-              <tr key={x.event_id} tabIndex={0} data-href={`#/games/${x.event_id}`} onClick={() => go(`#/games/${x.event_id}`)}>
+              <tr
+                key={x.event_id}
+                tabIndex={0}
+                data-href={`#/games/${x.event_id}`}
+                onClick={(e) => {
+                  if (e.target.closest("a")) return;
+                  go(`#/games/${x.event_id}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.target.closest("a")) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    go(`#/games/${x.event_id}`);
+                  }
+                }}
+              >
                 <td data-label="Date">{x.game_date}</td>
                 <td data-label="Score" className="mono">{scoreText(x)}</td>
                 <td data-label="Venue">{x.venue || "—"}</td>
@@ -647,11 +677,14 @@ export default function CompareView({ ctx, type, a, b }) {
                 const id = +e.target.value || null;
                 setPickA(id ?? "");
                 if (id && pickB) goCompare(kind, id, pickB);
+                /* Clearing a side must clear the comparison too, or the
+                 * picker says "choose" while the old result stays on screen. */
+                else if (!id) goCompare(kind, null, null);
               }}
             >
               <option value="">— choose —</option>
               {list.map((it) => (
-                <option key={it[idKey]} value={it[idKey]}>
+                <option key={kind === "p" ? `${it[idKey]}-${it.team_id}` : it[idKey]} value={it[idKey]}>
                   {kind === "p" ? `${it.player_name} (${it.team_name})` : it.team_name}
                 </option>
               ))}
@@ -667,11 +700,14 @@ export default function CompareView({ ctx, type, a, b }) {
                 const id = +e.target.value || null;
                 setPickB(id ?? "");
                 if (id && pickA) goCompare(kind, pickA, id);
+                /* Clearing a side must clear the comparison too, or the
+                 * picker says "choose" while the old result stays on screen. */
+                else if (!id) goCompare(kind, null, null);
               }}
             >
               <option value="">— choose —</option>
               {list.map((it) => (
-                <option key={it[idKey]} value={it[idKey]}>
+                <option key={kind === "p" ? `${it[idKey]}-${it.team_id}` : it[idKey]} value={it[idKey]}>
                   {kind === "p" ? `${it.player_name} (${it.team_name})` : it.team_name}
                 </option>
               ))}
