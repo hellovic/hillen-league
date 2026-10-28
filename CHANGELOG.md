@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.4] — Unreleased — Match-day refresh schedule
+- Data refresh 2026-10-28: 154 games, 3599 box-score rows (seasons 31, 32, 33). 5 new, 0 updated, 0 removed, 149 unchanged.
 - Data refresh 2026-10-25: 149 games, 3525 box-score rows (seasons 31, 32, 33). 0 new, 3 updated, 0 removed, 146 unchanged.
 - **The bot now refreshes around the games, not just once a day** — weekdays at 08:05 HKT, and weekends at 09:05, 11:05, 13:05, 15:05, 18:05, 21:05 and 23:05 HKT (cron stays UTC; Hong Kong has no DST, so the offsets hold all year). Weekday games still wait for the next morning run; the weekend cadence means a result is on the site within about two hours of the final whistle. Slots sit at `:05` because GitHub delays top-of-the-hour crons when its queue is busy.
 
