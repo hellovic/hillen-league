@@ -1,5 +1,6 @@
 """Regression tests run entirely on temporary copies; never scrape or publish."""
 import contextlib
+import datetime
 import hashlib
 import io
 from pathlib import Path
@@ -123,6 +124,19 @@ class RefreshTests(unittest.TestCase):
         html = '<li><div class="new-fixture-class"><span>YOUTH GIRLS U13</span><a href="scores.php?event_id=17664">Result</a></div></li>'
         with self.assertRaises(scraper.ScrapeError):
             scraper.require_schedule_rows(html, "YOUTH GIRLS U13", [])
+
+    def test_fixture_corrections_and_recent_results_bypass_score_cache(self):
+        row = self.store.conn.execute("SELECT status,home_score,away_score,game_date,start_time,end_time,venue FROM games WHERE status='completed' ORDER BY game_date LIMIT 1").fetchone()
+        event = dict(zip(("status", "home_score", "away_score", "date", "start", "end", "venue"), row))
+        date = datetime.date.fromisoformat(event["date"])
+        later = date + datetime.timedelta(days=30)
+        self.assertEqual(7 * 86400, scraper.settled_score_age(row, event, True, later))
+        self.assertIsNone(scraper.settled_score_age(row, event, True, date))
+        self.assertIsNone(scraper.settled_score_age(row, event, False, later))
+        for key, value in (("date", (date + datetime.timedelta(days=1)).isoformat()),
+                           ("start", "11:00 PM"), ("venue", "Corrected court"),
+                           ("home_score", event["home_score"] + 1)):
+            self.assertIsNone(scraper.settled_score_age(row, {**event, key: value}, True, later), key)
 
 
 if __name__ == "__main__":

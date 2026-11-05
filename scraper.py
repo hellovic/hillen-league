@@ -716,6 +716,15 @@ def require_schedule_rows(html, group_name, rows):
         raise ScrapeError(f"Incomplete schedule rows for {group_name}")
 
 
+def settled_score_age(previous, event, incremental, today):
+    signature = ("completed", event["home_score"], event["away_score"],
+                 event["date"], event["start"], event["end"])
+    unchanged = (previous is not None and tuple(previous[:6]) == signature
+                 and (not event.get("venue") or previous[6] == event["venue"]))
+    recent = datetime.date.fromisoformat(event["date"]) >= today - datetime.timedelta(days=14)
+    return 7 * 86400 if incremental and unchanged and not recent else None
+
+
 def scrape_group(cache, store, season_id, group_id, incremental=False):
     div = cache.get(f"{BASE}division.php?season_id={season_id}&group_id={group_id}")
     require_page(div, f"division s{season_id}/g{group_id}", r'<div class="kopa-main-col">')
@@ -798,12 +807,10 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
             # sufficient, including when a result is withdrawn or postponed.
             game = {**event, "season_id": season_id, "group_id": group_id, "status": "scheduled"}
         else:
-            old = store.conn.execute("SELECT status, home_score, away_score, game_date FROM games WHERE event_id=?", (eid,)).fetchone()
-            settled = old and tuple(old[:3]) == ("completed", event["home_score"], event["away_score"])
-            recent = datetime.date.fromisoformat(event["date"]) >= today - datetime.timedelta(days=14)
+            old = store.conn.execute("SELECT status, home_score, away_score, game_date, start_time, end_time, venue FROM games WHERE event_id=?", (eid,)).fetchone()
             # Old results are rechecked at least weekly; changed scores and
             # recent games always bypass the disk cache.
-            age = 7 * 86400 if incremental and settled and not recent else None
+            age = settled_score_age(old, event, incremental, today)
             html = cache.get(f"{BASE}scores.php?season_id={season_id}&event_id={eid}", max_age=age)
             require_page(html, f"game {eid}")
             game = parse_scores_page(html, season_id, eid)
@@ -825,7 +832,8 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
             actual = (game["home_score"], game["away_score"])
             if expected != actual and not (expected == (0, 0) and game["status"] == "not_played"):
                 raise ScrapeError(f"Conflicting scores for result {eid}")
-            game.update(group_id=group_id, venue=game["venue"] or event.get("venue"))
+            game.update(group_id=group_id, date=event["date"], start=event["start"],
+                        end=event["end"], venue=event.get("venue") or game["venue"])
         store.replace_game(game)
     keep = set(events)
     for (eid,) in store.conn.execute("SELECT event_id FROM games WHERE season_id=? AND group_id=?", (season_id, group_id)).fetchall():
