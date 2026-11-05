@@ -545,20 +545,21 @@ check("group cards hide leaders for groups that have not played", cards.fakeLead
 // UX-02: fixtures without a score are labelled, never rendered as 0 – 0.
 // Which division holds a past, unplayed fixture moves as the league reschedules,
 // so ask the bundle for one instead of hardcoding a group.
-const skippedGroup = await evaluate(`(() => {
+const skippedScope = await evaluate(`(() => {
   const data = window.LEAGUE_DATA || {};
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
   const past = Object.entries(data)
-    .filter(([k]) => /^33\\/\\d+\\/games$/.test(k))
+    .filter(([k]) => /^\\d+\\/\\d+\\/games$/.test(k))
     .map(([k, games]) => ({
+      season: +k.split("/")[0],
       group: +k.split("/")[1],
       count: (games || []).filter((g) => g.game_date < today && !["completed", "forfeit"].includes(g.status)).length,
     }))
     .filter((c) => c.count > 0)
-    .sort((a, b) => b.count - a.count);
-  return past.length ? past[0].group : 16;
+    .sort((a, b) => b.season - a.season || b.count - a.count);
+  return past[0] || null;
 })()`);
-await open(`/games?season=33&group=${skippedGroup}`);
+await open(`/games?season=${skippedScope?.season ?? 33}&group=${skippedScope?.group ?? 16}`);
 const statuses = await evaluate(`(() => ({
   final: document.querySelectorAll('[data-status="final"]').length,
   skipped: document.querySelectorAll('[data-status="skipped"]').length,
@@ -567,9 +568,9 @@ const statuses = await evaluate(`(() => ({
   pageText: document.querySelector("#view").innerText.replace(/\\s+/g, " "),
   rows: [...document.querySelectorAll("#t-games tbody tr")].map((r) => r.innerText.replace(/\\s+/g, " ")),
 }))()`);
-check("past fixtures without a score are marked Skipped", statuses.skipped >= 1 && /^skipped$/i.test(statuses.skippedText || ""), `${statuses.skipped} skipped · ${statuses.skippedText}`);
+check("past fixtures without a score are marked Skipped", skippedScope ? statuses.skipped >= 1 && /^skipped$/i.test(statuses.skippedText || "") : statuses.skipped === 0, `${statuses.skipped} skipped · ${statuses.skippedText}`);
 check("no Results pending wording survives anywhere", !/result pending/i.test(statuses.pageText) && !/\\bpending\\b/i.test(statuses.pageText), statuses.pageText.includes("pending") ? "found 'pending'" : "no pending wording");
-check("a skipped fixture never shows a 0 score", /^—$/.test(statuses.skippedScore || ""), `score cell "${statuses.skippedScore}"`);
+check("a skipped fixture never shows a 0 score", (skippedScope ? /^—$/.test(statuses.skippedScore || "") : statuses.skipped === 0), `score cell "${statuses.skippedScore}"`);
 
 // UX-03: empty groups explain themselves instead of showing all-zero tables.
 // "Empty" also moves with the season, so pick a group that has teams but no
