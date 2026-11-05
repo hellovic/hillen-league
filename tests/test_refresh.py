@@ -119,6 +119,11 @@ class RefreshTests(unittest.TestCase):
         self.store.upsert_player(pid, "")
         self.assertEqual(name, c.execute("SELECT name FROM players WHERE player_id=?", (pid,)).fetchone()[0])
 
+    def test_changed_schedule_markup_is_not_treated_as_deleted_games(self):
+        html = '<li><div class="new-fixture-class"><span>YOUTH GIRLS U13</span><a href="scores.php?event_id=17664">Result</a></div></li>'
+        with self.assertRaises(scraper.ScrapeError):
+            scraper.require_schedule_rows(html, "YOUTH GIRLS U13", [])
+
 
 if __name__ == "__main__":
     unittest.main()

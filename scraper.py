@@ -704,6 +704,18 @@ def require_page(html, label, marker=None):
         raise ScrapeError(f"Incomplete or unrecognized source page: {label}")
 
 
+def require_schedule_rows(html, group_name, rows):
+    """A changed row class must not turn a populated schedule into an empty set."""
+    expected = set()
+    for block in re.findall(r'<li\b[^>]*>(.*?)</li>', html, re.S):
+        match = re.search(r'event_id=(\d+)', block)
+        if match and group_name in strip_tags(block):
+            expected.add(int(match.group(1)))
+    parsed = {row["event_id"] for row in rows if row.get("group", group_name) == group_name}
+    if expected != parsed:
+        raise ScrapeError(f"Incomplete schedule rows for {group_name}")
+
+
 def scrape_group(cache, store, season_id, group_id, incremental=False):
     div = cache.get(f"{BASE}division.php?season_id={season_id}&group_id={group_id}")
     require_page(div, f"division s{season_id}/g{group_id}", r'<div class="kopa-main-col">')
@@ -752,13 +764,16 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
 
     schedule_html = cache.get(f"{BASE}schedule.php?season_id={season_id}")
     require_page(schedule_html, "season schedule", r'<div class="widget kopa-match-list-widget schedule-table">')
-    events = {r["event_id"]: r for r in parse_schedule_season(schedule_html, group_name)}
+    season_events = parse_schedule_season(schedule_html, group_name)
+    require_schedule_rows(schedule_html, group_name, season_events)
+    events = {r["event_id"]: r for r in season_events}
     for tid, name in teams:
         html = cache.get(f"{BASE}teams_detail_info.php?season_id={season_id}&team_id={tid}")
         require_page(html, f"team {tid}", r'<div class="player-profile">')
         if widget_block_before(html, "隊員名單") is None or widget_block_before(html, "賽程") is None:
             raise ScrapeError(f"Missing roster or schedule for team {tid}")
         profile, roster, schedule = parse_team_page(html, season_id, tid)
+        require_schedule_rows(widget_block_before(html, "賽程"), group_name, schedule)
         roster_block = widget_block_before(html, "隊員名單")
         if len(set(re.findall(r'player_id=(\d+)', roster_block))) != len(roster):
             raise ScrapeError(f"Incomplete roster for team {tid}")
