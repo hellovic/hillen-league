@@ -1,0 +1,124 @@
+"""Regression tests run entirely on temporary copies; never scrape or publish."""
+import contextlib
+import hashlib
+import io
+from pathlib import Path
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import refresh_diff
+import scraper
+
+
+class RefreshTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.db = Path(self.tmp.name) / "league.db"
+        with contextlib.closing(sqlite3.connect(ROOT / "hillen_league.db")) as src, contextlib.closing(sqlite3.connect(self.db)) as dst:
+            src.backup(dst)
+        self.store = scraper.Store(str(self.db))
+        self.store.conn.row_factory = sqlite3.Row
+        self.addCleanup(self.store.conn.close)
+
+    def bytes_digest(self):
+        return hashlib.sha256(self.db.read_bytes()).hexdigest()
+
+    def test_invalid_source_aborts_without_touching_database(self):
+        class BadSource:
+            def get(self, *args, **kwargs):
+                return '<html>Temporarily unavailable</html>'
+        before = self.bytes_digest()
+        with self.assertRaises(scraper.ScrapeError):
+            scraper.refresh_database(str(self.db), [(33, 16)], BadSource())
+        self.assertEqual(before, self.bytes_digest())
+
+    def test_late_group_failure_rolls_back_entire_refresh(self):
+        before = self.bytes_digest()
+        def scrape(cache, store, season, group, incremental):
+            store.conn.execute("UPDATE teams SET name='Changed in staging'")
+            store.commit()
+            if group == 27:
+                raise scraper.ScrapeError("second group failed")
+        with patch.object(scraper, "scrape_group", scrape), self.assertRaises(scraper.ScrapeError):
+            scraper.refresh_database(str(self.db), [(32, 26), (32, 27)], None)
+        self.assertEqual(before, self.bytes_digest())
+
+    def test_failed_validation_does_not_promote(self):
+        before = self.bytes_digest()
+        def scrape(cache, store, *args):
+            store.conn.execute("UPDATE games SET home_score=999 WHERE status='completed'")
+            store.commit()
+        with patch.object(scraper, "scrape_group", scrape), self.assertRaises(subprocess.CalledProcessError):
+            scraper.refresh_database(str(self.db), [(32, 26)], None)
+        self.assertEqual(before, self.bytes_digest())
+
+    def test_no_change_preserves_bytes_and_refresh_timestamp(self):
+        before = self.bytes_digest()
+        with patch.object(scraper, "scrape_group"), contextlib.redirect_stdout(io.StringIO()):
+            changed = scraper.refresh_database(str(self.db), [], None)
+        self.assertFalse(changed)
+        self.assertEqual(before, self.bytes_digest())
+
+    def test_result_withdrawal_removes_details_and_player_totals(self):
+        c = self.store.conn
+        row = dict(c.execute("SELECT * FROM games WHERE status='completed' LIMIT 1").fetchone())
+        eid = row["event_id"]
+        self.assertGreater(c.execute("SELECT COUNT(*) FROM v_played_games WHERE event_id=?", (eid,)).fetchone()[0], 0)
+        row.update(date=row.pop("game_date"), start=row.pop("start_time"), end=row.pop("end_time"),
+                   status="scheduled", home_score=None, away_score=None)
+        self.store.replace_game(row)
+        for table in ("player_game_stats", "game_quarters", "game_team_stats", "v_played_games"):
+            self.assertEqual(0, c.execute(f"SELECT COUNT(*) FROM {table} WHERE event_id=?", (eid,)).fetchone()[0])
+
+    def test_view_and_validator_reject_stale_scheduled_statistics(self):
+        c = self.store.conn
+        eid = c.execute("SELECT event_id FROM games WHERE status='completed' LIMIT 1").fetchone()[0]
+        c.execute("UPDATE games SET status='scheduled',home_score=NULL,away_score=NULL WHERE event_id=?", (eid,))
+        c.commit()
+        self.assertEqual(0, c.execute("SELECT COUNT(*) FROM v_played_games WHERE event_id=?", (eid,)).fetchone()[0])
+        result = subprocess.run([sys.executable, str(ROOT / "validate.py"), "--db", str(self.db), "--quiet"], capture_output=True)
+        self.assertEqual(result.returncode, 1)
+
+    def test_digest_detects_assist_reassignment_and_fixture_details(self):
+        c = self.store.conn
+        donor = c.execute("SELECT event_id,player_id FROM player_game_stats WHERE ast>0 LIMIT 1").fetchone()
+        receiver = c.execute("SELECT player_id FROM player_game_stats WHERE event_id=? AND player_id!=? AND ast IS NOT NULL LIMIT 1", tuple(donor)).fetchone()[0]
+        before = refresh_diff.load_state(c)
+        digest = refresh_diff.dataset_digest(c)
+        c.execute("UPDATE player_game_stats SET ast=ast-1 WHERE event_id=? AND player_id=?", tuple(donor))
+        c.execute("UPDATE player_game_stats SET ast=ast+1 WHERE event_id=? AND player_id=?", (donor[0], receiver))
+        self.assertNotEqual(before, refresh_diff.load_state(c))
+        self.assertNotEqual(digest, refresh_diff.dataset_digest(c))
+        before = refresh_diff.load_state(c)
+        c.execute("UPDATE games SET venue='Reassigned court',start_time='09:00 AM' WHERE event_id=?", (donor[0],))
+        self.assertNotEqual(before, refresh_diff.load_state(c))
+
+    def test_digest_includes_rosters_and_ignores_check_timestamp(self):
+        c = self.store.conn
+        before = refresh_diff.dataset_digest(c)
+        c.execute("UPDATE refresh_meta SET value='2099-01-01' WHERE key='refreshed_at'")
+        self.assertEqual(before, refresh_diff.dataset_digest(c))
+        c.execute("DELETE FROM rosters WHERE rowid=(SELECT MIN(rowid) FROM rosters)")
+        self.assertNotEqual(before, refresh_diff.dataset_digest(c))
+
+    def test_request_memoization_reuses_fresh_season_page(self):
+        fetcher = scraper.Fetcher.__new__(scraper.Fetcher)
+        fetcher.responses = {"season-page": "fresh response"}
+        self.assertEqual("fresh response", fetcher.get("season-page"))
+
+    def test_placeholder_captain_does_not_erase_existing_name(self):
+        c = self.store.conn
+        pid, name = c.execute("SELECT player_id,name FROM players WHERE name!='' LIMIT 1").fetchone()
+        self.store.upsert_player(pid, "")
+        self.assertEqual(name, c.execute("SELECT name FROM players WHERE player_id=?", (pid,)).fetchone()[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

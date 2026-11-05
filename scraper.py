@@ -19,10 +19,16 @@ re-runs cheap and idempotent.
 """
 
 import argparse
+from contextlib import closing
+import datetime
+import json
 import os
 import re
 import sqlite3
 import ssl
+import subprocess
+import sys
+import tempfile
 import time
 import urllib.request
 
@@ -59,6 +65,8 @@ class Fetcher:
         self.delay = delay
         os.makedirs(cache_dir, exist_ok=True)
         self.ctx = self._ssl_context()
+        self.responses = {}
+        self.requests = 0
 
     def _ssl_context(self):
         """Default context, extended with the GoDaddy G2 intermediate that the
@@ -82,11 +90,15 @@ class Fetcher:
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", url)
         return os.path.join(self.cache_dir, safe + ".html")
 
-    def get(self, url):
+    def get(self, url, max_age=None):
+        if url in self.responses:
+            return self.responses[url]
         path = self._cache_path(url)
-        if not self.refresh and os.path.exists(path):
+        if os.path.exists(path) and (not self.refresh or (
+                max_age is not None and time.time() - os.path.getmtime(path) < max_age)):
             with open(path, encoding="utf-8", errors="replace") as f:
-                return f.read()
+                self.responses[url] = f.read()
+                return self.responses[url]
         for attempt in range(3):
             try:
                 req = urllib.request.Request(url, headers={
@@ -95,9 +107,18 @@ class Fetcher:
                 })
                 with urllib.request.urlopen(req, timeout=30, context=self.ctx) as resp:
                     raw = resp.read()
+                self.requests += 1
                 html = raw.decode("utf-8", errors="replace")
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(html)
+                require_page(html, url)
+                fd, tmp = tempfile.mkstemp(dir=self.cache_dir)
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        f.write(html)
+                    os.replace(tmp, path)
+                finally:
+                    if os.path.exists(tmp):
+                        os.unlink(tmp)
+                self.responses[url] = html
                 time.sleep(self.delay)
                 return html
             except Exception:  # noqa: BLE001
@@ -285,11 +306,18 @@ def parse_schedule_season(html, group_label):
         if not ev:
             continue
         dt = re.search(r"<p>(\d{4}-\d{2}-\d{2}) ([^<]+?) - ([^<]+?)</p>", b)
+        left = re.search(r'r-side left" href="[^"]*team_id=(\d+)"', b)
+        right = re.search(r'r-side right" href="[^"]*team_id=(\d+)"', b)
+        nums = re.findall(r'<span class="[^"]*">(\d+)</span>\s*<span>-</span>\s*<span class="[^"]*">(\d+)</span>', b)
         out.append({
             "event_id": int(ev.group(1)),
             "date": dt.group(1) if dt else None,
             "start": dt.group(2) if dt else None,
             "end": dt.group(3) if dt else None,
+            "home_team_id": int(left.group(1)) if left else None,
+            "away_team_id": int(right.group(1)) if right else None,
+            "home_score": int(nums[0][0]) if nums else None,
+            "away_score": int(nums[0][1]) if nums else None,
             # The venue lives in the listing, not on the game page: scores.php
             # only carries it once a game has been played, so scheduled fixtures
             # would otherwise have no court to show anywhere in the dashboard.
@@ -515,7 +543,8 @@ class Store:
 
     def upsert_player(self, player_id, name):
         self.conn.execute("INSERT INTO players(player_id, name) VALUES(?,?) "
-                          "ON CONFLICT(player_id) DO UPDATE SET name=excluded.name", (player_id, name))
+                          "ON CONFLICT(player_id) DO UPDATE SET name=CASE WHEN excluded.name != '' "
+                          "THEN excluded.name ELSE players.name END", (player_id, name))
 
     def upsert_season_team(self, rec):
         cols = ["season_id", "team_id", "group_id", "manager", "captain_player_id",
@@ -645,128 +674,215 @@ class Store:
             (rec["season_id"], rec["group_id"], rec["category"], rec["category_cn"], rec["rank"],
              rec["player_id"], rec["team_id"], rec["games"], rec["total"], rec["avg"]))
 
+    def clear_game_details(self, event_id):
+        for table in ("player_game_stats", "game_quarters", "game_team_stats"):
+            self.conn.execute(f"DELETE FROM {table} WHERE event_id=?", (event_id,))
+
+    def replace_game(self, game):
+        self.upsert_game(game)
+        self.clear_game_details(game["event_id"])
+        for q in game.get("quarters", []):
+            self.upsert_quarters({**q, "event_id": game["event_id"]})
+        for ts in game.get("team_stats", []):
+            self.upsert_team_stats({**ts, "event_id": game["event_id"]})
+        for row in game.get("box", []):
+            self.upsert_player(row["player_id"], row["name"])
+            self.upsert_box(row)
+
 
 # --------------------------------------------------------------------------
 # pipeline
 # --------------------------------------------------------------------------
 
+class ScrapeError(ValueError):
+    """A source response is incomplete; never promote this refresh."""
+
+
+def require_page(html, label, marker=None):
+    if ('id="main-content"' not in html or '</html>' not in html.lower()
+            or (marker is not None and not re.search(marker, html, re.S))):
+        raise ScrapeError(f"Incomplete or unrecognized source page: {label}")
+
+
+def scrape_group(cache, store, season_id, group_id, incremental=False):
+    div = cache.get(f"{BASE}division.php?season_id={season_id}&group_id={group_id}")
+    require_page(div, f"division s{season_id}/g{group_id}", r'<div class="kopa-main-col">')
+    title = re.search(r'<h3 class="widget-title style12"><span class="myfont"[^>]*>([^<]+)</span>', div)
+    if not title or not title.group(1).strip():
+        raise ScrapeError(f"Division s{season_id}/g{group_id} has no title")
+    group_name = title.group(1).strip()
+    print(f"group: {group_name} (s{season_id}/g{group_id})")
+    store.upsert_season(season_id, f"第{season_id}屆驍籃青少年籃球聯賽")
+    store.upsert_group(season_id, group_id, group_name)
+    teams = parse_division_teams(div)
+    main = extract_div_block(div, div.index('<div class="kopa-main-col">'))
+    if not teams and 'team_id=' in main:
+        raise ScrapeError(f"Team list failed to parse: {group_name}")
+    for tid, name in teams:
+        store.upsert_team(tid, name)
+    # Reconcile only after complete pages have passed their structure checks.
+    store.conn.execute("DELETE FROM season_teams WHERE season_id=? AND group_id=?", (season_id, group_id))
+    for tid, _ in teams:
+        store.upsert_season_team({"season_id": season_id, "team_id": tid, "group_id": group_id})
+
+    standings_html = cache.get(f"{BASE}division.php?season_id={season_id}")
+    require_page(standings_html, "season standings", r'<h3[^>]*>.*?分組表')
+    standings = parse_standings(standings_html, group_name)
+    if teams and not standings:
+        raise ScrapeError(f"Missing standings for {group_name}")
+    store.conn.execute("DELETE FROM standings WHERE season_id=? AND group_id=?", (season_id, group_id))
+    for row in standings:
+        store.upsert_standings({**row, "season_id": season_id, "group_id": group_id})
+
+    board_html = cache.get(f"{BASE}statistics.php?season_id={season_id}&group_id={group_id}")
+    require_page(board_html, "leaderboards", r'<div class="widget kopa-entry-list statistics-table">')
+    for category in CATEGORY_CN:
+        if not re.search(r'<h3[^>]*><span[^>]*>' + re.escape(category) + r'</span>', board_html):
+            raise ScrapeError(f"Missing leaderboard category {category}")
+    boards = parse_leaderboards(board_html)
+    board_main = extract_div_block(board_html, board_html.index('<div class="widget kopa-entry-list statistics-table">'))
+    expected_players = set(re.findall(r'player_id=(\d+)', board_main))
+    if expected_players != {str(row["player_id"]) for row in boards}:
+        raise ScrapeError(f"Incomplete leaderboard rows for {group_name}")
+    store.conn.execute("DELETE FROM stat_leaderboards WHERE season_id=? AND group_id=?", (season_id, group_id))
+    for row in boards:
+        store.upsert_player(row["player_id"], row["player_name"])
+        store.upsert_team(row["team_id"], row["team_name"])
+        store.upsert_leaderboard({**row, "season_id": season_id, "group_id": group_id})
+
+    schedule_html = cache.get(f"{BASE}schedule.php?season_id={season_id}")
+    require_page(schedule_html, "season schedule", r'<div class="widget kopa-match-list-widget schedule-table">')
+    events = {r["event_id"]: r for r in parse_schedule_season(schedule_html, group_name)}
+    for tid, name in teams:
+        html = cache.get(f"{BASE}teams_detail_info.php?season_id={season_id}&team_id={tid}")
+        require_page(html, f"team {tid}", r'<div class="player-profile">')
+        if widget_block_before(html, "隊員名單") is None or widget_block_before(html, "賽程") is None:
+            raise ScrapeError(f"Missing roster or schedule for team {tid}")
+        profile, roster, schedule = parse_team_page(html, season_id, tid)
+        roster_block = widget_block_before(html, "隊員名單")
+        if len(set(re.findall(r'player_id=(\d+)', roster_block))) != len(roster):
+            raise ScrapeError(f"Incomplete roster for team {tid}")
+        if profile.get("captain_player_id"):
+            store.upsert_player(profile["captain_player_id"], "")
+        store.upsert_season_team({**profile, "group_id": group_id})
+        store.conn.execute("DELETE FROM rosters WHERE season_id=? AND team_id=?", (season_id, tid))
+        for row in roster:
+            store.upsert_player(row["player_id"], row["name"])
+            store.upsert_roster({**row, "season_id": season_id, "team_id": tid})
+        for row in schedule:
+            if row.get("group") == group_name:
+                # Prefer the season listing, which also includes the court.
+                events.setdefault(row["event_id"], row)
+
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date()
+    for eid, event in sorted(events.items()):
+        if not event.get("date") or not event.get("home_team_id") or not event.get("away_team_id"):
+            raise ScrapeError(f"Incomplete fixture {eid}")
+        if event["home_score"] is None:
+            # Future score pages may be empty templates. The valid listing is
+            # sufficient, including when a result is withdrawn or postponed.
+            game = {**event, "season_id": season_id, "group_id": group_id, "status": "scheduled"}
+        else:
+            old = store.conn.execute("SELECT status, home_score, away_score, game_date FROM games WHERE event_id=?", (eid,)).fetchone()
+            settled = old and tuple(old[:3]) == ("completed", event["home_score"], event["away_score"])
+            recent = datetime.date.fromisoformat(event["date"]) >= today - datetime.timedelta(days=14)
+            # Old results are rechecked at least weekly; changed scores and
+            # recent games always bypass the disk cache.
+            age = 7 * 86400 if incremental and settled and not recent else None
+            html = cache.get(f"{BASE}scores.php?season_id={season_id}&event_id={eid}", max_age=age)
+            require_page(html, f"game {eid}")
+            game = parse_scores_page(html, season_id, eid)
+            if not game["home_team_id"] or not game["away_team_id"] or not game["date"]:
+                raise ScrapeError(f"Missing score details for result {eid}")
+            if game["status"] in ("completed", "forfeit"):
+                for label, team_key in (("主隊總計數據", "home_team_id"), ("客隊總計數據", "away_team_id")):
+                    block = widget_block_after(html, label, "player_stats")
+                    expected = set(re.findall(r'player_id=(\d+)', block or ""))
+                    parsed = {str(row["player_id"]) for row in game["box"] if row["team_id"] == game[team_key]}
+                    if not block or not expected or expected != parsed:
+                        raise ScrapeError(f"Incomplete box score for result {eid}")
+                if len(game["quarters"]) != 2 or len(game["team_stats"]) != 2:
+                    raise ScrapeError(f"Incomplete quarter/team statistics for result {eid}")
+            if (game["home_team_id"], game["away_team_id"]) != (event["home_team_id"], event["away_team_id"]):
+                raise ScrapeError(f"Conflicting teams for result {eid}")
+            # The listings and score pages must describe the same result.
+            expected = (event["home_score"], event["away_score"])
+            actual = (game["home_score"], game["away_score"])
+            if expected != actual and not (expected == (0, 0) and game["status"] == "not_played"):
+                raise ScrapeError(f"Conflicting scores for result {eid}")
+            game.update(group_id=group_id, venue=game["venue"] or event.get("venue"))
+        store.replace_game(game)
+    keep = set(events)
+    for (eid,) in store.conn.execute("SELECT event_id FROM games WHERE season_id=? AND group_id=?", (season_id, group_id)).fetchall():
+        if eid not in keep:
+            store.clear_game_details(eid)
+            store.conn.execute("DELETE FROM games WHERE event_id=?", (eid,))
+    store.commit()
+    print(f"  {len(teams)} teams, {len(events)} fixtures")
+
+
+ACTIVE_GROUPS = [(32, g) for g in (26, 27, 28, 30, 31)] + [(33, g) for g in (25, 26, 27, 11, 16, 28, 29)]
+
+
+def refresh_database(db_path, selections, cache, incremental=False):
+    """Validate a complete staged refresh; leave the original byte-identical on failure/no-op."""
+    from refresh_diff import dataset_digest
+    db_path = os.path.abspath(db_path)
+    fd, staged = tempfile.mkstemp(prefix=".hillen-refresh-", suffix=".db", dir=os.path.dirname(db_path))
+    os.close(fd)
+    store = None
+    before = None
+    try:
+        if os.path.exists(db_path):
+            with closing(sqlite3.connect(db_path)) as source, closing(sqlite3.connect(staged)) as target:
+                before = dataset_digest(source)
+                source.backup(target)
+        store = Store(staged)
+        for season, group in selections:
+            scrape_group(cache, store, season, group, incremental)
+        for season in {s for s, _ in selections}:
+            store.conn.execute("DELETE FROM rosters WHERE season_id=? AND NOT EXISTS "
+                               "(SELECT 1 FROM season_teams st WHERE st.season_id=rosters.season_id "
+                               "AND st.team_id=rosters.team_id)", (season,))
+        store.commit()
+        subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "validate.py"),
+                        "--db", staged, "--quiet"], check=True)
+        changed = before != dataset_digest(store.conn)
+        if changed:
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+            store.conn.execute("INSERT INTO refresh_meta VALUES('refreshed_at', ?) "
+                               "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (now,))
+            store.commit()
+        store.conn.close()
+        store = None
+        if changed:
+            os.replace(staged, db_path)
+        print("Dataset changed" if changed else "No data changes; database preserved")
+        return changed
+    finally:
+        if store:
+            store.conn.close()
+        if os.path.exists(staged):
+            os.unlink(staged)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Hillen League scraper")
     ap.add_argument("--season", type=int, default=32)
     ap.add_argument("--group", type=int, default=26)
+    ap.add_argument("--active", action="store_true", help="refresh all active season/group pairs in one validated batch")
     ap.add_argument("--db", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "hillen_league.db"))
-    ap.add_argument("--refresh", action="store_true", help="refetch pages, ignoring cache")
+    ap.add_argument("--refresh", action="store_true", help="refetch all pages, ignoring disk cache")
+    ap.add_argument("--incremental", action="store_true", help="refresh listings/recent results; cache settled results for up to seven days")
+    ap.add_argument("--result-file", help="write machine-readable changed/request counts")
     args = ap.parse_args()
-
-    season_id, group_id = args.season, args.group
     here = os.path.dirname(os.path.abspath(__file__))
-    cache = Fetcher(os.path.join(here, "cache"), refresh=args.refresh)
-    store = Store(args.db)
-    log = print
-
-    div = cache.get(f"{BASE}division.php?season_id={season_id}&group_id={group_id}")
-    m = re.search(r'<h3 class="widget-title style12"><span class="myfont"[^>]*>([^<]+)</span>', div)
-    season_name = f"第{season_id}屆驍籃青少年籃球聯賽"
-    store.upsert_season(season_id, season_name)
-    # Only register the group when the group page actually has a title. This stops
-    # a bogus/unknown group id (e.g. a stale link) from creating phantom group
-    # rows like "group 1001" that would otherwise show up in the dashboard.
-    if m and m.group(1).strip():
-        group_name = m.group(1).strip()
-        store.upsert_group(season_id, group_id, group_name)
-        log(f"group: {group_name} (id={group_id}), season: {season_name} (id={season_id})")
-    else:
-        group_name = f"group {group_id}"
-        log(f"!! division page for group {group_id} has no title — skipping group registration")
-
-    # 1. teams
-    teams = parse_division_teams(div)
-    log(f"teams: {len(teams)}")
-    for tid, name in teams:
-        store.upsert_team(tid, name)
-        store.upsert_season_team({"season_id": season_id, "team_id": tid, "group_id": group_id})
-    dropped = store.prune_season_teams(season_id, group_id, [t for t, _ in teams])
-    if dropped:
-        log(f"  dropped {dropped} registration(s) the group page no longer lists")
-
-    # 2. standings
-    standings = parse_standings(cache.get(f"{BASE}division.php?season_id={season_id}"), group_name)
-    log(f"standings: {len(standings)}")
-    for s in standings:
-        store.upsert_standings({**s, "season_id": season_id, "group_id": group_id})
-    dropped = store.prune_standings(season_id, group_id, [s["team_id"] for s in standings])
-    if dropped:
-        log(f"  dropped {dropped} stale standings row(s) the table no longer lists")
-
-    # 3. leaderboards
-    boards = parse_leaderboards(cache.get(f"{BASE}statistics.php?season_id={season_id}&group_id={group_id}"))
-    log(f"leaderboard rows: {len(boards)}")
-    for b in boards:
-        store.upsert_player(b["player_id"], b["player_name"])
-        store.upsert_team(b["team_id"], b["team_name"])
-        store.upsert_leaderboard({**b, "season_id": season_id, "group_id": group_id})
-
-    # 4. events from season schedule
-    events = parse_schedule_season(cache.get(f"{BASE}schedule.php?season_id={season_id}"), group_name)
-    log(f"events from season schedule: {len(events)}")
-    # The listing is the only page that carries a *scheduled* fixture's court:
-    # team pages never show it and scores.php only has it after the game is
-    # played. Key it by event so the game rows written below can pick it up.
-    sched_venue = {e["event_id"]: e["venue"] for e in events if e.get("venue")}
-
-    # 5. team pages: profile, roster, schedule
-    team_events = set()
-    group_team_ids = {t for t, _ in teams}
-    for tid, name in teams:
-        log(f"  team {tid} ({name})...")
-        th = cache.get(f"{BASE}teams_detail_info.php?season_id={season_id}&team_id={tid}")
-        profile, roster, sched = parse_team_page(th, season_id, tid)
-        profile["group_id"] = group_id
-        # captain may not be in the players table yet; insert placeholder first
-        if profile.get("captain_player_id"):
-            store.upsert_player(profile["captain_player_id"], "")
-        store.upsert_season_team(profile)
-        for r in roster:
-            store.upsert_player(r["player_id"], r["name"])
-            store.upsert_roster({**r, "season_id": season_id, "team_id": tid})
-        for si in sched:
-            # only games belonging to this group (excludes other groups' games
-            # and cross-group playoff "DIVISION" games on the team page)
-            if si.get("group") != group_name:
-                continue
-            team_events.add(si["event_id"])
-            if (si["home_team_id"] in group_team_ids and si["away_team_id"] in group_team_ids):
-                store.upsert_game({**si, "venue": sched_venue.get(si["event_id"]),
-                                   "season_id": season_id, "group_id": group_id,
-                                   "status": "completed" if si["home_score"] is not None else "scheduled"})
-    log(f"events from team schedules: {len(team_events)}")
-
-    all_events = sorted({e["event_id"] for e in events} | team_events)
-    log(f"total events: {len(all_events)} -> {all_events}")
-
-    # 6. box scores
-    for eid in all_events:
-        log(f"  event {eid}...")
-        g = parse_scores_page(cache.get(f"{BASE}scores.php?season_id={season_id}&event_id={eid}"),
-                              season_id, eid)
-        if g["home_team_id"] is None:
-            log(f"    !! no team info parsed, skipping")
-            continue
-        g["group_id"] = group_id
-        # a scheduled game's page has no court; keep the one from the listing
-        g["venue"] = g["venue"] or sched_venue.get(eid)
-        store.upsert_game(g)
-        for q in g["quarters"]:
-            store.upsert_quarters({**q, "event_id": eid})
-        for ts in g["team_stats"]:
-            store.upsert_team_stats({**ts, "event_id": eid})
-        for rec in g["box"]:
-            store.upsert_player(rec["player_id"], rec["name"])
-            store.upsert_box(rec)
-        store.commit()
-
-    store.commit()
-    log("done.")
+    cache = Fetcher(os.path.join(here, "cache"), refresh=args.refresh or args.incremental)
+    changed = refresh_database(args.db, ACTIVE_GROUPS if args.active else [(args.season, args.group)], cache, args.incremental)
+    if args.result_file:
+        with open(args.result_file, "w", encoding="utf-8") as f:
+            json.dump({"changed": changed, "requests": cache.requests}, f)
+    print(f"Network requests: {cache.requests}; unique pages: {len(cache.responses)}")
 
 
 if __name__ == "__main__":

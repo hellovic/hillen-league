@@ -154,6 +154,7 @@ QUERIES = {
              CASE WHEN g.home_team_id = pgs.team_id THEN g.away_team_id
                   ELSE g.home_team_id END
         WHERE pgs.player_id = ? AND g.season_id = ? AND g.group_id = ?
+          AND g.status = 'completed'
           AND pgs.minutes IS NOT NULL AND pgs.minutes != '' AND pgs.minutes != '0:00'
         ORDER BY g.game_date""",
     "games": """
@@ -205,12 +206,12 @@ QUERIES = {
         FROM season_teams WHERE season_id = ? GROUP BY group_id""",
     "season_game_counts": """
         SELECT group_id, COUNT(*) AS games,
-               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS played,
+               SUM(CASE WHEN status IN ('completed', 'forfeit') THEN 1 ELSE 0 END) AS played,
                MIN(game_date) AS first_game, MAX(game_date) AS last_game
         FROM games WHERE season_id = ? GROUP BY group_id""",
     "season_games_total": """
         SELECT COUNT(*) AS games,
-               SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS played,
+               SUM(CASE WHEN status IN ('completed', 'forfeit') THEN 1 ELSE 0 END) AS played,
                MIN(game_date) AS first_game, MAX(game_date) AS last_game
         FROM games WHERE season_id = ?""",
     "season_latest_games": f"""

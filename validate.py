@@ -172,6 +172,18 @@ def main():
                          f"has minutes {r['minutes']!r}")
         return bad
 
+    @check("scheduled games have no results or played statistics")
+    def _(c):
+        bad = 0
+        for g in c.execute("SELECT * FROM games WHERE status='scheduled'"):
+            played = c.execute("SELECT COUNT(*) FROM player_game_stats WHERE event_id=? "
+                               "AND minutes IS NOT NULL AND minutes NOT IN ('', '0:00')",
+                               (g["event_id"],)).fetchone()[0]
+            if g["home_score"] is not None or g["away_score"] is not None or played:
+                bad += 1
+                fail(f"scheduled event {g['event_id']} has scores or played statistics")
+        return bad
+
     # ---- 6. DNP rule: view counts exactly played games ----
     @check("player season stats count only played games (minutes > 0)")
     def _(c):
@@ -183,6 +195,7 @@ def main():
             FROM player_game_stats p
             JOIN games g ON g.event_id = p.event_id
             WHERE p.minutes IS NOT NULL AND p.minutes != '' AND p.minutes != '0:00'
+              AND g.status = 'completed'
             GROUP BY p.player_id, g.season_id, p.team_id, g.group_id""").fetchall()
         view_map = {(r["player_id"], r["season_id"], r["team_id"], r["group_id"]): r["gp"] for r in view}
         raw_map = {(r["player_id"], r["season_id"], r["team_id"], r["group_id"]): r["n"] for r in raw}

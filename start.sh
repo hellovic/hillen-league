@@ -13,8 +13,8 @@
 #
 # What it does:
 #   1. snapshots the current games state (refresh_diff.py snapshot)
-#   2. re-scrapes every configured (season, group) with --refresh (bypasses cache)
-#   3. runs validate.py — aborts WITHOUT committing if any check fails
+#   2. refreshes all active groups in one validated, incremental batch
+#   3. promotes the staged database only after validation succeeds
 #   4. prints the diff (new / updated / removed games) vs the snapshot
 #   5. rebuilds the static docs/ export for GitHub Pages
 #   6. appends a dated line (+ change summary) to CHANGELOG.md
@@ -49,49 +49,12 @@ if [ "$REFRESH" = "1" ]; then
   python3 refresh_diff.py snapshot "$SNAPSHOT" || echo "!! could not snapshot — continuing"
 fi
 
-# 1. refresh every Youth Girls group in the ACTIVE seasons from the live site.
-#    Season 32 (U9 27, U11A 28, U11B 31, U13 26, U15 30) and Season 33
-#    (U9 A 25, U9 B 26, U11 A 11, U11 B 27, U11 C 28, U13 16, U15 29) both still
-#    have fixtures scheduled, so both are re-scraped. Season 31 is finished (its
-#    results are frozen) and is no longer re-scraped — its data stays in the DB
-#    and dashboard for reference.
-#    Season 33 lists SEVEN Youth Girls divisions on the league site; when this
-#    list was first written only U11 A and U13 had played, so the other five
-#    (U9 A, U9 B, U11 B, U11 C, U15) were never scraped and never appeared in
-#    the dashboard even though the league had registered their teams. They are
-#    all scraped now, played or not, so the switcher mirrors the official list.
-# NOTE: use explicit per-season group lists (not a GROUPS variable) — `GROUPS`
-# is an environment/array variable on some hosts (it was `1001` on the GitHub
-# runner), so `GROUPS="..."` silently does NOT override it and the loop would
-# scrape the wrong (phantom) group.
+# One staged, validated batch shares fresh season pages across all groups.
 if [ "$REFRESH" = "1" ]; then
-  # Season 32 — Youth Girls: U13 (26), U9 (27), U11A (28), U15 (30), U11B (31)
-  for g in 26 27 28 30 31; do
-    echo "==> scraping season 32 group $g (--refresh)"
-    python3 scraper.py --season 32 --group "$g" --refresh \
-      || { echo "!! scrape failed for s32 g${g} — aborting"; exit 1; }
-  done
-  # Season 33 — Youth Girls: U9 A (25), U9 B (26), U11 A (11), U11 B (27),
-  # U11 C (28), U13 (16), U15 (29)
-  for g in 25 26 27 11 16 28 29; do
-    echo "==> scraping season 33 group $g (--refresh)"
-    python3 scraper.py --season 33 --group "$g" --refresh \
-      || { echo "!! scrape failed for s33 g${g} — aborting"; exit 1; }
-  done
-  # record the data-refresh time (HK) so the dashboard footer can show when the
-  # data was last refreshed; stored in the DB so it survives git checkouts and
-  # dev-side scrapes (unlike the file mtime).
-  python3 - <<'PYEOF'
-import sqlite3, datetime
-db = sqlite3.connect("hillen_league.db")
-db.execute("CREATE TABLE IF NOT EXISTS refresh_meta (key TEXT PRIMARY KEY, value TEXT)")
-now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
-db.execute("INSERT INTO refresh_meta(key, value) VALUES('refreshed_at', ?) "
-           "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (now,))
-db.commit()
-db.close()
-print(f"==> data refresh time recorded: {now} (HK)")
-PYEOF
+  RESULT=$(mktemp)
+  trap 'rm -f "$RESULT"' EXIT
+  python3 scraper.py --active --incremental --result-file "$RESULT"
+  CONTENT_CHANGED=$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1]))["changed"]))' "$RESULT")
 else
   echo "==> skipping scrape (--no-refresh)"
 fi
@@ -100,12 +63,20 @@ fi
 echo "==> validating database"
 python3 validate.py || { echo "!! validation failed — not committing"; exit 1; }
 
-# 3. rebuild the static export (GitHub Pages)
+# 4. compute the change summary (used both to decide whether to log/commit and
+#    printed again at the very end so it's the last thing you see)
+# The staged scraper preserves the database byte-for-byte on a no-op. Skip
+# export and publication as well; unrelated working-tree changes are irrelevant.
+if [ "$REFRESH" = "1" ] && [ "$CONTENT_CHANGED" = "0" ]; then
+  echo "No league data changes — skipping build, commit and deployment."
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; fi
+  exit 0
+fi
+if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+
 echo "==> exporting static site to docs/"
 python3 server.py --export docs
 
-# 4. compute the change summary (used both to decide whether to log/commit and
-#    printed again at the very end so it's the last thing you see)
 REFRESH_SUMMARY=""
 if [ "$REFRESH" = "1" ]; then
   REFRESH_SUMMARY="$(python3 refresh_diff.py diff "$SNAPSHOT" --summary 2>/dev/null || true)"
@@ -117,7 +88,7 @@ python3 - <<'PYEOF'
 import os, re, sqlite3, datetime
 summary = os.environ.get("REFRESH_SUMMARY", "").strip()
 # "X new, Y updated, Z removed, W unchanged" -> log only if something changed
-changed = False
+changed = bool(summary)
 for m in re.finditer(r"(\d+) (new|updated|removed)", summary):
     if int(m.group(1)) > 0:
         changed = True
@@ -143,7 +114,7 @@ if m and f"- Data refresh {today}" not in text:
 PYEOF
 
 # 6. commit & push
-if git diff --quiet && git diff --cached --quiet; then
+if git diff --quiet -- hillen_league.db CHANGELOG.md && git diff --cached --quiet -- hillen_league.db CHANGELOG.md; then
   echo ""
   echo "No new data — nothing to commit."
   if [ "$REFRESH" = "1" ]; then

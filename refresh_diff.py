@@ -5,10 +5,9 @@ refresh_diff.py — show what a refresh changed in hillen_league.db.
 Used by refresh_and_push.sh / start.sh: snapshot the games state before
 re-scraping, then diff afterwards to highlight new / updated / removed games.
 
-Snapshot format v2 records each game's fixture date, season/group, teams and a
-box-score stat checksum, so a moved fixture or a corrected player stat counts as
-"updated". v1 snapshots (format without a "version" key) still diff, but only on
-status/score/box-row count.
+Snapshot v3 hashes every game detail and records fixture time/venue as well as
+date, teams and result. A separate dataset digest covers all public tables and
+views, excluding refresh timestamps. Older snapshots compare only shared fields.
 
 Usage:
     python3 refresh_diff.py snapshot FILE [--db hillen_league.db]
@@ -16,6 +15,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import sqlite3
 import sys
@@ -46,23 +46,42 @@ def bold(s):
 
 # Bump when load_state() starts recording more fields: diff() compares the new
 # fields only for snapshots that declare at least this version.
-SNAPSHOT_VERSION = 2
+SNAPSHOT_VERSION = 3
+
+
+def record_hash(rows):
+    return hashlib.sha256(json.dumps(rows, ensure_ascii=False,
+                                    separators=(",", ":")).encode()).hexdigest()
+
+
+def dataset_digest(conn):
+    """All public records and schema, excluding operational refresh timestamps."""
+    tables = conn.execute("SELECT name, sql FROM sqlite_master WHERE type='table' "
+                          "AND name NOT LIKE 'sqlite_%' AND name != 'refresh_meta' ORDER BY name").fetchall()
+    data = []
+    for name, sql in tables:
+        quoted = '"' + name.replace('"', '""') + '"'
+        cols = len(conn.execute(f"PRAGMA table_info({quoted})").fetchall())
+        rows = [tuple(r) for r in conn.execute(
+            f"SELECT * FROM {quoted} ORDER BY " + ",".join(str(i + 1) for i in range(cols)))]
+        data.append((name, sql, rows))
+    data.append([tuple(r) for r in conn.execute(
+        "SELECT name, sql FROM sqlite_master WHERE type='view' ORDER BY name")])
+    return record_hash(data)
 
 
 def load_state(conn):
-    return [dict(r) for r in conn.execute("""
-        SELECT g.event_id, g.season_id, g.group_id, g.status, g.game_date,
-               g.home_team_id, g.away_team_id, g.home_score, g.away_score,
-               (SELECT COUNT(*) FROM player_game_stats p
-                 WHERE p.event_id = g.event_id) AS box_rows,
-               (SELECT COALESCE(SUM(
-                          p.pts + p.ast + p.stl + p.blk + p.eff + p.tov + p.pf
-                          + p.fb + p.ba + p.fgm + p.fga + p.fg3m + p.fg3a
-                          + p.ftm + p.fta + p.off_reb + p.def_reb + p.tot_reb
-                          + p.plus_minus), 0)
-                  FROM player_game_stats p
-                 WHERE p.event_id = g.event_id) AS box_stats
-        FROM games g""").fetchall()]
+    games = [dict(r) for r in conn.execute("""
+        SELECT g.*, (SELECT COUNT(*) FROM player_game_stats p
+                     WHERE p.event_id=g.event_id) AS box_rows FROM games g ORDER BY event_id""")]
+    for game in games:
+        details = []
+        for table, order in (("player_game_stats", "player_id"),
+                             ("game_quarters", "team_id"), ("game_team_stats", "team_id")):
+            details.append([tuple(r) for r in conn.execute(
+                f"SELECT * FROM {table} WHERE event_id=? ORDER BY {order}", (game["event_id"],))])
+        game["box_stats"] = record_hash(details)
+    return games
 
 
 def group_name(conn, season_id, group_id):
@@ -80,7 +99,7 @@ def score(g):
 def snapshot(conn, path):
     state = load_state(conn)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"version": SNAPSHOT_VERSION, "games": state}, f, ensure_ascii=False)
+        json.dump({"version": SNAPSHOT_VERSION, "games": state, "digest": dataset_digest(conn)}, f, ensure_ascii=False)
     print(f"snapshot saved: {len(state)} games -> {path}")
 
 
@@ -93,7 +112,8 @@ def diff(conn, path, summary_only=False):
         return 1
     # v1 snapshots were a bare {"games": [...]} without a version key; on those
     # the newer fields are absent, so compare only what they actually recorded.
-    legacy = not (isinstance(data, dict) and data.get("version", 1) >= SNAPSHOT_VERSION)
+    version = data.get("version", 1) if isinstance(data, dict) else 1
+    legacy = version < 2
     before = data["games"] if isinstance(data, dict) else data
     if legacy:
         print("note: legacy snapshot — date/team/player-stat edits are not compared; "
@@ -109,7 +129,9 @@ def diff(conn, path, summary_only=False):
     compared = ["status", "home_score", "away_score", "box_rows"]
     if not legacy:
         compared += ["season_id", "group_id", "game_date", "home_team_id",
-                     "away_team_id", "box_stats"]
+                     "away_team_id"]
+    if version >= 3:
+        compared += ["start_time", "end_time", "venue", "box_stats"]
     for eid in set(before_map) & set(after_map):
         a, b = before_map[eid], after_map[eid]
         if any(a.get(k) != b.get(k) for k in compared):
@@ -161,8 +183,10 @@ def diff(conn, path, summary_only=False):
                 if (a.get("home_team_id"), a.get("away_team_id")) != \
                    (b.get("home_team_id"), b.get("away_team_id")):
                     parts.append("teams changed")
-                if a.get("box_stats") != b.get("box_stats"):
-                    parts.append("box-score stats changed")
+                if version >= 3 and a.get("box_stats") != b.get("box_stats"):
+                    parts.append("game details changed")
+                if version >= 3 and any(a.get(k) != b.get(k) for k in ("start_time", "end_time", "venue")):
+                    parts.append("time/venue changed")
             print(yellow("    ~") + "  " + game_line(b))
             print("       ↳ " + yellow(", ".join(parts)))
         print()
@@ -171,6 +195,8 @@ def diff(conn, path, summary_only=False):
         for eid in sorted(removed):
             print(red("    -") + "  " + f"event {eid}  {before_map[eid]['game_date']}")
         print()
+    if isinstance(data, dict) and data.get("digest") and data["digest"] != dataset_digest(conn):
+        print("  Dataset records or schema changed (including non-game tables).")
     if not (new or updated or removed):
         print("  " + c("90", "no changes — the site hasn't published anything new."))
     print(bold(f"  {len(after)} games total · {len(new)} new · {len(updated)} updated · {len(removed)} removed"))

@@ -175,9 +175,11 @@ CREATE TABLE IF NOT EXISTS refresh_meta (
 -- A "played" game requires actual minutes on court. Box-score rows with
 -- 0:00 / missing minutes are did-not-play entries (the league lists bench
 -- players in the box score but excludes them from season stats and game logs).
-CREATE VIEW IF NOT EXISTS v_played_games AS
-SELECT * FROM player_game_stats
-WHERE minutes IS NOT NULL AND minutes != '' AND minutes != '0:00';
+DROP VIEW IF EXISTS v_played_games;
+CREATE VIEW v_played_games AS
+SELECT p.* FROM player_game_stats p JOIN games g ON g.event_id=p.event_id
+WHERE g.status='completed'
+  AND p.minutes IS NOT NULL AND p.minutes != '' AND p.minutes != '0:00';
 
 -- Per-player season totals (only games actually played)
 CREATE VIEW IF NOT EXISTS v_player_season_totals AS
