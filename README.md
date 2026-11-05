@@ -54,7 +54,7 @@ A zero-dependency web dashboard over the database:
   that season as one small card — teams, games played, and the leader with its
   record — each linking to that group's standings. Two cards per row on a phone,
   as many as fit on a desktop. One request feeds it (`/api/season?season=`,
-  pre-exported into the inline `league-data.js` bundle), so it costs nothing per group; the
+  pre-exported into `league-bootstrap.js`), so it costs nothing per group; the
   export also carries each group's top scorer, which the card does not show.
   Below the cards, **Latest games played** lists the season's eight most recent
   results (newest first, each tagged with its group's short name such as `U11 A`;
@@ -104,9 +104,13 @@ permanent URL.
 
 `docs/` is **build output, not source**: it is gitignored and produced by
 `python3 server.py --export docs` (which `./start.sh` runs for you). It contains
-the built app (`index.html` + `assets/`), one inline data bundle
-(`league-data.js`, ≈3.2 MB raw / ≈270 KB gzipped — the app needs no per-page
-fetches) and one share/preview page per game, team, player, group and season
+the built app (`index.html` + `assets/`), a searchable bootstrap payload
+(`league-bootstrap.js`, about 534 KB raw / 64 KB with gzip on the local snapshot),
+and `data/<season>-<group>.json` detail files loaded once on demand. The full
+`league-data.js` bundle remains available for cross-checking, but is not loaded
+by the app. Each asset has its own content version, so data updates preserve
+unchanged JS/CSS caches. It also includes one share/preview page per game, team,
+player, group and season
 (963 stubs), so it is published as a Pages **artifact** built inside the
 workflow, never committed. Only the source files and `hillen_league.db` (the data
 of record) live in git.
@@ -142,7 +146,7 @@ python3 -m http.server 8001 --directory docs   # open http://localhost:8001/
 npm ci --prefix react-dashboard
 npm run data --prefix react-dashboard   # refresh public/league-data.js from hillen_league.db
 npm run dev  --prefix react-dashboard   # http://localhost:5173/
-npm run verify --prefix react-dashboard # headless smoke test (97 checks)
+npm run verify --prefix react-dashboard # fresh data + headless smoke test (101 checks)
 ```
 
 Setup once:
@@ -252,23 +256,47 @@ python3 validate.py
 
 The pipeline: division page → teams & standings → statistics page → 8 leaderboards →
 season schedule → per-team pages (profile, roster, schedule) → per-game `scores.php`
-box scores. All inserts are upserts, so re-runs are safe and idempotent.
+box scores. Refreshes run on a temporary database. Required pages must parse
+completely, and removed fixtures, roster entries, leaderboard ranks and game
+children are reconciled against valid snapshots. Validation must pass before the
+new database replaces the original; failed refreshes leave it untouched.
+
+`./start.sh` runs `scraper.py --active --incremental` in one process. Fresh
+season pages are shared across divisions. Listings and recent results are
+refetched every run; unchanged completed games older than 14 days reuse cached
+score pages for at most seven days, so late corrections still arrive. Use
+`python3 scraper.py --active --refresh` for an immediate full recheck. The cloud
+workflow persists the HTML cache between runs.
+
+A canonical digest covers all public records and view definitions, including
+fixture times, venues, minutes and individual statistics. Refresh timestamps do
+not count as data changes. An unchanged run preserves the database bytes and
+skips building, committing and deployment. The footer timestamp describes the
+last published dataset update; successful unchanged checks are recorded in the
+workflow logs and summary.
+
+Run `python3 -m unittest discover -s tests` for the isolated refresh/export
+regressions. `bash scripts/verify_export.sh docs` checks the generated site before
+a data commit or Pages upload. Tests never scrape or publish.
 
 ## Scheduled refresh (GitHub Actions)
 
 A **GitHub Actions workflow** (`.github/workflows/refresh.yml`) runs the same
 `./start.sh` in GitHub's cloud on a schedule, so your Mac doesn't need to be on.
-It refreshes the data, validates it, rebuilds `docs/`, commits the database back
-to `main`, and publishes the site to Pages as a build artifact. A second workflow
+It refreshes a staged database and validates it. If public data changed, it
+rebuilds `docs/`, runs the browser suite on that export, commits the database
+back to `main`, and publishes the verified site as a Pages artifact. A second workflow
 (`.github/workflows/deploy.yml`) republishes whenever a site-shaping file lands
 on `main`, so a local `./start.sh` push goes live the same way.
 
 * Publishing requires **Settings → Pages → Source = "GitHub Actions"**. The
   built site is uploaded as an artifact, so the generated files (963 share
   stubs + the built app) never enter git — the repo is source + the database only.
-* Default (Hong Kong time): **weekdays 08:05; weekends 09:05, 11:05, 13:05,
-  15:05, 18:05, 21:05 and 23:05** — the weekend slots follow the match day, and
-  the `:05` avoids GitHub's top-of-the-hour queue. Edit the `cron` lines in the
+* Default (Hong Kong time): **weekdays 08:05 plus a 10:35 catch-up; weekends
+  09:05, 11:05, 13:05, 15:05, 18:05, 21:05 and 23:05**. These are requested
+  slots, not guaranteed start times: GitHub can delay scheduled events by hours.
+  The workflow warns about starts at least 45 minutes late and records successful
+  source checks in its summary. Edit the `cron` lines in the
   file (cron is UTC; must be pushed to `main` to take effect).
 * Runs in GitHub's cloud on **Hong Kong time** (the cron entries are converted
   from HK to UTC).
@@ -293,7 +321,7 @@ Run after any scrape to verify the database:
 | Quarter sums | Q1–OT totals equal final scores |
 | Standings | Computed team records (`v_team_season_totals`) match the official 分組表 — a hard failure for the current season, a warning for earlier ones (the league stops maintaining a table once its season ends) |
 | Forfeit games | All box rows are DNP (0:00); scores present |
-| Not-played games | No box rows; NULL scores |
+| Scheduled / not-played games | NULL scores and no played statistics |
 | DNP rule | Season stats count exactly the games with minutes > 0 |
 | Scoring averages | `v_player_season_averages` per-game values equal totals / GP (guards against integer-division truncation) |
 | Referential integrity | No orphan rows across games/players/teams/rosters |

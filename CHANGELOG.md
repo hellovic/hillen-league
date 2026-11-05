@@ -3,6 +3,15 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v5.5] — Unreleased — Reliable, efficient refresh and data loading
+
+- Refresh all active divisions in one staged batch; reject incomplete source pages and validate before promoting the database. Reconcile removed fixture/detail/roster/leaderboard records and exclude scheduled games from player totals.
+- Reuse fresh season listings within a run and settled score pages for up to seven days, while always checking listings and recent results. Persist the cloud HTML cache; unchanged datasets skip builds, commits and publication.
+- Hash complete records for change detection, including individual stat corrections, minutes, fixture times and venues. Keep timestamps separate from content identity.
+- Load full detail payloads on demand. Initial data on the local snapshot falls from 3.34 MB to 534 KB, or 302 KB to 64 KB with gzip. Search/list pages remain synchronous; detail failures offer Retry. Data changes preserve unchanged JS/CSS cache versions.
+- Fix the future-fixture-only division smoke assertion. Verify fresh snapshots locally and the actual exported artifact before publication, using new Chrome profiles. Add 17 refresh/export/schedule regressions; all 101 browser checks pass.
+- Add a weekday 10:35 HKT catch-up slot and warnings for late scheduled starts. GitHub cron remains best effort; this supersedes the earlier timing assurances below.
+
 ## [v5.4] — Unreleased — Match-day refresh schedule
 - Data refresh 2026-11-04: 156 games, 3789 box-score rows (seasons 31, 32, 33). 2 new, 3 updated, 0 removed, 151 unchanged.
 - Data refresh 2026-11-01: 154 games, 3673 box-score rows (seasons 31, 32, 33). 0 new, 3 updated, 0 removed, 151 unchanged.

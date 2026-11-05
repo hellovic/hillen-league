@@ -25,7 +25,7 @@ npm run preview      # serve dist/   → http://localhost:4173
 npm run verify       # build + headless smoke test (needs Google Chrome)
 ```
 
-`npm run verify` starts the **production** preview server, drives Chrome through
+`npm run verify` regenerates the dev snapshot, builds, then starts the **production** preview server, drives Chrome through
 the DevTools protocol and asserts routing, per-view `<title>`, table sorting,
 global search, theme switching/persistence, box-score sorting, inline SVG
 charts, mobile navigation, absence of uncaught exceptions and — the layout
@@ -34,7 +34,7 @@ acceptance test this design needs — **zero horizontal overflow at 390 px and
 on failure:
 
 ```
-97 checks, 97 passed, 0 failed
+101 checks, 101 passed, 0 failed
 ```
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
@@ -126,26 +126,31 @@ Without that rewrite PostHog would collapse every route into one
 
 ## Data
 
-`public/league-data.js` is `window.LEAGUE_DATA` — every payload the app reads,
-keyed like the old static JSON (`meta`, `season/<id>`, `<season>/<group>/<path>`).
-It is **git-ignored** (derived data, ~3.1 MB) and generated from the database:
+`npm run data` generates three ignored artifacts from the database:
 
-```bash
-npm run data    # == python3 ../server.py --export-data public/league-data.js
-```
+- `public/league-bootstrap.js`: all searchable list/overview payloads and a
+  detail manifest. The local snapshot is 534 KB raw / 64 KB with gzip, down from
+  the original full bundle's 3.34 MB / 302 KB.
+- `public/data/<season>-<group>.json`: full player/team/game details, requested
+  when a detail or comparison route needs them and reused on later visits.
+- `public/league-data.js`: the full compatibility payload for cross-checking;
+  the app does not request it.
 
-The same generator (`build_league_bundle()` in `server.py`) feeds the static
-export, so the dev app and the published site always see identical data. The
-bundle is loaded with a plain `<script>` before the app; `src/data.js` reads it
-synchronously through the same `api(path, params)` shape the vanilla app used.
-Swapping to per-route JSON fetches later only touches `src/data.js`.
+The same generator feeds the static export. `src/data.js` keeps list/search
+reads synchronous. App waits for required detail files before mounting a view,
+handles historical deep links, and offers Retry after a failed download.
+Every data file has an independent content version. `npm run verify` generates
+fresh data automatically, uses a fresh Chrome profile, and checks startup,
+detail loading and failed-download recovery along with the existing UI tests.
 
 ## Structure
 
 ```
 react-dashboard/
 ├── index.html               # body.orange, #root, OD layout primitives, theme bootstrap
-├── public/league-data.js    # window.LEAGUE_DATA (generated, git-ignored)
+├── public/league-bootstrap.js # lists + detail manifest (generated, ignored)
+├── public/data/             # detail JSON files (generated, ignored)
+├── public/league-data.js    # full compatibility snapshot (generated, ignored)
 ├── scripts/verify.mjs       # headless smoke test (dev build or exported site)
 ├── screenshots/             # verification evidence
 ├── src/
@@ -162,23 +167,22 @@ react-dashboard/
 
 ## Deploying (`server.py --export`)
 
-`python3 server.py --export docs` is the single deploy command (also run by
+`python3 server.py --export docs` is the static build command (also run by
 `./start.sh` and both GitHub Actions workflows). It:
 
 1. `vite build --base ./ --outDir docs` — relative asset paths, so it works
    under `/hillen-league/` on GitHub Pages (or any sub-path).
-2. writes `docs/league-data.js` (the bundle above, ≈270 KB gzipped).
+2. writes the bootstrap, detail JSON files and full compatibility bundle.
 3. writes the 963 share/preview stub pages (`games/<id>/`, `teams/<id>/`,
    `players/<id>/`, `groups/<s>/<g>/`, `seasons/<id>/`) whose `og:`/`twitter:`
    tags preview individual entities and then forward into the hash route.
-4. injects `?v=<build stamp>` into every asset URL. Vite is configured with
-   **stable asset names** (`assets/index.js`, not `assets/index-1a2b3c.js`) so
-   the stamp is the only cache key — Pages' 10-minute cache can serve a stale
-   build for a few minutes, but never a 404 for a deleted hashed file.
+4. versions each JS, CSS and data URL from that file's own content. Stable asset
+   names tolerate cached HTML across deployments; data-only changes retain the
+   app/CSS versions.
 
-The stamp hashes the data (game rows + `refreshed_at`), the app sources,
-`league-data.js` and `server.py`, so an unchanged re-export is byte-identical
-while any refresh or code change busts every cached URL.
+`bash scripts/verify_export.sh docs` serves and verifies the actual artifact
+before a data commit or Pages upload. Publishing remains a separate, explicitly
+requested push; an export by itself does not deploy anything.
 
 Requirements: **Node.js 22+** and `npm ci --prefix react-dashboard` (both
 workflows do this; `server.py` prints the exact command if `node_modules` is
@@ -190,7 +194,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm --prefix react-dashboard run verify:site   # 97 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm --prefix react-dashboard run verify:site   # 101 checks
 ```
 
 ## Syncing back to the Open Design project
