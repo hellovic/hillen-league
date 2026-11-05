@@ -76,6 +76,7 @@ if [ -n "${GITHUB_OUTPUT:-}" ]; then echo "changed=true" >> "$GITHUB_OUTPUT"; fi
 
 echo "==> exporting static site to docs/"
 python3 server.py --export docs
+bash scripts/verify_export.sh docs
 
 REFRESH_SUMMARY=""
 if [ "$REFRESH" = "1" ]; then

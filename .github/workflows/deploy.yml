@@ -55,7 +55,13 @@ jobs:
         run: npm ci
 
       - name: Build the static site
-        run: python3 server.py --export docs
+        run: |
+          python3 -m unittest discover -s tests
+          python3 validate.py
+          python3 server.py --export docs
+
+      - name: Verify the exported site
+        run: bash scripts/verify_export.sh docs
 
       - name: Upload the built site
         uses: actions/upload-pages-artifact@v4
