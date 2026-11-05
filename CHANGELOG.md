@@ -3,9 +3,17 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v5.6] — Unreleased — Lower-impact, measured scraping
+
+- Measured a scheduled-style warm refresh at 57 seconds / 42 source requests, versus about 300 seconds / 102 before. Keep requests serial and rate-limited; reuse HTTPS connections and support gzip, conditional revalidation and Retry-After. Add machine-readable timings, bytes and cache counters.
+- Cache team profiles for up to six hours and recent score pages for 15 minutes. Registration, fixture and leaderboard changes force relevant rechecks; older active results retain a seven-day ceiling. Full revalidation remains available with `--refresh`.
+- Preserve recorded results and void games omitted from rolling listings. Withdraw only unlisted pending fixtures, checking both team schedules first. Restore five historical void fixtures removed by the earlier reconciliation.
+- Refresh the local snapshot on 2026-11-05: 156 games, 3,789 box-score rows; seven new games, three updated, no removals versus 25 October. All game and player-detail payloads match the downloaded production snapshot; roster/leaderboard/standings differences match captured source pages.
+- Add network-free benchmark and production-comparison tools. Frozen-source before/after output hashes match; score/leaderboard correction checks pass. Add HTTP transport and historical-retention regressions.
+
 ## [v5.5] — Unreleased — Reliable, efficient refresh and data loading
 
-- Refresh all active divisions in one staged batch; reject incomplete source pages and validate before promoting the database. Reconcile removed fixture/detail/roster/leaderboard records and exclude scheduled games from player totals.
+- Refresh all active divisions in one staged batch; reject incomplete source pages and validate before promoting the database. Reconcile withdrawn pending fixtures and removed detail/roster/leaderboard records and exclude scheduled games from player totals.
 - Reuse fresh season listings within a run and settled score pages for up to seven days, while always checking listings and recent results. Persist the cloud HTML cache; unchanged datasets skip builds, commits and publication.
 - Hash complete records for change detection, including individual stat corrections, minutes, fixture times and venues. Keep timestamps separate from content identity.
 - Load full detail payloads on demand. Initial data on the local snapshot falls from 3.34 MB to 534 KB, or 302 KB to 64 KB with gzip. Search/list pages remain synchronous; detail failures offer Retry. Data changes preserve unchanged JS/CSS cache versions.

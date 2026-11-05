@@ -7,18 +7,17 @@ https://www.hillen-sports.com/hillenyouth/ for analysis.
 
 * **Season 33** (第三十三屆驍籃青少年籃球聯賽) — the **live season**:
   YOUTH GIRLS U9 GROUP A (25), U9 GROUP B (26), U11 GROUP A (11), U11 GROUP B (27),
-  U11 GROUP C (28), U13 (16), U15 (29) — 28 teams, 14 games (8 played). The league
+  U11 GROUP C (28), U13 (16), U15 (29) — 28 teams, 19 games (15 played, one forfeit). The league
   lists seven Youth Girls divisions this season; U15 is registered but has no teams yet.
 * **Season 32** (第三十二屆驍籃青少年籃球聯賽): U9 (27), U11A (28), U11B (31),
-  U13 (26), U15 (30) — 27 teams, 64 games.
+  U13 (26), U15 (30) — 27 teams, 66 games.
 * **Season 31** (第三十一屆驍籃青少年籃球聯賽): YOUTH GIRL U9 (25), U11 GROUP A (26),
   U11 GROUP B (27), U13 (28), U15 (29) — 25 teams, 71 games.
 
-Combined: 61 teams, 837 players, 149 games, 3,599 player-game box-score rows.
+Combined: 61 teams, 837 players, 156 games, 3,789 player-game box-score rows.
 
-Season 33 has only just started, so most of its seven divisions have played nothing
-yet — a group is scraped whether or not it has results, so the dashboard's group
-switcher mirrors the league's division list instead of silently dropping the quiet
+A group is scraped whether or not it has results, so the dashboard's group
+switcher mirrors the league's division list instead of silently dropping quiet
 ones (see *Re-scraping / adding more data*).
 
 The schema and scraper are parameterised, so other groups/seasons can be added with one command.
@@ -70,7 +69,7 @@ A zero-dependency web dashboard over the database:
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages
 - **Dynamic page titles** per route (e.g. `YOUTH GIRLS U11B - 2026-09-06 - 可立U11 vs 青出於籃U11 - Hillen League Dashboard`) set from each page's data.
 - **Open Graph / share previews**: `og:` + `twitter:` meta tags so links shared on WhatsApp/Telegram/etc. show a proper title and description. **Deliberately no preview image** — the cards are meant to be compact text (`twitter:card` is `summary`, not `summary_large_image`), the only available image was a generic league banner that would stand in for a specific game, and a thumbnail always dominates a WhatsApp message. `make_og.py` (Pillow, not stdlib, run by hand) and `og.png` are kept but currently unreferenced, so the banner can return by restoring two `og:image` / `twitter:image` lines. The *site-level* card is static — link-preview crawlers don't run JS and a `#hash` is never sent to the server — but every game, team and player also gets its own pastable link (next bullet).
-- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 963 = 149 games + 61 teams + 733 players + 17 season/group pages + 3 seasons).
+- **Shareable per-game / per-team / per-player links**: because `#/games/20863` is invisible to a crawler (WhatsApp asking for it receives exactly the same bytes as the home page, hence the generic card), `server.py --export docs` additionally writes one tiny stub page per entity — `games/20863/`, `teams/1595/`, `players/15376/` — whose `<head>` carries that entity's own `og:`/`twitter:` tags: score, date+time, venue and season for a game; record, PF/PA and roster size for a team; GP and PPG/RPG/APG for a player. The page then forwards the visitor into the normal hash route (`location.replace`, JS-only so crawlers never follow it; a plain link covers JS-off) and is `noindex`. Every detail page has a **🔗 Copy link** button that copies the correct URL. Player links carry season and group (`#/players/15376?season=32&group=31`) because player ids repeat across seasons. There is also one stub per season+group (`groups/33/11/`) so a *standings* link previews the top of that table. Counts are reported by the export (`share pages: …`, currently 975 = 156 games + 61 teams + 738 players + 17 season/group pages + 3 seasons).
 - **PostHog analytics** (cloud): route pageviews tracked on the public site (each `#/…` view is a separate page view); autocapture on. Only initialised on the real (non-localhost) site, so local development traffic isn't counted. The PostHog project API key + host live in `react-dashboard/index.html` (and the legacy `dashboard/index.html`); pageviews are fired on route change in `react-dashboard/src/analytics.js`.
 
 ```bash
@@ -111,7 +110,7 @@ and `data/<season>-<group>.json` detail files loaded once on demand. The full
 by the app. Each asset has its own content version, so data updates preserve
 unchanged JS/CSS caches. It also includes one share/preview page per game, team,
 player, group and season
-(963 stubs), so it is published as a Pages **artifact** built inside the
+(975 stubs), so it is published as a Pages **artifact** built inside the
 workflow, never committed. Only the source files and `hillen_league.db` (the data
 of record) live in git.
 
@@ -257,14 +256,20 @@ python3 validate.py
 The pipeline: division page → teams & standings → statistics page → 8 leaderboards →
 season schedule → per-team pages (profile, roster, schedule) → per-game `scores.php`
 box scores. Refreshes run on a temporary database. Required pages must parse
-completely, and removed fixtures, roster entries, leaderboard ranks and game
-children are reconciled against valid snapshots. Validation must pass before the
+completely. Withdrawn pending fixtures, roster entries, leaderboard ranks and game
+children are reconciled against valid snapshots. Recorded results and voids are
+preserved when a rolling source listing omits them. Validation must pass before the
 new database replaces the original; failed refreshes leave it untouched.
 
 `./start.sh` runs `scraper.py --active --incremental` in one process. Fresh
-season pages are shared across divisions. Listings and recent results are
-refetched every run; unchanged completed games older than 14 days reuse cached
-score pages for at most seven days, so late corrections still arrive. Use
+season pages are shared across divisions. Listings and leaderboards are checked
+every run. Team profiles/rosters can be reused for six hours; new registrations,
+changed fixtures, missing pending fixtures and changed leaderboards force fresh
+checks. Normal fixtures are discovered from the fresh season listing; a fixture
+published only on a team page can take up to six hours to appear. Unchanged
+completed/forfeit/void score pages have a 15-minute cache limit for games in the
+last 14 days, and seven days for older results still in the active listings.
+Changed scores, times, venues or leaderboard totals bypass those limits. Use
 `python3 scraper.py --active --refresh` for an immediate full recheck. The cloud
 workflow persists the HTML cache between runs.
 
@@ -274,6 +279,23 @@ not count as data changes. An unchanged run preserves the database bytes and
 skips building, committing and deployment. The footer timestamp describes the
 last published dataset update; successful unchanged checks are recorded in the
 workflow logs and summary.
+
+**Measured scrape improvement (5 November 2026):** an unchanged scheduled check
+with a two-hour-old cache needed 42 source requests, down from 102. The observed
+live run fell from about 300 seconds to 57 seconds. Both policies produced the
+same canonical database on identical captured responses. The optimized run kept
+requests serial, retained the 0.4-second courtesy delay, reused one TLS connection
+and downloaded 8.17 MB of HTML rather than the baseline's 16.94 MB response-body
+workload. Gzip and conditional validators are supported when the source offers
+them; neither contributed a measured saving in this test.
+
+`--result-file FILE` writes timings, bytes, cache hits, retries and per-request
+observations. `scripts/benchmark_scraper.py` replays two versions against a saved
+source snapshot without network access; it also tests correction invalidation.
+`scripts/compare_production.py --production-bundle FILE --source-cache CACHE
+--report FILE` compares a downloaded production snapshot with the local database
+and audits changed metadata against captured source pages. Keep comparisons
+separate from scraping so validation does not re-download every source page.
 
 Run `python3 -m unittest discover -s tests` for the isolated refresh/export
 regressions. `bash scripts/verify_export.sh docs` checks the generated site before
@@ -290,7 +312,7 @@ back to `main`, and publishes the verified site as a Pages artifact. A second wo
 on `main`, so a local `./start.sh` push goes live the same way.
 
 * Publishing requires **Settings → Pages → Source = "GitHub Actions"**. The
-  built site is uploaded as an artifact, so the generated files (963 share
+  built site is uploaded as an artifact, so the generated files (975 share
   stubs + the built app) never enter git — the repo is source + the database only.
 * Default (Hong Kong time): **weekdays 08:05 plus a 10:35 catch-up; weekends
   09:05, 11:05, 13:05, 15:05, 18:05, 21:05 and 23:05**. These are requested

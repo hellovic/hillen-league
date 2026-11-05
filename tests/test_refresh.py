@@ -112,6 +112,7 @@ class RefreshTests(unittest.TestCase):
     def test_request_memoization_reuses_fresh_season_page(self):
         fetcher = scraper.Fetcher.__new__(scraper.Fetcher)
         fetcher.responses = {"season-page": "fresh response"}
+        fetcher.memory_hits = 0
         self.assertEqual("fresh response", fetcher.get("season-page"))
 
     def test_placeholder_captain_does_not_erase_existing_name(self):
@@ -131,12 +132,29 @@ class RefreshTests(unittest.TestCase):
         date = datetime.date.fromisoformat(event["date"])
         later = date + datetime.timedelta(days=30)
         self.assertEqual(7 * 86400, scraper.settled_score_age(row, event, True, later))
-        self.assertIsNone(scraper.settled_score_age(row, event, True, date))
+        self.assertEqual(15 * 60, scraper.settled_score_age(row, event, True, date))
         self.assertIsNone(scraper.settled_score_age(row, event, False, later))
         for key, value in (("date", (date + datetime.timedelta(days=1)).isoformat()),
                            ("start", "11:00 PM"), ("venue", "Corrected court"),
                            ("home_score", event["home_score"] + 1)):
             self.assertIsNone(scraper.settled_score_age(row, {**event, key: value}, True, later), key)
+
+    def test_listing_disappearance_preserves_recorded_results_and_voids(self):
+        c = self.store.conn
+        before = {r[0] for r in c.execute("SELECT event_id FROM games WHERE status!='scheduled'")}
+        pending = {r[0] for r in c.execute("SELECT event_id FROM games WHERE status='scheduled'")}
+        if not pending:
+            eid = c.execute("SELECT MAX(event_id)+1 FROM games").fetchone()[0]
+            row = c.execute("SELECT season_id,group_id,home_team_id,away_team_id FROM games LIMIT 1").fetchone()
+            c.execute("INSERT INTO games(event_id,season_id,group_id,home_team_id,away_team_id,status) VALUES(?,?,?,?,?,'scheduled')", (eid, *row))
+            pending = {eid}
+        self.assertTrue(before)
+        self.assertTrue(pending)
+        for season, group in c.execute("SELECT season_id,group_id FROM groups").fetchall():
+            self.store.prune_pending_games(season, group, set())
+        after = {r[0] for r in c.execute("SELECT event_id FROM games")}
+        self.assertEqual(before, after)
+        self.assertFalse(after & pending)
 
 
 if __name__ == "__main__":

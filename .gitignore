@@ -26,3 +26,6 @@ design/
 
 # Node dependencies (react-dashboard installs its own; this covers the root)
 node_modules/
+
+# Disposable staged databases from atomic refreshes
+.hillen-refresh-*.db

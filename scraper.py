@@ -21,6 +21,9 @@ re-runs cheap and idempotent.
 import argparse
 from contextlib import closing
 import datetime
+import gzip
+import http.client
+from email.utils import parsedate_to_datetime
 import json
 import os
 import re
@@ -31,6 +34,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+import urllib.parse
 
 BASE = "https://www.hillen-sports.com/hillenyouth/"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -67,6 +71,14 @@ class Fetcher:
         self.ctx = self._ssl_context()
         self.responses = {}
         self.requests = 0
+        self.connections = {}
+        self.network_bytes = 0
+        self.handshakes = 0
+        self.cache_hits = 0
+        self.memory_hits = 0
+        self.revalidations = 0
+        self.retries = 0
+        self.observations = []
 
     def _ssl_context(self):
         """Default context, extended with the GoDaddy G2 intermediate that the
@@ -90,41 +102,126 @@ class Fetcher:
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", url)
         return os.path.join(self.cache_dir, safe + ".html")
 
+    def close(self):
+        for connection in self.connections.values():
+            connection.close()
+        self.connections.clear()
+
+    def _request(self, url, headers):
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme != "https":
+            raise ScrapeError("Only HTTPS source URLs are supported")
+        key = (parsed.hostname, parsed.port or 443)
+        connection = self.connections.get(key)
+        if connection is None:
+            connection = http.client.HTTPSConnection(*key, timeout=30, context=self.ctx)
+            self.connections[key] = connection
+        if connection.sock is None:
+            self.handshakes += 1
+        self.requests += 1
+        started = time.perf_counter()
+        try:
+            connection.request("GET", urllib.parse.urlunsplit(("", "", parsed.path, parsed.query, "")), headers=headers)
+            response = connection.getresponse()
+            raw = response.read()
+            self.network_bytes += len(raw)
+            self.observations.append({"url": url, "status": response.status,
+                                      "bytes": len(raw), "seconds": time.perf_counter() - started})
+            if response.will_close:
+                connection.close()
+            return response.status, response.headers, raw
+        except Exception:
+            connection.close()
+            raise
+
     def get(self, url, max_age=None):
         if url in self.responses:
+            self.memory_hits += 1
             return self.responses[url]
         path = self._cache_path(url)
         if os.path.exists(path) and (not self.refresh or (
                 max_age is not None and time.time() - os.path.getmtime(path) < max_age)):
             with open(path, encoding="utf-8", errors="replace") as f:
                 self.responses[url] = f.read()
-                return self.responses[url]
+            self.cache_hits += 1
+            return self.responses[url]
+        validators = {}
+        if os.path.exists(path):
+            try:
+                with open(path + ".http.json", encoding="utf-8") as f:
+                    validators = json.load(f)
+            except (OSError, ValueError):
+                pass
         for attempt in range(3):
             try:
-                req = urllib.request.Request(url, headers={
-                    "User-Agent": UA,
-                    "Accept-Language": "zh-HK,zh;q=0.9,en;q=0.8",
-                })
-                with urllib.request.urlopen(req, timeout=30, context=self.ctx) as resp:
-                    raw = resp.read()
-                self.requests += 1
-                html = raw.decode("utf-8", errors="replace")
-                require_page(html, url)
-                fd, tmp = tempfile.mkstemp(dir=self.cache_dir)
-                try:
-                    with os.fdopen(fd, "w", encoding="utf-8") as f:
-                        f.write(html)
-                    os.replace(tmp, path)
-                finally:
-                    if os.path.exists(tmp):
-                        os.unlink(tmp)
+                headers = {"User-Agent": UA, "Accept-Language": "zh-HK,zh;q=0.9,en;q=0.8",
+                           "Accept-Encoding": "gzip"}
+                if validators.get("etag"):
+                    headers["If-None-Match"] = validators["etag"]
+                if validators.get("last_modified"):
+                    headers["If-Modified-Since"] = validators["last_modified"]
+                status, response_headers, raw = self._request(url, headers)
+                if status in (301, 302, 303, 307, 308):
+                    # Do not silently scrape a generic home/login/error page.
+                    raise ScrapeError(f"Unexpected source redirect ({status}): {url}")
+                if status == 304:
+                    with open(path, encoding="utf-8") as f:
+                        html = f.read()
+                    os.utime(path, None)
+                    self.revalidations += 1
+                elif status == 200:
+                    decoded = gzip.decompress(raw) if response_headers.get("Content-Encoding", "").lower() == "gzip" else raw
+                    html = decoded.decode("utf-8", errors="replace")
+                    require_page(html, url)
+                    fd, tmp = tempfile.mkstemp(dir=self.cache_dir)
+                    try:
+                        with os.fdopen(fd, "w", encoding="utf-8") as f:
+                            f.write(html)
+                        os.replace(tmp, path)
+                    finally:
+                        if os.path.exists(tmp):
+                            os.unlink(tmp)
+                    with open(path + ".http.json", "w", encoding="utf-8") as f:
+                        json.dump({"etag": response_headers.get("ETag"),
+                                   "last_modified": response_headers.get("Last-Modified")}, f)
+                else:
+                    if status in (429, 503):
+                        retry = response_headers.get("Retry-After")
+                        try:
+                            delay = float(retry)
+                        except (TypeError, ValueError):
+                            try:
+                                delay = parsedate_to_datetime(retry).timestamp() - time.time()
+                            except (TypeError, ValueError, OverflowError):
+                                delay = 5 * (attempt + 1)
+                        if attempt == 2 or delay > 60:
+                            raise ScrapeError(f"Source busy ({status}); retry later: {url}")
+                        self.close()
+                        self.retries += 1
+                        time.sleep(max(self.delay, delay))
+                        continue
+                    if status < 500:
+                        raise ScrapeError(f"Source HTTP {status}: {url}")
+                    raise OSError(f"Source HTTP {status}: {url}")
                 self.responses[url] = html
                 time.sleep(self.delay)
                 return html
-            except Exception:  # noqa: BLE001
+            except ScrapeError:
+                # Invalid pages/4xx responses cannot improve through rapid retries.
+                raise
+            except Exception:
+                self.close()
                 if attempt == 2:
                     raise
-                time.sleep(1.5 * (attempt + 1))
+                self.retries += 1
+                time.sleep(max(self.delay, 1.5 * (attempt + 1)))
+
+    def metrics(self):
+        return {"requests": self.requests, "network_bytes": self.network_bytes,
+                "handshakes": self.handshakes, "cache_hits": self.cache_hits,
+                "memory_hits": self.memory_hits, "revalidations": self.revalidations,
+                "retries": self.retries, "unique_pages": len(self.responses),
+                "responses": self.observations}
 
 
 # --------------------------------------------------------------------------
@@ -689,6 +786,15 @@ class Store:
             self.upsert_player(row["player_id"], row["name"])
             self.upsert_box(row)
 
+    def prune_pending_games(self, season, group, keep):
+        # Listing disappearance withdraws pending fixtures, not recorded history.
+        pending = self.conn.execute("SELECT event_id FROM games WHERE season_id=? "
+                                    "AND group_id=? AND status='scheduled'", (season, group)).fetchall()
+        for (eid,) in pending:
+            if eid not in keep:
+                self.clear_game_details(eid)
+                self.conn.execute("DELETE FROM games WHERE event_id=?", (eid,))
+
 
 # --------------------------------------------------------------------------
 # pipeline
@@ -717,12 +823,17 @@ def require_schedule_rows(html, group_name, rows):
 
 
 def settled_score_age(previous, event, incremental, today):
-    signature = ("completed", event["home_score"], event["away_score"],
+    """Cache unchanged recent results briefly, with a longer historical horizon."""
+    if not incremental or previous is None:
+        return None
+    status = previous[0]
+    scores = (None, None) if status == "not_played" and event["home_score"] == event["away_score"] == 0 else (event["home_score"], event["away_score"])
+    signature = (status, *scores,
                  event["date"], event["start"], event["end"])
-    unchanged = (previous is not None and tuple(previous[:6]) == signature
+    unchanged = (status in ("completed", "forfeit", "not_played") and tuple(previous[:6]) == signature
                  and (not event.get("venue") or previous[6] == event["venue"]))
     recent = datetime.date.fromisoformat(event["date"]) >= today - datetime.timedelta(days=14)
-    return 7 * 86400 if incremental and unchanged and not recent else None
+    return (15 * 60 if recent else 7 * 86400) if unchanged else None
 
 
 def scrape_group(cache, store, season_id, group_id, incremental=False):
@@ -739,6 +850,10 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
     main = extract_div_block(div, div.index('<div class="kopa-main-col">'))
     if not teams and 'team_id=' in main:
         raise ScrapeError(f"Team list failed to parse: {group_name}")
+    old_teams = {row[0] for row in store.conn.execute(
+        "SELECT team_id FROM season_teams WHERE season_id=? AND group_id=?", (season_id, group_id))}
+    old_boards = {tuple(row) for row in store.conn.execute(
+        "SELECT category,rank,player_id,team_id,games_played,total,avg FROM stat_leaderboards WHERE season_id=? AND group_id=?", (season_id, group_id))}
     for tid, name in teams:
         store.upsert_team(tid, name)
     # Reconcile only after complete pages have passed their structure checks.
@@ -761,6 +876,8 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
         if not re.search(r'<h3[^>]*><span[^>]*>' + re.escape(category) + r'</span>', board_html):
             raise ScrapeError(f"Missing leaderboard category {category}")
     boards = parse_leaderboards(board_html)
+    new_boards = {(r["category"], r["rank"], r["player_id"], r["team_id"], r["games"], r["total"], r["avg"]) for r in boards}
+    changed_board_teams = {r[3] for r in old_boards ^ new_boards}
     board_main = extract_div_block(board_html, board_html.index('<div class="widget kopa-entry-list statistics-table">'))
     expected_players = set(re.findall(r'player_id=(\d+)', board_main))
     if expected_players != {str(row["player_id"]) for row in boards}:
@@ -776,8 +893,25 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
     season_events = parse_schedule_season(schedule_html, group_name)
     require_schedule_rows(schedule_html, group_name, season_events)
     events = {r["event_id"]: r for r in season_events}
+    dirty_teams = {tid for tid, _ in teams if tid not in old_teams} | changed_board_teams
+    for eid, home, away in store.conn.execute(
+            "SELECT event_id,home_team_id,away_team_id FROM games WHERE season_id=? AND group_id=? AND status='scheduled'",
+            (season_id, group_id)):
+        if eid not in events:
+            # Freshly check both secondary schedules before withdrawing a fixture.
+            dirty_teams.update((home, away))
+    for event in season_events:
+        old = store.conn.execute("SELECT home_score,away_score,game_date,start_time,end_time,home_team_id,away_team_id FROM games WHERE event_id=?", (event["event_id"],)).fetchone()
+        advertised_scores = (None, None) if event["home_score"] == event["away_score"] == 0 else (event["home_score"], event["away_score"])
+        signature = (*advertised_scores, event["date"], event["start"], event["end"], event["home_team_id"], event["away_team_id"])
+        if old is None or tuple(old) != signature:
+            dirty_teams.update((event["home_team_id"], event["away_team_id"]))
+    for row in boards:
+        if not store.conn.execute("SELECT 1 FROM rosters WHERE season_id=? AND team_id=? AND player_id=?", (season_id, row["team_id"], row["player_id"])).fetchone():
+            dirty_teams.add(row["team_id"])
     for tid, name in teams:
-        html = cache.get(f"{BASE}teams_detail_info.php?season_id={season_id}&team_id={tid}")
+        html = cache.get(f"{BASE}teams_detail_info.php?season_id={season_id}&team_id={tid}",
+                         max_age=6 * 3600 if incremental and tid not in dirty_teams else None)
         require_page(html, f"team {tid}", r'<div class="player-profile">')
         if widget_block_before(html, "隊員名單") is None or widget_block_before(html, "賽程") is None:
             raise ScrapeError(f"Missing roster or schedule for team {tid}")
@@ -808,9 +942,11 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
             game = {**event, "season_id": season_id, "group_id": group_id, "status": "scheduled"}
         else:
             old = store.conn.execute("SELECT status, home_score, away_score, game_date, start_time, end_time, venue FROM games WHERE event_id=?", (eid,)).fetchone()
-            # Old results are rechecked at least weekly; changed scores and
-            # recent games always bypass the disk cache.
+            # Changed fixture/leaderboard data bypasses the disk cache. Recent
+            # results have a 15-minute ceiling; unchanged old results get a week.
             age = settled_score_age(old, event, incremental, today)
+            if {event["home_team_id"], event["away_team_id"]} & changed_board_teams:
+                age = None
             html = cache.get(f"{BASE}scores.php?season_id={season_id}&event_id={eid}", max_age=age)
             require_page(html, f"game {eid}")
             game = parse_scores_page(html, season_id, eid)
@@ -836,10 +972,7 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
                         end=event["end"], venue=event.get("venue") or game["venue"])
         store.replace_game(game)
     keep = set(events)
-    for (eid,) in store.conn.execute("SELECT event_id FROM games WHERE season_id=? AND group_id=?", (season_id, group_id)).fetchall():
-        if eid not in keep:
-            store.clear_game_details(eid)
-            store.conn.execute("DELETE FROM games WHERE event_id=?", (eid,))
+    store.prune_pending_games(season_id, group_id, keep)
     store.commit()
     print(f"  {len(teams)} teams, {len(events)} fixtures")
 
@@ -895,17 +1028,24 @@ def main():
     ap.add_argument("--group", type=int, default=26)
     ap.add_argument("--active", action="store_true", help="refresh all active season/group pairs in one validated batch")
     ap.add_argument("--db", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "hillen_league.db"))
-    ap.add_argument("--refresh", action="store_true", help="refetch all pages, ignoring disk cache")
-    ap.add_argument("--incremental", action="store_true", help="refresh listings/recent results; cache settled results for up to seven days")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--refresh", action="store_true", help="revalidate all pages, ignoring disk freshness")
+    mode.add_argument("--incremental", action="store_true", help="fresh listings; cache profiles six hours, recent scores 15 minutes, old results seven days")
     ap.add_argument("--result-file", help="write machine-readable changed/request counts")
     args = ap.parse_args()
+    started = time.perf_counter()
     here = os.path.dirname(os.path.abspath(__file__))
     cache = Fetcher(os.path.join(here, "cache"), refresh=args.refresh or args.incremental)
-    changed = refresh_database(args.db, ACTIVE_GROUPS if args.active else [(args.season, args.group)], cache, args.incremental)
+    try:
+        changed = refresh_database(args.db, ACTIVE_GROUPS if args.active else [(args.season, args.group)], cache, args.incremental)
+    finally:
+        cache.close()
+    metrics = {"changed": changed, "seconds": time.perf_counter() - started, **cache.metrics()}
     if args.result_file:
         with open(args.result_file, "w", encoding="utf-8") as f:
-            json.dump({"changed": changed, "requests": cache.requests}, f)
-    print(f"Network requests: {cache.requests}; unique pages: {len(cache.responses)}")
+            json.dump(metrics, f, indent=2)
+    print(f"Network requests: {cache.requests}; unique pages: {len(cache.responses)}; "
+          f"bytes: {cache.network_bytes}; seconds: {metrics['seconds']:.3f}")
 
 
 if __name__ == "__main__":
