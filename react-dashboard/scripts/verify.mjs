@@ -121,6 +121,11 @@ const sess = (method, params = {}) =>
 
 await sess("Runtime.enable");
 await sess("Page.enable");
+// The toggle checks exercise dark → light. Fresh Linux and macOS profiles can
+// inherit different system defaults, so make that starting condition explicit.
+await sess("Emulation.setEmulatedMedia", {
+  features: [{ name: "prefers-color-scheme", value: "dark" }],
+});
 const evaluate = async (expression) => {
   const r = await sess("Runtime.evaluate", { expression, returnByValue: true });
   if (r.result.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails));
