@@ -2,3 +2,6 @@ node_modules/
 dist/
 # Data snapshot copied from the Open Design project; regenerate from the league export.
 public/league-data.js
+
+public/league-bootstrap.js
+public/data/

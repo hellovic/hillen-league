@@ -25,6 +25,7 @@ API:
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -577,6 +578,28 @@ def write_league_data(path, bundle):
     return os.path.getsize(path)
 
 
+def write_split_data(directory, bundle):
+    """Keep searchable lists in bootstrap; load full detail payloads by group."""
+    bootstrap = {k: v for k, v in bundle.items() if len(k.split("/")) <= 3}
+    details = {}
+    routes = {}
+    for key, value in bundle.items():
+        if len(key.split("/")) > 3:
+            prefix = "/".join(key.split("/")[:2])
+            details.setdefault(prefix, {})[key] = value
+    os.makedirs(os.path.join(directory, "data"), exist_ok=True)
+    for prefix, payload in details.items():
+        raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+        name = prefix.replace("/", "-") + ".json"
+        version = hashlib.sha256(raw).hexdigest()[:16]
+        with open(os.path.join(directory, "data", name), "wb") as f:
+            f.write(raw)
+        for key in payload:
+            routes[key] = f"./data/{name}?v={version}"
+    bootstrap["__detail_files"] = routes
+    return write_league_data(os.path.join(directory, "league-bootstrap.js"), bootstrap)
+
+
 def export_react_data(out_file, db_path=DB_PATH):
     """CLI helper: refresh the dev-time data snapshot used by `npm run dev`."""
     conn = sqlite3.connect(db_path)
@@ -586,6 +609,8 @@ def export_react_data(out_file, db_path=DB_PATH):
     finally:
         conn.close()
     size = write_league_data(out_file, bundle)
+    boot_size = write_split_data(os.path.dirname(os.path.abspath(out_file)), bundle)
+    print(f"bootstrap {boot_size / 1e3:.1f} KB; detail files loaded on demand")
     print(f"wrote {out_file} ({size / 1e6:.2f} MB)")
 
 
@@ -639,8 +664,10 @@ def export_static(out_dir, db_path=DB_PATH):
         # The React app reads all of its data from one inline bundle, so the whole
         # site is a single document plus one JS payload (≈270 KB gzipped) and every
         # route renders without a fetch waterfall.
+        bundle = build_league_bundle(conn, db_path)
         bundle_size = write_league_data(os.path.join(out_dir, "league-data.js"),
-                                        build_league_bundle(conn, db_path))
+                                        bundle)
+        boot_size = write_split_data(out_dir, bundle)
         # ---- share pages: a real URL per entity (see preview_page) ----
         def write_share(kind, ident, title, desc, target):
             """target is a hash route relative to the site root, e.g. "#/games/1"."""
@@ -743,43 +770,24 @@ def export_static(out_dir, db_path=DB_PATH):
         # tell GitHub Pages not to run Jekyll over the site
         with open(os.path.join(out_dir, ".nojekyll"), "w") as f:
             f.write("")
-        # GitHub Pages caches assets for 10 min (max-age=600), so version every
-        # asset URL with a build stamp. Vite is configured to emit stable asset
-        # names (vite.config.js) instead of content hashes, which lets the stamp
-        # be the single cache key — exactly like the vanilla app.js?v= scheme.
-        # The stamp is derived from the actual data, the app sources, the data
-        # bundle and server.py, so a re-export with no change is byte-identical
-        # while any refresh/code change bumps every URL.
-        import hashlib
-        sig_parts = [tuple(r) for r in conn.execute("""
-            SELECT g.event_id, g.status, g.home_score, g.away_score,
-                   (SELECT COUNT(*) FROM player_game_stats p WHERE p.event_id = g.event_id)
-            FROM games g ORDER BY g.event_id""")]
-        sig_src = _react_source_signature()
-        with open(os.path.join(out_dir, "league-data.js"), "rb") as f:
-            sig_src += "league-data.js:" + hashlib.md5(f.read()).hexdigest() + ";"
-        with open(os.path.abspath(__file__), "rb") as f:
-            sig_src += "server.py:" + hashlib.md5(f.read()).hexdigest() + ";"
-        stamp = hashlib.md5(
-            (str(sig_parts) + "|" + (mp.get("refreshed_at") or "") + sig_src).encode()
-        ).hexdigest()[:12]
+        # Version each emitted file independently. Updating data must not
+        # invalidate unchanged app JS/CSS. Stable filenames also tolerate a
+        # cached index from the preceding Pages deployment.
         idx = os.path.join(out_dir, "index.html")
         with open(idx, encoding="utf-8") as f:
             html = f.read()
-        # The site runs under a subpath on GitHub Pages (/hillen-league/), so every
-        # URL must be relative. Vite rewrites `./league-data.js` only when the file
-        # exists in public/ — a CI checkout has no data snapshot there (it is
-        # generated, and git-ignored), so force the relative form server-side
-        # instead of depending on that.
-        html = html.replace('src="/league-data.js', 'src="./league-data.js')
-        # ./assets/… (JS + CSS), the loader script, and any fonts/images Vite emitted
-        html = re.sub(r'(\./assets/[^"\'?#\s]+)', lambda m: m.group(1) + "?v=" + stamp, html)
-        html = re.sub(r'((?:\./|/)?league-data\.js)("|,)',
-                      lambda m: m.group(1) + "?v=" + stamp + m.group(2), html, count=1)
+        html = html.replace('src="/league-bootstrap.js', 'src="./league-bootstrap.js')
+        def version_asset(match):
+            path = match.group(1)
+            with open(os.path.join(out_dir, path.removeprefix("./")), "rb") as asset:
+                version = hashlib.sha256(asset.read()).hexdigest()[:16]
+            return path + "?v=" + version
+        html = re.sub(r'(\./assets/[^"\'?#\s]+|\./league-bootstrap\.js)', version_asset, html)
         with open(idx, "w", encoding="utf-8") as f:
             f.write(html)
+        stamp = hashlib.sha256(html.encode()).hexdigest()[:12]
         print(f"exported static site to {out_dir}/ (build {stamp})")
-        print(f"  app: React dashboard (react-dashboard/) · data bundle {bundle_size / 1e6:.2f} MB")
+        print(f"  app: React dashboard (react-dashboard/) · bootstrap {boot_size / 1e3:.1f} KB · full compatibility bundle {bundle_size / 1e6:.2f} MB")
         print(f"  combos: {combos}")
         print(f"  teams: {n_teams} · players: {n_players} · games: {n_games}")
         print(f"  share pages: {n_share} (per game/team/player + one per season+group)")

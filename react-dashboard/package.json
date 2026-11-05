@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "data": "python3 ../server.py --export-data public/league-data.js",
-    "verify": "npm run build && node scripts/verify.mjs",
+    "verify": "npm run data && npm run build && node scripts/verify.mjs",
     "verify:site": "node scripts/verify.mjs"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups } from "./data.js";
+import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, routeDataReady, loadRouteData } from "./data.js";
 import { contextHash, seasonHash } from "./utils.js";
 import { PALETTES, PaletteContext } from "./theme.jsx";
 import { trackPageview } from "./analytics.js";
@@ -114,6 +114,22 @@ export default function App() {
   const [ctx, setCtx] = useState(initialCtx);
   const [theme, setTheme] = useState(initialTheme);
 
+  const [dataVersion, setDataVersion] = useState(0);
+  const [dataError, setDataError] = useState(null);
+  const dataKey = route.parts.join("/") + "/" + ctx.season + "/" + ctx.group;
+  const dataReady = routeDataReady(route.parts, ctx);
+  const currentDataError = dataError?.key === dataKey ? dataError.error : null;
+  useEffect(() => {
+    if (dataReady) return;
+    let cancelled = false;
+    loadRouteData(route.parts, ctx).then(() => {
+      if (!cancelled) setDataVersion((v) => v + 1);
+    }).catch((error) => {
+      if (!cancelled) setDataError({ key: dataKey, error });
+    });
+    return () => { cancelled = true; };
+  }, [dataKey, dataReady, dataVersion]);
+
   /* -- routing ---------------------------------------------------------- */
   useEffect(() => {
     const onHash = () => {
@@ -207,6 +223,8 @@ export default function App() {
   const active = TAB_FOR[view] || view;
 
   const content = (() => {
+    if (currentDataError) return <div className="empty" role="alert">{currentDataError.message} <button type="button" onClick={() => { setDataError(null); setDataVersion((v) => v + 1); }}>Retry</button></div>;
+    if (!dataReady) return <div className="empty" role="status">Loading league data…</div>;
     switch (view) {
       case "teams":
         return id ? <TeamDetail ctx={ctx} id={id} onAdoptContext={adoptContext} /> : <TeamsView ctx={ctx} />;
@@ -230,9 +248,13 @@ export default function App() {
   /* Expose the rendered route for headless checks (scripts/verify.mjs) and
    * report it to PostHog (see src/analytics.js). */
   useEffect(() => {
+    if (!dataReady && !currentDataError) {
+      document.documentElement.dataset.route = "";
+      return;
+    }
     document.documentElement.dataset.route = (location.hash || "").replace(/^#\/?/, "").split("?")[0];
     trackPageview();
-  }, [route, ctx]);
+  }, [route, ctx, dataReady, currentDataError]);
 
   const palette = useMemo(() => PALETTES[theme], [theme]);
 

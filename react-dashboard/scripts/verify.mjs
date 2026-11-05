@@ -16,7 +16,9 @@
  * the usual Linux/Windows install locations.
  */
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 
 const PORT = 4173;
@@ -68,7 +70,7 @@ for (let i = 0; i < 100; i++) {
 // ---------------------------------------------------------------------- chrome
 const chrome = spawn(chromePath, [
   "--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars",
-  "--remote-debugging-port=9345", "--user-data-dir=/tmp/hl-verify-profile", "about:blank",
+  "--remote-debugging-port=9345", `--user-data-dir=${mkdtempSync(join(tmpdir(), "hl-verify-"))}`, "about:blank",
 ], { stdio: "ignore" });
 process.on("exit", () => { try { chrome.kill(); } catch {} });
 
@@ -153,6 +155,26 @@ const check = (name, ok, detail = "") => {
 
 await setViewport(1440, 1000, false);
 await open("/season/33");
+const startup = await evaluate(`(() => ({
+  manifest: !!window.LEAGUE_DATA.__detail_files,
+  details: Object.keys(window.LEAGUE_DATA).filter((k) => /^\\d+\\/\\d+\\/(teams|players|games)\\/\\d+$/.test(k)).length,
+  fullBundle: performance.getEntriesByType("resource").some((r) => /\\/league-data\\.js/.test(r.name)),
+}))()`);
+check("overview boots without downloading full detail data", startup.manifest && startup.details === 0 && !startup.fullBundle, `${startup.details} detail payloads at startup`);
+await open("/teams/1515?season=32&group=26");
+check("historical deep link loads its detail file", await evaluate(`!!window.LEAGUE_DATA["32/26/teams/1515"] && document.querySelector("#t-roster") !== null`));
+
+// Failed downloads must be recoverable without changing the route or reloading.
+await sess("Network.enable");
+await sess("Network.setBlockedURLs", { urls: ["*data/31-25.json*"] });
+const retryTeam = await evaluate(`window.LEAGUE_DATA["31/25/teams"][0].team_id`);
+await open(`/teams/${retryTeam}?season=31&group=25`);
+check("failed detail download offers a retry", await evaluate(`!!document.querySelector('#view [role="alert"] button')`));
+await sess("Network.setBlockedURLs", { urls: [] });
+await evaluate(`document.querySelector('#view [role="alert"] button').click()`);
+await waitFor(`!!window.LEAGUE_DATA["31/25/teams/${retryTeam}"] && !document.querySelector('#view [role="alert"]')`, "detail retry");
+check("retry recovers the detail page", await evaluate(`!!document.querySelector("#t-roster")`));
+await open("/season/33?season=33&group=16");
 await evaluate(`[...document.querySelectorAll("#tabs button")].find((b) => b.dataset.view === "standings").click()`);
 await waitFor(`location.hash.startsWith("#/standings")`, "standings hash");
 await waitFor(`document.querySelector(".view-head h2")?.textContent === "Standings"`, "standings heading");
@@ -504,7 +526,7 @@ const emptyCards = await evaluate(`(() => {
     const games = data[\`33/\${g.group_id}/games\`] || [];
     const teams = data[\`33/\${g.group_id}/teams\`] || [];
     if (!teams.length) noTeams += 1;
-    else if (!games.length) noGames += 1;
+    else if (!games.some((g) => ["completed", "forfeit"].includes(g.status))) noGames += 1;
   }
   return { noGames, noTeams };
 })()`);

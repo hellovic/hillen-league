@@ -1,9 +1,8 @@
 /* Data access for the React dashboard.
  *
- * The OD build embeds every payload inline as `window.LEAGUE_DATA`, keyed as
+ * The bootstrap embeds lists and a detail-file manifest as `window.LEAGUE_DATA`, keyed as
  * `meta`, `season/<id>` and
- * `<season>/<group>/<path>`. Reads are synchronous, so views render in one pass
- * without a fetch waterfall. */
+ * `<season>/<group>/<path>`. Detail views load their group file before mounting; repeat visits reuse it. */
 
 const RAW = (typeof window !== "undefined" && window.LEAGUE_DATA) || {};
 
@@ -11,25 +10,71 @@ export const meta = RAW.meta || { seasons: [], groups: [], combos: [] };
 export const DEFAULT_SEASON = meta.default_season ?? meta.seasons?.[0]?.season_id ?? 33;
 export const DEFAULT_GROUP = meta.default_group ?? 16;
 
-/* Same lookup rules as the vanilla app: context defaults, plus a cross-group /
- * cross-season fallback for detail payloads whose id is globally unique. */
-export function api(path, params = {}) {
+/* Detail files are listed in the bootstrap manifest. Lists/search stay
+ * synchronous; App waits for the required detail file before mounting a view. */
+const detailFiles = RAW.__detail_files || {};
+const pendingFiles = new Map();
+const owns = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+function apiKey(path, params = {}) {
   const s = params.season ?? DEFAULT_SEASON;
   const g = params.group ?? DEFAULT_GROUP;
   const key = path === "meta" ? "meta" : path === "season" ? `season/${s}` : `${s}/${g}/${path}`;
-  let value = RAW[key];
-  if (value === undefined && /^(games|teams|players)\//.test(path) && !params.group) {
+  if (owns(RAW, key) || owns(detailFiles, key)) return key;
+  if (/^(games|teams|players)\//.test(path) && !params.group) {
     const combos = [...(meta.combos || [])].sort(
       (a, b) => (b.season === s) - (a.season === s) || b.season - a.season
     );
     for (const c of combos) {
       if (path.startsWith("players/") && c.season !== s) continue;
-      value = RAW[`${c.season}/${c.group}/${path}`];
-      if (value !== undefined) break;
+      const candidate = `${c.season}/${c.group}/${path}`;
+      if (owns(RAW, candidate) || owns(detailFiles, candidate)) return candidate;
     }
   }
-  if (value === undefined) throw new Error("No data available for this selection");
-  return value;
+  return key;
+}
+
+export function api(path, params = {}) {
+  const key = apiKey(path, params);
+  if (!owns(RAW, key)) throw new Error("No data available for this selection");
+  return RAW[key];
+}
+
+function routeKeys(parts, ctx) {
+  const [view, id, a, b] = parts;
+  if (["games", "teams", "players"].includes(view) && +id) {
+    return [apiKey(`${view}/${+id}`, view === "games" ? {} : view === "teams" ? { season: ctx.season } : ctx)];
+  }
+  if (view === "compare" && ["p", "t"].includes(id)) {
+    const kind = id === "p" ? "players" : "teams";
+    return [a, b].filter((x) => +x).map((x) => apiKey(`${kind}/${+x}`, id === "p" ? ctx : { season: ctx.season }));
+  }
+  return [];
+}
+
+export function routeDataReady(parts, ctx) {
+  return routeKeys(parts, ctx).every((key) => owns(RAW, key) || !detailFiles[key]);
+}
+
+export async function loadRouteData(parts, ctx) {
+  const files = [...new Set(routeKeys(parts, ctx).filter((key) => !owns(RAW, key)).map((key) => detailFiles[key]).filter(Boolean))];
+  await Promise.all(files.map((url) => {
+    if (!pendingFiles.has(url)) {
+      const request = fetch(new URL(url, document.baseURI)).then(async (response) => {
+        if (!response.ok) throw new Error("Could not load league data. Please retry.");
+        const data = await response.json();
+        if (!data || Object.keys(detailFiles).some((key) => detailFiles[key] === url && !owns(data, key))) {
+          throw new Error("Incomplete league data. Please retry.");
+        }
+        Object.assign(RAW, data);
+      }).catch((error) => {
+        pendingFiles.delete(url);
+        throw error;
+      });
+      pendingFiles.set(url, request);
+    }
+    return pendingFiles.get(url);
+  }));
 }
 
 export function groupAgeKey(name) {
