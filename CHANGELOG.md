@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.6] — Unreleased — Lower-impact, measured scraping
+- Data refresh 2026-11-06: 156 games, 3789 box-score rows (seasons 31, 32, 33). 0 new, 0 updated, 0 removed, 156 unchanged.
 - Data refresh 2026-11-05: 156 games, 3789 box-score rows (seasons 31, 32, 33). 0 new, 0 updated, 0 removed, 156 unchanged.
 
 - Measured a scheduled-style warm refresh at 57 seconds / 42 source requests, versus about 300 seconds / 102 before. Keep requests serial and rate-limited; reuse HTTPS connections and support gzip, conditional revalidation and Retry-After. Add machine-readable timings, bytes and cache counters.
