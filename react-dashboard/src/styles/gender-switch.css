@@ -1,0 +1,8 @@
+body.orange .header-tools { display:flex; align-items:center; gap:10px; margin-left:auto; flex-shrink:0; }
+body.orange .header-tools .theme-toggle { margin:0; }
+body.orange .gender-switch { display:flex; padding:3px; border:1px solid var(--line); border-radius:10px; background:var(--card); }
+body.orange .gender-switch button { min-height:44px; padding:5px 12px; border:0; border-radius:7px; background:transparent; color:var(--muted); font-size:13px; font-weight:650; }
+body.orange .gender-switch button[aria-pressed="true"] { background:var(--accent); color:#101112; }
+@media(min-width:1024px) { body.orange .header-tools {order:3;} }
+@media(max-width:767px) { body.orange .topbar.compact {grid-template-columns:minmax(0,1fr) auto;column-gap:6px;} body.orange .topbar.compact .brand {gap:6px;} body.orange .topbar.compact .brand h1 {font-size:16px;} body.orange .topbar.compact .header-tools {gap:6px;} body.orange .topbar.compact .gender-switch button {min-height:44px;padding:4px 8px;font-size:12px;} body.orange .topbar.compact .header-tools .theme-toggle {padding:0 9px;} }
+@media(max-width:359px) {body.orange .topbar.compact .logo {display:none;} body.orange .topbar.compact .brand h1 {font-size:15px;} body.orange .topbar.compact .gender-switch button {padding:4px 7px;} }

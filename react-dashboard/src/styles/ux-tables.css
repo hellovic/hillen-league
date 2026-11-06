@@ -148,22 +148,21 @@ body.orange table.data[data-compact="players"]:not(.cols-expanded) tbody td:nth-
   display: none;
 }
 
-/* Box score: #, Player, MIN, PTS, REB, AST — hide 2PT/3PT/FG/FT on the wide
-   side and ST/BS/TO/PF/EFF/+/- after AST. */
+/* Box score: #, Player, MIN, PTS, REB, AST, EFF, +/- — keep the summary
+   stats visible; hide shooting splits and STL/BLK/TO/PF behind the toggle. */
 body.orange table.data[data-compact="box"]:not(.cols-expanded) thead th:nth-child(n+4):nth-child(-n+7),
 body.orange table.data[data-compact="box"]:not(.cols-expanded) tbody td:nth-child(n+4):nth-child(-n+7),
-body.orange table.data[data-compact="box"]:not(.cols-expanded) thead th:nth-child(n+11),
-body.orange table.data[data-compact="box"]:not(.cols-expanded) tbody td:nth-child(n+11) {
+body.orange table.data[data-compact="box"]:not(.cols-expanded) thead th:nth-child(n+11):nth-child(-n+14),
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tbody td:nth-child(n+11):nth-child(-n+14) {
   display: none;
 }
-/* Totals row: <td colSpan=3>Team total</td> then PTS REB AST ST BS TO PF EFF +/-
-   (MIN is blank and the shooting splits are blank too). Keep the label and the
-   three core totals; drop the shooting/turnover/eff columns that are not there. */
+/* The totals label spans #/Player/MIN. Keep PTS/REB/AST/EFF/+/- aligned
+   with the visible player columns; shooting splits and STL/BLK/TO/PF hide. */
 body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(2),
 body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(3),
 body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(4),
 body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(5),
-body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(n+9) {
+body.orange table.data[data-compact="box"]:not(.cols-expanded) tfoot td:nth-child(n+9):nth-child(-n+12) {
   display: none;
 }
 

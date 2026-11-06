@@ -1,4 +1,4 @@
-import { groupName, meta, seasonGroups, seasonName, seasonShortName } from "../data.js";
+import { groupName, meta, seasonGroups, seasonName, seasonShortName, seasonsForGender } from "../data.js";
 import SearchBox from "./SearchBox.jsx";
 import { useIsPhone } from "../useMediaQuery.js";
 
@@ -21,12 +21,12 @@ function shortGroup(seasonId, groupId) {
     .replace(/^(GIRLS\s+U\d+)\s+GROUP\s+([A-Z])$/i, "$1 $2");
 }
 
-export default function Topbar({ ctx, theme, allGroups = false, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
+export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
   const isPhone = useIsPhone();
-  const groups = seasonGroups(ctx.season);
+  const groups = seasonGroups(ctx.season,ctx.gender);
   const themeLabel = theme === "light" ? "Dark mode" : "Light mode";
 
-  const seasonOptions = (meta.seasons || []).map((s) => (
+  const seasonOptions = seasonsForGender(ctx.gender).map((s) => (
     <option key={s.season_id} value={s.season_id}>
       {`${s.season_id} · ${seasonShortName(s.season_id)}`}
     </option>
@@ -45,10 +45,14 @@ export default function Topbar({ ctx, theme, allGroups = false, onToggleTheme, o
           <h1>Hillen League</h1>
           <p id="meta-line" className="meta-line">
             {allGroups
-              ? `${seasonName(ctx.season)} · All groups`
+              ? `${seasonName(ctx.season)} · ${ctx.gender === "boys" ? "Boys" : "Girls"} · All groups`
               : `${seasonName(ctx.season)} · ${groupName(ctx.season, ctx.group) || "Group " + ctx.group}`}
           </p>
         </div>
+      </div>
+      <div className="header-tools">
+      <div className="gender-switch" role="group" aria-label="League division">
+        {["girls","boys"].map((gender) => <button key={gender} id={`gender-${gender}`} type="button" aria-pressed={ctx.gender === gender} onClick={() => onGenderChange(gender)}>{gender === "girls" ? "Girls" : "Boys"}</button>)}
       </div>
       <button
         className="theme-toggle"
@@ -60,8 +64,9 @@ export default function Topbar({ ctx, theme, allGroups = false, onToggleTheme, o
       >
         {isPhone ? (theme === "light" ? "Dark" : "Light") : themeLabel}
       </button>
+      </div>
       <div className="controls">
-        <SearchBox ctx={ctx} onAdoptContext={onAdoptContext} />
+        <SearchBox key={ctx.gender} ctx={ctx} onAdoptContext={onAdoptContext} />
         <label htmlFor="season-select">
           Season
           {/* Short label (“31 · 第31屆驍籃”) so the picker stays narrow and the

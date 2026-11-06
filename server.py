@@ -539,6 +539,18 @@ def build_league_bundle(conn, db_path=DB_PATH):
     react-dashboard/src/data.js's api() looks it up: `meta`, `season/<id>`,
     `<season>/<group>/<path>` (lists and per-entity detail)."""
     mp = meta_payload(conn, db_path)
+    mp["gender_counts"] = {}
+    for gender, condition in (("girls", "LIKE"),("boys", "NOT LIKE")):
+        combos = {(g["season_id"],g["group_id"]) for g in mp["groups"] if ("GIRL" in g["name"]) == (gender == "girls")}
+        teams,players,games,box = set(),set(),set(),0
+        for season,group in combos:
+            teams.update(r[0] for r in conn.execute("SELECT team_id FROM season_teams WHERE season_id=? AND group_id=?",(season,group)))
+            players.update(r[0] for r in conn.execute("SELECT player_id FROM rosters JOIN season_teams USING(season_id,team_id) WHERE season_id=? AND group_id=?",(season,group)))
+            players.update(r[0] for r in conn.execute("SELECT player_id FROM stat_leaderboards WHERE season_id=? AND group_id=?",(season,group)))
+            players.update(r[0] for r in conn.execute("SELECT p.player_id FROM player_game_stats p JOIN games g USING(event_id) WHERE g.season_id=? AND g.group_id=?",(season,group)))
+            games.update(r[0] for r in conn.execute("SELECT event_id FROM games WHERE season_id=? AND group_id=?",(season,group)))
+            box += conn.execute("SELECT COUNT(*) FROM player_game_stats JOIN games USING(event_id) WHERE season_id=? AND group_id=?",(season,group)).fetchone()[0]
+        mp["gender_counts"][gender] = {"teams":len(teams),"players":len(players),"games":len(games),"box_scores":box}
     bundle = {"meta": mp}
     for s in mp["seasons"]:
         bundle[f"season/{s['season_id']}"] = season_payload(conn, s["season_id"])
@@ -579,25 +591,48 @@ def write_league_data(path, bundle):
 
 
 def write_split_data(directory, bundle):
-    """Keep searchable lists in bootstrap; load full detail payloads by group."""
-    bootstrap = {k: v for k, v in bundle.items() if len(k.split("/")) <= 3}
-    details = {}
-    routes = {}
-    for key, value in bundle.items():
-        if len(key.split("/")) > 3:
-            prefix = "/".join(key.split("/")[:2])
-            details.setdefault(prefix, {})[key] = value
+    """Keep identities in startup data; load full player statistics on demand.
+
+    Retain the original bootstrap filename for cached older app versions.
+    """
+    legacy = {k: v for k, v in bundle.items() if len(k.split("/")) <= 3}
+    bootstrap = dict(legacy)
+    details, routes, list_files, player_index = {}, {}, {}, {}
     os.makedirs(os.path.join(directory, "data"), exist_ok=True)
-    for prefix, payload in details.items():
+    def emit(name, payload):
         raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
-        name = prefix.replace("/", "-") + ".json"
         version = hashlib.sha256(raw).hexdigest()[:16]
-        with open(os.path.join(directory, "data", name), "wb") as f:
-            f.write(raw)
+        with open(os.path.join(directory, "data", name), "wb") as file:
+            file.write(raw)
+        return f"./data/{name}?v={version}"
+    for key, value in bundle.items():
+        parts = key.split("/")
+        if len(parts) > 3:
+            details.setdefault("/".join(parts[:2]), {})[key] = value
+        elif len(parts) == 3 and parts[2] == "players":
+            prefix = "/".join(parts[:2])
+            player_index[prefix] = [{field: row[field] for field in
+                                    ("player_id", "player_name", "team_id", "team_name")
+                                    if field in row} for row in value]
+            if value:
+                del bootstrap[key]
+                list_files[key] = emit(prefix.replace("/", "-") + "-players.json", {key: value})
+    for prefix, payload in details.items():
+        # A detail view needs group player totals for rosters and radar charts.
+        # Carry them in the same response, avoiding a second detail-page fetch.
+        player_key = prefix + "/players"
+        if player_key in bundle:
+            payload[player_key] = bundle[player_key]
+        url = emit(prefix.replace("/", "-") + ".json", payload)
         for key in payload:
-            routes[key] = f"./data/{name}?v={version}"
+            if len(key.split("/")) > 3:
+                routes[key] = url
+    legacy["__detail_files"] = routes
+    write_league_data(os.path.join(directory, "league-bootstrap.js"), legacy)
     bootstrap["__detail_files"] = routes
-    return write_league_data(os.path.join(directory, "league-bootstrap.js"), bootstrap)
+    bootstrap["__list_files"] = list_files
+    bootstrap["__players_index"] = player_index
+    return write_league_data(os.path.join(directory, "league-bootstrap-lite.js"), bootstrap)
 
 
 def export_react_data(out_file, db_path=DB_PATH):
@@ -776,13 +811,13 @@ def export_static(out_dir, db_path=DB_PATH):
         idx = os.path.join(out_dir, "index.html")
         with open(idx, encoding="utf-8") as f:
             html = f.read()
-        html = html.replace('src="/league-bootstrap.js', 'src="./league-bootstrap.js')
+        html = html.replace('src="/league-bootstrap', 'src="./league-bootstrap')
         def version_asset(match):
             path = match.group(1)
             with open(os.path.join(out_dir, path.removeprefix("./")), "rb") as asset:
                 version = hashlib.sha256(asset.read()).hexdigest()[:16]
             return path + "?v=" + version
-        html = re.sub(r'(\./assets/[^"\'?#\s]+|\./league-bootstrap\.js)', version_asset, html)
+        html = re.sub(r'(\./assets/[^"\'?#\s]+|\./league-bootstrap(?:-lite)?\.js)', version_asset, html)
         with open(idx, "w", encoding="utf-8") as f:
             f.write(html)
         stamp = hashlib.sha256(html.encode()).hexdigest()[:12]

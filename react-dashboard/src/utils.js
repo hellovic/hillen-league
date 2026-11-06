@@ -146,13 +146,13 @@ export function signed(v) {
 /* ---------------- routing fragments ---------------- */
 
 export function contextQuery(ctx) {
-  return `?season=${ctx.season}&group=${ctx.group}`;
+  return `?season=${ctx.season}&group=${ctx.group}${ctx.gender === "boys" ? "&gender=boys" : ""}`;
 }
 export function contextHash(view, ctx) {
   return `#/${view}${contextQuery(ctx)}`;
 }
-export function seasonHash(season) {
-  return `#/season/${season}`;
+export function seasonHash(season, gender = "girls") {
+  return `#/season/${season}${gender === "boys" ? "?gender=boys" : ""}`;
 }
 export function go(hash) {
   if (location.hash !== hash) location.hash = hash;

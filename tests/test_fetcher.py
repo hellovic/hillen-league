@@ -73,6 +73,16 @@ class FetcherTests(unittest.TestCase):
         self.assertEqual(2, self.fetcher.requests)
         self.assertEqual(1, self.fetcher.handshakes)
 
+    def test_eviction_reuses_fetched_html_without_another_source_request(self):
+        self.fetcher._request = Mock(return_value=(200, headers(), PAGE.encode()))
+        urls = [scraper.BASE + f"division.php?season_id={i}" for i in range(33)]
+        for url in urls:
+            self.fetcher.get(url)
+        self.assertEqual(32, len(self.fetcher.responses))
+        self.assertNotIn(urls[0], self.fetcher.responses)
+        self.assertEqual(PAGE, self.fetcher.get(urls[0], max_age=0))
+        self.assertEqual(33, self.fetcher._request.call_count)
+
     def test_expired_cache_is_checked_but_fresh_cache_is_reused(self):
         url = scraper.BASE + "division.php"
         Path(self.fetcher._cache_path(url)).write_text(PAGE)

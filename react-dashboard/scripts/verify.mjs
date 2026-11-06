@@ -524,7 +524,7 @@ await open("/season/33");
 // expected counts from the bundle instead of hardcoding them.
 const emptyCards = await evaluate(`(() => {
   const data = window.LEAGUE_DATA || {};
-  const groups = ((data.meta || {}).groups || []).filter((g) => g.season_id === 33);
+  const groups = ((data.meta || {}).groups || []).filter((g) => g.season_id === 33 && /GIRL/i.test(g.name));
   let noGames = 0;
   let noTeams = 0;
   for (const g of groups) {
@@ -582,7 +582,7 @@ check("a skipped fixture never shows a 0 score", (skippedScope ? /^—$/.test(st
 // played game from the bundle rather than naming one.
 const emptyGroup = await evaluate(`(() => {
   const groups = (window.LEAGUE_DATA || {})["season/33"]?.groups || [];
-  const empty = groups.filter((g) => g.played === 0 && g.teams > 0);
+  const empty = groups.filter((g) => /GIRL/i.test(g.name) && g.played === 0 && g.teams > 0);
   return empty.length ? empty[0].group_id : 27;
 })()`);
 await open(`/standings?season=33&group=${emptyGroup}`);
@@ -629,6 +629,45 @@ check("phone column toggle is a 44 px disclosure", phoneCols.toggleH >= 44, phon
 await evaluate(`document.querySelector(".table-cols-toggle").click()`);
 await waitFor(`document.querySelector("#t-players").closest(".card").classList.contains("scrollable")`, "expanded table becomes scrollable");
 check("expanded phone table says that it scrolls", (await evaluate(`(() => { const hint = document.querySelector(".table-scroll-hint"); return !!hint && getComputedStyle(hint).display !== "none" && hint.innerText.includes("Swipe"); })()`)) === true);
+
+// Compact box scores retain EFF and +/- alongside the core stats on phones.
+// Check actual player values and the colspan-adjusted footer, not just labels.
+for (const w of [320, 375, 390]) {
+  await setViewport(w, 844, true);
+  await open("/games/21021");
+  await waitFor(`!!document.querySelector('#view table[data-compact="box"] tbody tr')`, "compact box score");
+  const compactBox = await evaluate(`(() => {
+    const visible = (cell) => cell.getClientRects().length > 0;
+    const game = Object.entries(window.LEAGUE_DATA).find(([k]) => /\\/games\\/21021$/.test(k))[1];
+    const tables = [...document.querySelectorAll('#view table[data-compact="box"]')];
+    const signed = (n) => n > 0 ? '+' + n : String(n);
+    return tables.map((table) => {
+      const tid = Number(table.id.replace('t-box-', ''));
+      const source = game.box.filter((b) => b.team_id === tid);
+      const ths = [...table.tHead.rows[0].cells];
+      const footer = [...table.tFoot.rows[0].cells].filter(visible);
+      const rows = [...table.tBodies[0].rows];
+      return {
+        headers: ths.filter(visible).map((c) => c.textContent.replace(/[▲▼]/g, '').trim()),
+        valuesMatch: rows.every((row) => {
+          const id = Number(row.querySelector('a').hash.split('/').pop());
+          const b = source.find((b) => b.player_id === id);
+          return b && row.cells[14].textContent === String(b.eff) && row.cells[15].textContent === signed(b.plus_minus);
+        }),
+        footerMatch: footer.length === 6 && footer[4].textContent === String(source.reduce((s,b) => s + (b.eff || 0), 0)) && footer[5].textContent === signed(source.reduce((s,b) => s + (b.plus_minus || 0), 0)),
+        pageOverflow: document.documentElement.scrollWidth - innerWidth,
+        cardOverflow: table.closest('.card').scrollWidth - table.closest('.card').clientWidth,
+      };
+    });
+  })()`);
+  check(`collapsed box score keeps EFF and +/- at ${w}px`, compactBox.length === 2 && compactBox.every((t) => t.headers.join(',') === '#,Player,MIN,PTS,REB,AST,EFF,+/−' && t.valuesMatch && t.footerMatch && t.pageOverflow <= 1), JSON.stringify(compactBox));
+}
+await evaluate(`document.querySelector('[aria-controls^="t-box-"]').click()`);
+await sleep(150);
+check("full box score still reveals all 16 columns", await evaluate(`[...document.querySelector('#view table[data-compact="box"]').tHead.rows[0].cells].filter((c) => c.getClientRects().length > 0).length === 16`));
+await evaluate(`document.querySelector('[aria-controls^="t-box-"]').click()`);
+await sleep(150);
+check("collapsing restores the eight-column box score", await evaluate(`[...document.querySelector('#view table[data-compact="box"]').tHead.rows[0].cells].filter((c) => c.getClientRects().length > 0).length === 8`));
 
 // UX-05 / UX-21: standings on a phone keeps Points visible, and long club names
 // must never push the card (or the page) into a sideways scroll.
@@ -822,7 +861,7 @@ check("points chart pairs scored and conceded bars", chart.title === "Points sco
 // working as divisions fill in.
 const emptyStandingsGroup = await evaluate(`(() => {
   const data = window.LEAGUE_DATA || {};
-  const groups = ((data.meta || {}).groups || []).filter((g) => g.season_id === 33);
+  const groups = ((data.meta || {}).groups || []).filter((g) => g.season_id === 33 && /GIRL/i.test(g.name));
   for (const g of groups) {
     const games = data[\`33/\${g.group_id}/games\`] || [];
     const teams = data[\`33/\${g.group_id}/teams\`] || [];

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { api, groupAgeSort } from "../data.js";
-import { fmtDate, hasResult, scoreText, seasonHash, setTitle } from "../utils.js";
+import { api, groupAgeSort, groupGender } from "../data.js";
+import { fmtDate, hasResult, scoreText, seasonHash, setTitle, sortByKickoff } from "../utils.js";
 import GameStatus from "../components/GameStatus.jsx";
 
 /* Season overview: the whole league at a glance.
@@ -23,7 +23,10 @@ export default function SeasonView({ ctx, seasonId }) {
   let sp = null;
   let error = null;
   try {
-    sp = api("season", { season });
+    const all = api("season", { season });
+    const groups = all.groups.filter((g) => groupGender(g.name) === ctx.gender);
+    const games = groups.flatMap((g) => (api("games",{season,group:g.group_id}) || []).map((game) => ({...game,group_id:g.group_id,group_name:g.name,group_short:`${ctx.gender === "boys" ? "Boys" : "Girls"} ${g.name.replace(/^YOUTH GIRLS? /, "").replace(" GROUP ", " ")}`})));
+    sp = {...all,groups,latest_games:sortByKickoff(games.filter(hasResult),"desc").slice(0,8),upcoming_games:sortByKickoff(games.filter((g)=>g.status==="scheduled")).slice(0,5)};
   } catch (e) {
     error = e;
   }
@@ -41,7 +44,7 @@ export default function SeasonView({ ctx, seasonId }) {
         {seasons.map((s, i) => (
           <span key={s.season_id}>
             {i ? " · " : null}
-            <a className="row-link" href={seasonHash(s.season_id)}>{s.name}</a>
+            <a className="row-link" href={seasonHash(s.season_id,ctx.gender)}>{s.name}</a>
           </span>
         ))}
       </div>
@@ -134,7 +137,7 @@ export default function SeasonView({ ctx, seasonId }) {
 
         {/* No section heading: the group cards are self-describing (each names
           * its division) and the owner asked for the duplicate label to go. */}
-        <section className="division-section" aria-label={`All groups in Season ${season}`}>
+        <section className="division-section" aria-label={`${ctx.gender === "boys" ? "Boys" : "Girls"} groups in Season ${season}`}>
           <div className="grid-cards">
             {groups.map((g) => {
               const age = (g.name.match(/(GIRLS?\s+)?U\d+/) || ["—"])[0].replace(/^GIRLS?\s+/i, "GIRLS ");

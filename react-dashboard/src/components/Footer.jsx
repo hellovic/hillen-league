@@ -1,10 +1,10 @@
 import { meta } from "../data.js";
 
-export default function Footer() {
-  const c = meta.counts || {};
+export default function Footer({gender = "girls"}) {
+  const c = meta.gender_counts?.[gender] || meta.counts || {};
   return (
     <footer className="foot">
-      League data snapshot · hillen-sports.com
+      {gender === "boys" ? "Boys" : "Girls"} data snapshot · hillen-sports.com
       <br />
       <span id="foot-counts">
         {`${c.teams} teams · ${c.players} players · ${c.games} games · ${c.box_scores} box-score rows`}

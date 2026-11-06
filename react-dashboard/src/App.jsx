@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, routeDataReady, loadRouteData } from "./data.js";
+import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, groupName, genderForGroup, seasonsForGender, entityScope, routeDataReady, loadRouteData } from "./data.js";
 import { contextHash, seasonHash } from "./utils.js";
 import { PALETTES, PaletteContext } from "./theme.jsx";
 import { trackPageview } from "./analytics.js";
@@ -65,23 +65,25 @@ function routePlayerScope(parts) {
   };
 }
 
+function resolveCtx(parts, params, prev = {}) {
+  const qs = +params.get("season"); const qg = +params.get("group");
+  const legacy = routePlayerScope(parts);
+  let season = validSeason(qs) ? qs : routeSeasonId(parts) || legacy?.season || prev.season || DEFAULT_SEASON;
+  const explicitGroup = validGroup(season,qg) ? qg : legacy?.group;
+  let gender = explicitGroup ? genderForGroup(season,explicitGroup) : ["girls","boys"].includes(params.get("gender")) ? params.get("gender") : prev.gender || "girls";
+  const entity = !explicitGroup ? entityScope(parts,season,gender,prev.group) : null;
+  if (entity) { season=entity.season; gender=genderForGroup(entity.season,entity.group); }
+  if (!seasonGroups(season,gender).length && !params.has("gender") && (validSeason(qs) || routeSeasonId(parts))) gender = "girls";
+  if (!seasonGroups(season,gender).length) season=seasonsForGender(gender).at(-1)?.season_id || DEFAULT_SEASON;
+  const groups=seasonGroups(season,gender);
+  const requested=explicitGroup || entity?.group;
+  const age=groupName(prev.season,prev.group).match(/U\d+/)?.[0];
+  const group=groups.find((g)=>g.group_id===requested)?.group_id ?? groups.find((g)=>g.group_id===prev.group)?.group_id ?? (gender==="girls" && groups.some((g)=>g.group_id===DEFAULT_GROUP) ? DEFAULT_GROUP : groups.find((g)=>g.name.match(/U\d+/)?.[0]===age)?.group_id ?? groups[0]?.group_id);
+  return { season,group,gender };
+}
 function initialCtx() {
-  const { parts, params } = parseHash();
-  const qSeason = +params.get("season");
-  const qGroup = +params.get("group");
-  const pathSeason = routeSeasonId(parts);
-  const playerScope = routePlayerScope(parts);
-  const season = validSeason(qSeason)
-    ? qSeason
-    : pathSeason || playerScope?.season || DEFAULT_SEASON;
-  const group = validGroup(season, qGroup)
-    ? qGroup
-    : playerScope && playerScope.season === season
-      ? playerScope.group
-      : validGroup(season, DEFAULT_GROUP)
-        ? DEFAULT_GROUP
-        : seasonGroups(season)[0]?.group_id;
-  return { season, group };
+  const {parts,params}=parseHash();
+  return resolveCtx(parts,params);
 }
 
 function initialTheme() {
@@ -134,41 +136,21 @@ export default function App() {
   useEffect(() => {
     const onHash = () => {
       const next = parseHash();
-      const qSeason = +next.params.get("season");
-      const qGroup = +next.params.get("group");
-      const pathSeason = routeSeasonId(next.parts);
-      const playerScope = routePlayerScope(next.parts);
-      if (validSeason(qSeason)) {
-        setCtx((prev) => ({
-          season: qSeason,
-          group: validGroup(qSeason, qGroup) ? qGroup : validGroup(qSeason, prev.group) ? prev.group : seasonGroups(qSeason)[0]?.group_id,
-        }));
-      } else if (pathSeason) {
-        setCtx((prev) => ({
-          season: pathSeason,
-          group: validGroup(pathSeason, prev.group) ? prev.group : seasonGroups(pathSeason)[0]?.group_id,
-        }));
-      } else if (playerScope) {
-        setCtx(() => ({ season: playerScope.season, group: playerScope.group }));
-      }
+      setCtx((prev) => resolveCtx(next.parts, next.params, prev));
       setRoute(next);
       window.scrollTo(0, 0);
     };
-    if (!location.hash) history.replaceState(null, "", seasonHash(initialCtx().season));
+    if (!location.hash) history.replaceState(null, "", seasonHash(initialCtx().season, initialCtx().gender));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
   const adoptContext = useCallback((season, group) => {
     if (!season) return;
-    setCtx((prev) => ({
-      season,
-      group: validGroup(season, group)
-        ? group
-        : validGroup(season, prev.group)
-          ? prev.group
-          : seasonGroups(season)[0]?.group_id,
-    }));
+    setCtx((prev) => {
+      const selected = validGroup(season,group) ? group : seasonGroups(season,prev.gender)[0]?.group_id;
+      return { season, group:selected, gender:genderForGroup(season,selected) };
+    });
   }, []);
 
   /* Keep the URL in step with the selectors, exactly like syncUrl(): the season
@@ -180,12 +162,12 @@ export default function App() {
    * was in the URL when it mounted: picking season 31 updates the address bar to
    * #/season/31 and the context, but `parts[1]` (the prop SeasonView renders)
    * stays 33. */
-  const syncUrl = useCallback((season, group) => {
+  const syncUrl = useCallback((season, group, gender) => {
     const { parts } = parseHash();
     const view = parts[0] || "season";
     let hash;
-    if (view === "season") hash = seasonHash(season);
-    else if (LIST_VIEWS.has(view)) hash = contextHash(view, { season, group });
+    if (view === "season") hash = seasonHash(season,gender);
+    else if (LIST_VIEWS.has(view)) hash = contextHash(view, { season, group, gender });
     else return;
     if (location.hash === hash) return;
     history.replaceState(null, "", hash);
@@ -193,14 +175,28 @@ export default function App() {
   }, []);
 
   const changeSeason = (season) => {
-    const groups = seasonGroups(season);
+    const groups = seasonGroups(season,ctx.gender);
     const group = groups.some((g) => g.group_id === ctx.group) ? ctx.group : groups[0]?.group_id;
-    setCtx({ season, group });
-    syncUrl(season, group);
+    setCtx({ season, group, gender:ctx.gender });
+    syncUrl(season, group, ctx.gender);
   };
   const changeGroup = (group) => {
-    setCtx({ season: ctx.season, group });
-    syncUrl(ctx.season, group);
+    setCtx({ ...ctx, group });
+    syncUrl(ctx.season, group, ctx.gender);
+  };
+
+  const changeGender = (gender) => {
+    if (gender === ctx.gender) return;
+    const params = new URLSearchParams({ season:String(ctx.season), gender });
+    const next = resolveCtx([], params, {...ctx,group:undefined,gender});
+    const current = parseHash().parts;
+    const view = current[0] || "season";
+    const isList = LIST_VIEWS.has(view) && !(+current[1]);
+    const hash = isList ? contextHash(view,next) : seasonHash(next.season,gender);
+    setCtx(next);
+    history.replaceState(null,"",hash);
+    setRoute(parseHash());
+    window.scrollTo(0,0);
   };
 
   /* -- theme ------------------------------------------------------------ */
@@ -221,6 +217,31 @@ export default function App() {
   const id = +parts[1] || null;
   const id2 = +parts[2] || null;
   const active = TAB_FOR[view] || view;
+
+  // After the visible page is painted, prepare only the selected group's
+  // player list. This keeps a first Players/Compare visit responsive without
+  // downloading every group's full statistics at startup.
+  useEffect(() => {
+    if (!dataReady || navigator.connection?.saveData ||
+        !["season", "standings", "teams", "games", "leaders"].includes(view) ||
+        routeDataReady(["players"], ctx)) return;
+    let secondFrame, idle;
+    const warm = () => { loadRouteData(["players"], ctx).catch(() => {}); };
+    const frame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        idle = window.requestIdleCallback
+          ? window.requestIdleCallback(warm, { timeout: 1500 })
+          : setTimeout(warm, 150);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      cancelAnimationFrame(secondFrame);
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
+      else clearTimeout(idle);
+    };
+  }, [view, ctx.season, ctx.group, dataReady]);
+
 
   const content = (() => {
     if (currentDataError) return <div className="empty" role="alert">{currentDataError.message} <button type="button" onClick={() => { setDataError(null); setDataVersion((v) => v + 1); }}>Retry</button></div>;
@@ -264,6 +285,7 @@ export default function App() {
         <Topbar
           ctx={ctx}
           theme={theme}
+          onGenderChange={changeGender}
           allGroups={view === "season"}
           onToggleTheme={toggleTheme}
           onSeasonChange={changeSeason}
@@ -276,7 +298,7 @@ export default function App() {
             {content}
           </ViewBoundary>
         </main>
-        <Footer />
+        <Footer gender={ctx.gender} />
       </div>
       <MobileNav active={active} ctx={ctx} />
     </PaletteContext.Provider>

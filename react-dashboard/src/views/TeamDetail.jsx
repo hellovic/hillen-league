@@ -81,7 +81,7 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
    * stats row per team in the same season+group, so indexing by player_id
    * alone let the other team's row overwrite this roster's stats. */
   const statsById = new Map(
-    api("players", ctx)
+    api("players", { season: t.season_id, group: t.group_id })
       .filter((p) => p.team_id === id)
       .map((p) => [p.player_id, p])
   );

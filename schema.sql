@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS player_game_stats (
     ba  INTEGER,                              -- blocked-against
     tov INTEGER, pf INTEGER,
     eff INTEGER, plus_minus INTEGER, pts INTEGER,
-    PRIMARY KEY (event_id, player_id)
+    PRIMARY KEY (event_id, team_id, player_id)
 );
 
 -- Season leaderboards (from statistics.php top-N per category)

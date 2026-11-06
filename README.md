@@ -3,7 +3,11 @@
 SQLite database of Hillen Youth League (驍籃青少年籃球聯賽) data, scraped from
 https://www.hillen-sports.com/hillenyouth/ for analysis.
 
-**Current contents:** Three seasons of **Youth Girls** data.
+**Current contents:** Three seasons of **Youth Girls** data, plus all **30 Youth Boys divisions in season 33**.
+
+Season 33 has 37 divisions: 7 girls and 30 boys (U9 ×3, U11 ×7, U13 ×6, U15 ×8, U17 ×5, U20 ×1). Girls is the default; the Girls/Boys switch beside Light/Dark separates overview, fixtures, pickers and search. U20 can include 18- and 19-year-olds; these are Youth League divisions, not an open-age adult league.
+
+The 6 November captured dataset contains **259 fixtures and 5,948 box-score rows**, across 175 global team IDs and 2,152 player IDs. The girls-only counts below describe the historical baseline. Scheduled refreshes now include all 30 boys divisions in the same process, retaining serial requests and the 0.4-second courtesy delay.
 
 * **Season 33** (第三十三屆驍籃青少年籃球聯賽) — the **live season**:
   YOUTH GIRLS U9 GROUP A (25), U9 GROUP B (26), U11 GROUP A (11), U11 GROUP B (27),
@@ -104,8 +108,8 @@ permanent URL.
 `docs/` is **build output, not source**: it is gitignored and produced by
 `python3 server.py --export docs` (which `./start.sh` runs for you). It contains
 the built app (`index.html` + `assets/`), a searchable bootstrap payload
-(`league-bootstrap.js`, about 534 KB raw / 64 KB with gzip on the local snapshot),
-and `data/<season>-<group>.json` detail files loaded once on demand. The full
+(`league-bootstrap-lite.js`, about 733 KB raw / 81 KB gzip on the expanded snapshot),
+and `data/<season>-<group>.json` detail files loaded once on demand. Full player statistics are split into group list files; compact player identities keep global search available immediately. After paint, only the selected group is prepared in idle time, unless Save-Data is enabled. Detail responses include their needed player totals. The legacy full bootstrap remains available for cached clients. The full
 `league-data.js` bundle remains available for cross-checking, but is not loaded
 by the app. Each asset has its own content version, so data updates preserve
 unchanged JS/CSS caches. It also includes one share/preview page per game, team,
@@ -419,3 +423,11 @@ fresh draw each run.
   full per-player season stats are derivable from `v_player_season_*`.
 - Team `name` in `teams` is the latest scraped name; per-season naming differences
   (e.g. "YOUTH GIRL U13" vs "YOUTH GIRLS U13") are recorded via `groups` per scrape.
+
+## Season 33 expansion and frontend performance (6 November 2026)
+
+The expanded import uses exact division labels for standings and schedule validation, preserves source-named historical teams, and keys box rows by game/team/player so a source ID listed on both teams is retained. Such source ambiguities remain visible. The collapsed phone box score includes EFF and +/−.
+
+Five-run controlled mobile medians (4× CPU, 1.6 Mbps, 150 ms latency): overview 1.77s → 1.45s, first-visit transfer 258.1 KB → 198.5 KB, search response 222ms → 157ms. These laboratory measurements exclude analytics and predate the final CSS column update; they are not production field measurements. Total export storage grows because compatibility files are retained.
+
+Scraper memory retains at most 32 HTML pages, reusing evicted pages from disk without duplicate HTTP requests. Leaderboard rank-only changes are persisted without invalidating unchanged team metrics. Expanded two-hour refresh replay required 137 source requests; its approximately 178s network-time estimate is not a measured expanded GitHub run. Freshness limits and request cadence are unchanged.

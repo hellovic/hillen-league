@@ -86,7 +86,7 @@ export default function MobileNav({ active, ctx }) {
 
   const pick = (view) => {
     setOpen(false);
-    go(view === "season" ? seasonHash(ctx.season) : contextHash(view, ctx));
+    go(view === "season" ? seasonHash(ctx.season, ctx.gender) : contextHash(view, ctx));
   };
   const inMore = MORE.some(([view]) => view === active);
 

@@ -3,6 +3,15 @@
 All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
+## [v5.7] — 2026-11-06 — Boys divisions and lighter frontend
+
+- Add all 30 season 33 Youth Boys divisions; default to Girls with a separate Girls/Boys switch, scoped search and deep links.
+- Promote the verified 259-game / 5,948-box-row dataset and exact division parsing, historical-team references and game/team/player box keys.
+- Load compact player identities at startup and full group statistics on demand; reuse detail data, prepare the selected group after paint, respect Save-Data and retain compatibility exports.
+- Add EFF and +/− to collapsed mobile box scores, including aligned team totals.
+- Bound scraper HTML memory to 32 pages and avoid rank-only cache invalidations while retaining serial requests and the 0.4-second delay.
+- Controlled five-run mobile medians: overview 1.77s → 1.45s; startup gzip 144 KB → 81 KB. These are lab results, not measured production timings.
+
 ## [v5.6] — Unreleased — Lower-impact, measured scraping
 - Data refresh 2026-11-06: 156 games, 3789 box-score rows (seasons 31, 32, 33). 0 new, 0 updated, 0 removed, 156 unchanged.
 - Data refresh 2026-11-05: 156 games, 3789 box-score rows (seasons 31, 32, 33). 0 new, 0 updated, 0 removed, 156 unchanged.

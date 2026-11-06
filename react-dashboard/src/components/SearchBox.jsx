@@ -4,7 +4,7 @@ import { go } from "../utils.js";
 import { useIsPhone } from "../useMediaQuery.js";
 
 /* Global search with the same behaviour as setupGlobalSearch(): focus runs the
- * search, typing is debounced 180 ms, results span every season/group, and
+ * search, typing is debounced 100 ms, results span every season/group, and
  * picking a hit from another context switches the selectors to match it.
  *
  * UX-20 — phone context:
@@ -59,7 +59,7 @@ export default function SearchBox({ ctx, onAdoptContext }) {
         return;
       }
       try {
-        const idx = buildSearchIndex();
+        const idx = buildSearchIndex(ctx.gender);
         setItems(searchMatches(idx, needle, ctx));
         setOpen(true);
         setActive(-1);
@@ -67,7 +67,7 @@ export default function SearchBox({ ctx, onAdoptContext }) {
         setOpen(false);
       }
     },
-    [ctx.season, ctx.group]
+    [ctx.season, ctx.group, ctx.gender]
   );
 
   useEffect(() => {
@@ -79,9 +79,11 @@ export default function SearchBox({ ctx, onAdoptContext }) {
       setOpen(false);
       return undefined;
     }
-    timer.current = setTimeout(() => run(q), 180);
+    timer.current = setTimeout(() => run(q), 100);
     return () => clearTimeout(timer.current);
   }, [q, run, surface, isPhone]);
+
+  useEffect(() => { setQ(""); setItems(null); setOpen(false); setActive(-1); }, [ctx.gender]);
 
   /* ------------------------------------------------------------------ phone
    * Open: remember the scroll offset, push a same-URL history entry carrying a
@@ -446,7 +448,7 @@ export default function SearchBox({ ctx, onAdoptContext }) {
           : null}
         {open && surface && !q.trim() ? (
           <div className="gs-hint">
-            Type a player, team or fixture name. Results cover every season and group.
+            Type a player, team or fixture name. Results cover all {ctx.gender === "boys" ? "boys" : "girls"} seasons and groups.
           </div>
         ) : null}
         {open && surface && q.trim() && !items ? <div className="gs-empty">Searching…</div> : null}

@@ -20,6 +20,8 @@ import "./styles/ux-nav.css";
 import "./styles/ux-search.css";
 import "./styles/ux-standings.css";
 
+import "./styles/gender-switch.css";
+
 import App from "./App.jsx";
 import { initAnalytics } from "./analytics.js";
 

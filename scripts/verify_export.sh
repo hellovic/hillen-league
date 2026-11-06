@@ -8,4 +8,5 @@ python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$EXPORT_DIR" >/dev/
 site_pid=$!
 trap 'kill "$site_pid" 2>/dev/null || true' EXIT
 VERIFY_BASE="http://127.0.0.1:$PORT" node react-dashboard/scripts/verify.mjs
+VERIFY_BASE="http://127.0.0.1:$PORT" node react-dashboard/scripts/verify-gender.mjs
 kill -0 "$site_pid"  # Fail if a bind error made the browser hit another server.

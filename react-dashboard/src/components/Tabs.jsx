@@ -19,7 +19,7 @@ export default function Tabs({ active, ctx }) {
           type="button"
           data-view={view}
           className={active === view ? "active" : undefined}
-          onClick={() => go(view === "season" ? seasonHash(ctx.season) : contextHash(view, ctx))}
+          onClick={() => go(view === "season" ? seasonHash(ctx.season, ctx.gender) : contextHash(view, ctx))}
         >
           {label}
         </button>

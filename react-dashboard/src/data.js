@@ -13,6 +13,9 @@ export const DEFAULT_GROUP = meta.default_group ?? 16;
 /* Detail files are listed in the bootstrap manifest. Lists/search stay
  * synchronous; App waits for the required detail file before mounting a view. */
 const detailFiles = RAW.__detail_files || {};
+const listFiles = RAW.__list_files || {};
+const playerIndex = RAW.__players_index || {};
+const fileFor = (key) => listFiles[key] || detailFiles[key];
 const pendingFiles = new Map();
 const owns = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
@@ -42,28 +45,42 @@ export function api(path, params = {}) {
 
 function routeKeys(parts, ctx) {
   const [view, id, a, b] = parts;
+  const playerList = `${ctx.season}/${ctx.group}/players`;
   if (["games", "teams", "players"].includes(view) && +id) {
-    return [apiKey(`${view}/${+id}`, view === "games" ? {} : view === "teams" ? { season: ctx.season } : ctx)];
+    const key = apiKey(`${view}/${+id}`, view === "games" ? {} : view === "teams" ? { season: ctx.season } : ctx);
+    return [key, ...(["teams", "players"].includes(view) ? [key.split("/").slice(0, 2).join("/") + "/players"] : [])];
   }
-  if (view === "compare" && ["p", "t"].includes(id)) {
-    const kind = id === "p" ? "players" : "teams";
-    return [a, b].filter((x) => +x).map((x) => apiKey(`${kind}/${+x}`, id === "p" ? ctx : { season: ctx.season }));
+  if (view === "players") return [playerList];
+  if (view === "compare") {
+    const kind = id === "t" ? "teams" : "players";
+    return [...(kind === "players" ? [playerList] : []),
+      ...[a, b].filter((x) => +x).map((x) => apiKey(`${kind}/${+x}`, kind === "players" ? ctx : { season: ctx.season }))];
   }
   return [];
 }
 
 export function routeDataReady(parts, ctx) {
-  return routeKeys(parts, ctx).every((key) => owns(RAW, key) || !detailFiles[key]);
+  return routeKeys(parts, ctx).every((key) => owns(RAW, key) || !fileFor(key));
 }
 
 export async function loadRouteData(parts, ctx) {
-  const files = [...new Set(routeKeys(parts, ctx).filter((key) => !owns(RAW, key)).map((key) => detailFiles[key]).filter(Boolean))];
+  const keys = routeKeys(parts, ctx).filter((key) => !owns(RAW, key));
+  const groupFiles = new Map(keys.filter((key) => detailFiles[key]).map((key) => [key.split("/").slice(0, 2).join("/"), detailFiles[key]]));
+  const files = [...new Set(keys.map((key) => groupFiles.get(key.split("/").slice(0, 2).join("/")) || fileFor(key)).filter(Boolean))];
   await Promise.all(files.map((url) => {
     if (!pendingFiles.has(url)) {
       const request = fetch(new URL(url, document.baseURI)).then(async (response) => {
         if (!response.ok) throw new Error("Could not load league data. Please retry.");
         const data = await response.json();
-        if (!data || Object.keys(detailFiles).some((key) => detailFiles[key] === url && !owns(data, key))) {
+        const required = Object.keys(detailFiles).filter((key) => detailFiles[key] === url);
+        required.push(...Object.keys(listFiles).filter((key) => listFiles[key] === url));
+        for (const key of [...required]) {
+          if (detailFiles[key] === url) {
+            const playerKey = key.split("/").slice(0, 2).join("/") + "/players";
+            if (listFiles[playerKey]) required.push(playerKey);
+          }
+        }
+        if (!data || required.some((key) => !owns(data, key))) {
           throw new Error("Incomplete league data. Please retry.");
         }
         Object.assign(RAW, data);
@@ -88,8 +105,24 @@ export function groupAgeSort(a, b) {
 
 /* A season's groups in age order (U9 → U15, A before B) — used by the group
  * switcher and the season overview so both list divisions the same way. */
-export function seasonGroups(seasonId) {
-  return (meta.groups || []).filter((g) => g.season_id === seasonId).sort(groupAgeSort);
+export function groupGender(name) {
+  return /GIRL/i.test(name || "") ? "girls" : "boys";
+}
+export function genderForGroup(season, group) {
+  return groupGender(groupName(season, group));
+}
+export function seasonsForGender(gender) {
+  return (meta.seasons || []).filter((s) => seasonGroups(s.season_id, gender).length);
+}
+export function entityScope(parts, preferredSeason, preferredGender, preferredGroup) {
+  const [kind, rawId] = parts; const id = +rawId;
+  const field = { games: "event_id", teams: "team_id", players: "player_id" }[kind];
+  if (!field || !id) return null;
+  const combos = [...(meta.combos || [])].sort((a,b) => (b.season === preferredSeason) - (a.season === preferredSeason) || (b.group === preferredGroup) - (a.group === preferredGroup) || (genderForGroup(b.season,b.group) === preferredGender) - (genderForGroup(a.season,a.group) === preferredGender) || b.season-a.season);
+  return combos.find((c) => (kind !== "players" || c.season === preferredSeason) && (kind === "players" ? playerIndex[`${c.season}/${c.group}`] || RAW[`${c.season}/${c.group}/${kind}`] : RAW[`${c.season}/${c.group}/${kind}`])?.some((x) => x[field] === id)) || null;
+}
+export function seasonGroups(seasonId, gender = null) {
+  return (meta.groups || []).filter((g) => g.season_id === seasonId && (!gender || groupGender(g.name) === gender)).sort(groupAgeSort);
 }
 
 export function seasonName(seasonId) {
@@ -127,15 +160,16 @@ export function groupsForCombine(seasonId, groupId) {
 
 /* ---------------- global search (players / teams / games) ---------------- */
 
-let searchIndex = null;
+const searchIndexes = new Map();
 
-export function buildSearchIndex() {
-  if (searchIndex) return searchIndex;
+export function buildSearchIndex(gender = "girls") {
+  if (searchIndexes.has(gender)) return searchIndexes.get(gender);
   const players = [], teams = [], games = [];
   for (const combo of meta.combos || []) {
+    if (genderForGroup(combo.season, combo.group) !== gender) continue;
     let p, t, g;
     try {
-      p = api("players", { season: combo.season, group: combo.group });
+      p = playerIndex[`${combo.season}/${combo.group}`] || api("players", { season: combo.season, group: combo.group });
       t = api("teams", { season: combo.season, group: combo.group });
       g = api("games", { season: combo.season, group: combo.group });
     } catch (e) {
@@ -153,8 +187,9 @@ export function buildSearchIndex() {
       group: combo.group,
     });
   }
-  searchIndex = { players, teams, games };
-  return searchIndex;
+  const index = { players, teams, games };
+  searchIndexes.set(gender, index);
+  return index;
 }
 
 /* Relevance order for the global search box (UX-04). Explicit and stable:

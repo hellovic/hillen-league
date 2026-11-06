@@ -18,6 +18,7 @@ Stdlib only (urllib, sqlite3, re). Pages are cached under ./cache/ to make
 re-runs cheap and idempotent.
 """
 
+from collections import OrderedDict
 import argparse
 from contextlib import closing
 import datetime
@@ -69,7 +70,8 @@ class Fetcher:
         self.delay = delay
         os.makedirs(cache_dir, exist_ok=True)
         self.ctx = self._ssl_context()
-        self.responses = {}
+        self.responses = OrderedDict()
+        self.seen_urls = set()
         self.requests = 0
         self.connections = {}
         self.network_bytes = 0
@@ -101,6 +103,13 @@ class Fetcher:
     def _cache_path(self, url):
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", url)
         return os.path.join(self.cache_dir, safe + ".html")
+
+    def _remember(self, url, html):
+        self.seen_urls.add(url)
+        self.responses[url] = html
+        if len(self.responses) > 32:
+            self.responses.popitem(last=False)
+        return html
 
     def close(self):
         for connection in self.connections.values():
@@ -135,14 +144,22 @@ class Fetcher:
             raise
 
     def get(self, url, max_age=None):
+        # Explicit clearing starts a new validation pass. Bounded eviction
+        # leaves entries in the cache and retains once-per-pass URL reuse.
+        if not self.responses:
+            self.seen_urls.clear()
         if url in self.responses:
             self.memory_hits += 1
             return self.responses[url]
         path = self._cache_path(url)
+        if url in self.seen_urls:
+            self.memory_hits += 1
+            with open(path, encoding="utf-8") as f:
+                return self._remember(url, f.read())
         if os.path.exists(path) and (not self.refresh or (
                 max_age is not None and time.time() - os.path.getmtime(path) < max_age)):
             with open(path, encoding="utf-8", errors="replace") as f:
-                self.responses[url] = f.read()
+                self._remember(url, f.read())
             self.cache_hits += 1
             return self.responses[url]
         validators = {}
@@ -203,7 +220,7 @@ class Fetcher:
                     if status < 500:
                         raise ScrapeError(f"Source HTTP {status}: {url}")
                     raise OSError(f"Source HTTP {status}: {url}")
-                self.responses[url] = html
+                self._remember(url, html)
                 time.sleep(self.delay)
                 return html
             except ScrapeError:
@@ -220,7 +237,7 @@ class Fetcher:
         return {"requests": self.requests, "network_bytes": self.network_bytes,
                 "handshakes": self.handshakes, "cache_hits": self.cache_hits,
                 "memory_hits": self.memory_hits, "revalidations": self.revalidations,
-                "retries": self.retries, "unique_pages": len(self.responses),
+                "retries": self.retries, "unique_pages": len(self.seen_urls),
                 "responses": self.observations}
 
 
@@ -315,7 +332,7 @@ def parse_standings(html, group_name):
     """Standings table (分組表) for one group from division.php."""
     out = []
     for m in re.finditer(r'<h3 class="element-title"><span class="myfont">([^<]*分組表)</span>', html):
-        if group_name not in m.group(1):
+        if re.sub(r"\s+", " ", m.group(1).removesuffix("分組表")).strip() != re.sub(r"\s+", " ", group_name).strip():
             continue
         block = extract_div_block(html, m.start())
         rows = re.findall(r"<li>(.*?)</li>", block, re.S)
@@ -523,8 +540,10 @@ def parse_scores_page(html, season_id, event_id):
                            "name": name.group(1).strip() if name else None}
     if "left" in side_info:
         out["home_team_id"] = side_info["left"]["team_id"]
+        out["home_team_name"] = side_info["left"]["name"]
     if "right" in side_info:
         out["away_team_id"] = side_info["right"]["team_id"]
+        out["away_team_name"] = side_info["right"]["name"]
 
     mi = re.search(r'<div class="match-info">(.*?)</div>', html, re.S)
     if mi:
@@ -743,7 +762,7 @@ class Store:
             "fg2m, fg2a, fg2_pct, fg3m, fg3a, fg3_pct, fgm, fga, fg_pct, ftm, fta, ft_pct, "
             "off_reb, def_reb, tot_reb, ast, stl, blk, fb, ba, tov, pf, eff, plus_minus, pts) "
             "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(event_id, player_id) DO UPDATE SET "
+            "ON CONFLICT(event_id, team_id, player_id) DO UPDATE SET "
             "team_id=excluded.team_id, jersey_no=excluded.jersey_no, minutes=excluded.minutes, "
             "fg2m=excluded.fg2m, fg2a=excluded.fg2a, fg2_pct=excluded.fg2_pct, "
             "fg3m=excluded.fg3m, fg3a=excluded.fg3a, fg3_pct=excluded.fg3_pct, "
@@ -815,7 +834,8 @@ def require_schedule_rows(html, group_name, rows):
     expected = set()
     for block in re.findall(r'<li\b[^>]*>(.*?)</li>', html, re.S):
         match = re.search(r'event_id=(\d+)', block)
-        if match and group_name in strip_tags(block):
+        label = re.search(r"<span>([^<]+)</span>", block)
+        if match and label and label.group(1).strip() == group_name:
             expected.add(int(match.group(1)))
     parsed = {row["event_id"] for row in rows if row.get("group", group_name) == group_name}
     if expected != parsed:
@@ -877,7 +897,11 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
             raise ScrapeError(f"Missing leaderboard category {category}")
     boards = parse_leaderboards(board_html)
     new_boards = {(r["category"], r["rank"], r["player_id"], r["team_id"], r["games"], r["total"], r["avg"]) for r in boards}
-    changed_board_teams = {r[3] for r in old_boards ^ new_boards}
+    # Rank changes still update the public leaderboard, but unchanged metrics
+    # are not evidence that a team's roster or historical score pages changed.
+    old_metrics = {(r[0], *r[2:]) for r in old_boards}
+    new_metrics = {(r[0], *r[2:]) for r in new_boards}
+    changed_board_teams = {r[2] for r in old_metrics ^ new_metrics}
     board_main = extract_div_block(board_html, board_html.index('<div class="widget kopa-entry-list statistics-table">'))
     expected_players = set(re.findall(r'player_id=(\d+)', board_main))
     if expected_players != {str(row["player_id"]) for row in boards}:
@@ -970,6 +994,13 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
                 raise ScrapeError(f"Conflicting scores for result {eid}")
             game.update(group_id=group_id, date=event["date"], start=event["start"],
                         end=event["end"], venue=event.get("venue") or game["venue"])
+        for side in ("home", "away"):
+            tid = game[side + "_team_id"]
+            if not store.conn.execute("SELECT 1 FROM teams WHERE team_id=?", (tid,)).fetchone():
+                name = game.get(side + "_team_name")
+                if not name:
+                    raise ScrapeError(f"Missing source name for historical team {tid}")
+                store.upsert_team(tid, name)
         store.replace_game(game)
     keep = set(events)
     store.prune_pending_games(season_id, group_id, keep)
@@ -977,7 +1008,8 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
     print(f"  {len(teams)} teams, {len(events)} fixtures")
 
 
-ACTIVE_GROUPS = [(32, g) for g in (26, 27, 28, 30, 31)] + [(33, g) for g in (25, 26, 27, 11, 16, 28, 29)]
+# Refresh all current season girls/boys divisions together to share source pages.
+ACTIVE_GROUPS = [(32, g) for g in (26, 27, 28, 30, 31)] + [(33, g) for g in (25, 26, 27, 11, 16, 28, 29)] + [(33, g) for g in (14, 34, 35, 2, 15, 17, 18, 19, 37, 38, 3, 12, 20, 21, 32, 36, 4, 5, 6, 9, 22, 23, 31, 33, 7, 8, 13, 24, 30, 10)]
 
 
 def refresh_database(db_path, selections, cache, incremental=False):
