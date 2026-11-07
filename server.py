@@ -33,6 +33,8 @@ import shutil
 import sqlite3
 import subprocess
 import urllib.parse
+import unicodedata
+from collections import Counter, defaultdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -575,6 +577,143 @@ def build_league_bundle(conn, db_path=DB_PATH):
     return bundle
 
 
+def build_player_stories(bundle):
+    """Build photo-free career summaries from the same records as league stats."""
+    names, teams = {}, {}
+    rosters = defaultdict(dict)
+    appearances = defaultdict(list)
+    for combo in bundle["meta"]["combos"]:
+        season, group = combo["season"], combo["group"]
+        prefix = f"{season}/{group}"
+        for team in bundle[f"{prefix}/teams"]:
+            team_id = team["team_id"]
+            teams[season, team_id] = (team["team_name"], group)
+            for row in bundle[f"{prefix}/teams/{team_id}"]["roster"]:
+                pid = row["player_id"]
+                names[pid] = row["player_name"]
+                rosters[pid][season, team_id] = row["jersey_no"]
+        for fixture in bundle[f"{prefix}/games"]:
+            game = bundle[f"{prefix}/games/{fixture['event_id']}"]
+            if game["status"] != "completed":
+                continue
+            for row in game["box"]:
+                minutes = re.fullmatch(r"(\d+):([0-5]\d)", (row["minutes"] or "").strip())
+                if not minutes or not any(map(int, minutes.groups())):
+                    continue
+                pid = row["player_id"]
+                names[pid] = row["player_name"]
+                team_id = row["team_id"]
+                teams.setdefault((season, team_id), (
+                    game["home_name"] if game["home_team_id"] == team_id else game["away_name"], group))
+                appearances[pid].append((game, row, int(minutes[1]) * 60 + int(minutes[2])))
+
+    by_name = defaultdict(list)
+    for pid, name in sorted(names.items()):
+        normalized = unicodedata.normalize("NFKC", name).strip().casefold()
+        # Ignore unnamed roster placeholders such as "." when linking IDs.
+        by_name[normalized if any(c.isalnum() for c in normalized) else pid].append(pid)
+
+    catalog, buckets = [], defaultdict(dict)
+    for ids in by_name.values():
+        sides = defaultdict(set)
+        for pid in ids:
+            for game, row, _ in appearances[pid]:
+                sides[game["event_id"]].add(row["team_id"])
+        # Opposing appearances are evidence that a shared name is ambiguous.
+        conflict = len(ids) > 1 and any(len(side) > 1 for side in sides.values())
+        for linked in ([[pid] for pid in ids] if conflict else [ids]):
+            story = player_story_summary(linked, names, teams, rosters, appearances, bundle, conflict)
+            catalog.append({
+                "id": story["id"], "name": story["name"], "team": story["team"],
+                "games": story["totals"]["games"],
+            })
+            for pid in linked:
+                buckets[pid % 32][pid] = story
+    catalog.sort(key=lambda entry: (-entry["games"], entry["name"], entry["id"]))
+    return catalog, buckets
+
+
+def player_story_summary(ids, names, teams, rosters, appearances, bundle, conflict):
+    squads, games = {}, {}
+    for pid in ids:
+        squads.update(rosters[pid])
+        for game, row, seconds in appearances[pid]:
+            squads.setdefault((game["season_id"], row["team_id"]), row["jersey_no"])
+            event = game["event_id"]
+            # A duplicate ID on the same score sheet is one appearance.
+            if event not in games or seconds > games[event][2]:
+                games[event] = (game, row, seconds)
+
+    def kickoff(appearance):
+        game = appearance[0]
+        clock = game["start_time"] or ""
+        time = re.fullmatch(r"(\d{1,2}):(\d{2})\s*(AM|PM)", clock, re.IGNORECASE)
+        minutes = ((int(time[1]) % 12 + 12 * (time[3].upper() == "PM")) * 60 + int(time[2])) if time else -1
+        return (game["game_date"] or "9999", minutes, game["event_id"])
+
+    def game_line(appearance):
+        game, row, _ = appearance
+        line = {key: game[key] for key in (
+            "event_id", "season_id", "game_date", "venue", "status", "home_team_id",
+            "home_score", "away_score", "home_name", "away_name")}
+        line.update({key: row[key] for key in (
+            "team_id", "minutes", "pts", "tot_reb", "ast", "stl", "blk", "eff",
+            "fgm", "fga", "fg2m", "fg2a", "fg3m", "fg3a", "ftm", "fta")})
+        return line
+
+    played = sorted(games.values(), key=kickoff)
+    chapters = {season: {"season": season, "teams": [], "games": [], "pts": 0}
+                for season, _ in sorted(squads)}
+    team_totals = defaultdict(Counter)
+    profiles = Counter()
+    for game, row, _ in played:
+        season, group = game["season_id"], game["group_id"]
+        points = row["pts"] or 0
+        chapters[season]["pts"] += points
+        home = row["team_id"] == game["home_team_id"]
+        chapters[season]["games"].append({
+            "event_id": game["event_id"], "player_id": row["player_id"], "team_id": row["team_id"],
+            "date": game["game_date"], "pts": row["pts"], "eff": row["eff"],
+            "opponent": game["away_name"] if home else game["home_name"],
+        })
+        team_totals[season, row["team_id"]].update(gp=1, pts=points)
+        profiles[season, group, row["player_id"]] += 1
+    for (season, team_id), jersey in sorted(squads.items()):
+        name, group = teams[season, team_id]
+        totals = team_totals.get((season, team_id), Counter())
+        chapters[season]["teams"].append({
+            "id": team_id, "name": name, "group": group, "jersey": jersey,
+            "gp": totals["gp"], "pts": totals["pts"],
+        })
+
+    profiles = [key for key in sorted(profiles, key=lambda k: (-k[0], -profiles[k], k[1], k[2]))
+                if f"{key[0]}/{key[1]}/players/{key[2]}" in bundle]
+    numbers = Counter(row["jersey_no"] for _, row, _ in reversed(played) if row["jersey_no"] is not None)
+    jersey = next((squads[key] for key in sorted(squads, reverse=True) if squads[key] is not None), None)
+    if numbers:
+        jersey = numbers.most_common(1)[0][0]
+    canonical = ids[0]
+    latest_team = (played[-1][0]["season_id"], played[-1][1]["team_id"]) if played else max(squads)
+
+    best = {}
+    for metric in ("pts", "tot_reb", "ast", "stl", "blk", "eff"):
+        record = max((a for a in played if a[1][metric] is not None),
+                     key=lambda a: a[1][metric], default=None)
+        if record:
+            best[metric] = game_line(record)
+    return {
+        "id": canonical, "name": names[canonical].strip(), "ids": ids, "identity_conflict": conflict,
+        "jersey": jersey, "team": teams[latest_team][0],
+        "scope": list(chapters),
+        "profile": dict(zip(("season", "group", "id"), profiles[0])) if profiles else None,
+        "totals": {"seasons": len(chapters), "teams": len({team for _, team in team_totals}),
+                   "games": len(played), "points": sum(chapter["pts"] for chapter in chapters.values())},
+        "chapters": list(chapters.values()),
+        "first": game_line(played[0]) if played else None,
+        "best": best,
+    }
+
+
 def write_league_data(path, bundle):
     """Write the inline `window.LEAGUE_DATA = {…}` bundle the React app boots from."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -590,7 +729,7 @@ def write_league_data(path, bundle):
     return os.path.getsize(path)
 
 
-def write_split_data(directory, bundle):
+def write_split_data(directory, bundle, player_stories=None):
     """Keep identities in startup data; load full player statistics on demand.
 
     Retain the original bootstrap filename for cached older app versions.
@@ -627,6 +766,12 @@ def write_split_data(directory, bundle):
         for key in payload:
             if len(key.split("/")) > 3:
                 routes[key] = url
+    if player_stories is not None:
+        catalog, buckets = player_stories
+        list_files["player-story"] = emit("player-story.json", {"player-story": catalog})
+        for number, stories in buckets.items():
+            key = f"player-story/{number}"
+            list_files[key] = emit(f"player-story-{number}.json", {key: stories})
     legacy["__detail_files"] = routes
     write_league_data(os.path.join(directory, "league-bootstrap.js"), legacy)
     bootstrap["__detail_files"] = routes
@@ -644,7 +789,7 @@ def export_react_data(out_file, db_path=DB_PATH):
     finally:
         conn.close()
     size = write_league_data(out_file, bundle)
-    boot_size = write_split_data(os.path.dirname(os.path.abspath(out_file)), bundle)
+    boot_size = write_split_data(os.path.dirname(os.path.abspath(out_file)), bundle, build_player_stories(bundle))
     print(f"bootstrap {boot_size / 1e3:.1f} KB; detail files loaded on demand")
     print(f"wrote {out_file} ({size / 1e6:.2f} MB)")
 
@@ -702,7 +847,7 @@ def export_static(out_dir, db_path=DB_PATH):
         bundle = build_league_bundle(conn, db_path)
         bundle_size = write_league_data(os.path.join(out_dir, "league-data.js"),
                                         bundle)
-        boot_size = write_split_data(out_dir, bundle)
+        boot_size = write_split_data(out_dir, bundle, build_player_stories(bundle))
         # ---- share pages: a real URL per entity (see preview_page) ----
         def write_share(kind, ident, title, desc, target):
             """target is a hash route relative to the site root, e.g. "#/games/1"."""

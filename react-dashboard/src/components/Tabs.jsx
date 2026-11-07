@@ -8,6 +8,7 @@ const TABS = [
   ["games", "Games"],
   ["leaders", "Leaders"],
   ["compare", "Compare"],
+  ["player-story", "Story"],
 ];
 
 export default function Tabs({ active, ctx }) {
@@ -18,6 +19,7 @@ export default function Tabs({ active, ctx }) {
           key={view}
           type="button"
           data-view={view}
+          aria-current={active === view ? "page" : undefined}
           className={active === view ? "active" : undefined}
           onClick={() => go(view === "season" ? seasonHash(ctx.season, ctx.gender) : contextHash(view, ctx))}
         >

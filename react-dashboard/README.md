@@ -1,4 +1,4 @@
-# Hillen League — React dashboard (Courtside Orange)
+# Hillen League — React dashboard (CourtSide v1.1)
 
 A runnable React port of the Open Design project **“Dark Basketball Dashboard
 Designs”** (`9ac966f9-f287-4f65-b35e-59bfaeb29a5d`). The visual language —
@@ -12,6 +12,17 @@ and shipped as a normal front-end app.
 > keeps the per-entity share stubs. The legacy vanilla dashboard in
 > `../dashboard/` is unchanged and is still what `python3 server.py` serves
 > locally. See [Deploying](#deploying-serverpy---export).
+
+## Player Story
+
+CourtSide v1.1 adds the Player Story archive to the original Courtside Orange
+dashboard. Choose **Story** in the desktop sidebar or **More → Story** on a
+phone. Player profiles also link directly to their career story at
+`#/player-story/<player_id>`.
+
+Stories combine recorded appearances across matched player IDs and show
+parallel squads, roster-only entries, personal bests, and season game logs.
+The poster downloads as a PNG, and **Copy Story Link** gives a public deep link.
 
 ## Commands
 
@@ -30,12 +41,8 @@ the DevTools protocol and asserts routing, per-view `<title>`, table sorting,
 global search, theme switching/persistence, box-score sorting, inline SVG
 charts, mobile navigation, absence of uncaught exceptions and — the layout
 acceptance test this design needs — **zero horizontal overflow at 390 px and
-1440 px on all ten routes**. It prints `PASS/FAIL` per check and exits non-zero
-on failure:
-
-```
-101 checks, 101 passed, 0 failed
-```
+1440 px on the main routes**, including Player Story. It prints `PASS/FAIL` per
+check and exits non-zero on failure.
 
 Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 
@@ -74,7 +81,7 @@ Chrome is located automatically on macOS; elsewhere set `CHROME_PATH`.
 | 6 | 最佳表現 table: player names 13 px (was 16 px), stat labels 10 px in body-text colour (was 16 px accent orange) | Requested readability tweak on the game page — the PTS/2PT labels are captions between the two point columns and should not compete with them. Scoped rules live in `src/styles/tweaks.css`. |
 | 7 | Stat-table headers stick to the top of the viewport while the table scrolls, whenever the table fits its card | `base.css` already declares `table.data th{position:sticky;top:0}`, but `design.css` turns every table card into a horizontal scroll container (`.card:has(table){overflow-x:auto}`), which defeats vertical sticky. `SortTable` measures `table.scrollWidth` against `card.clientWidth` and adds `.fit` to the card when the table fits; only then does `tweaks.css` restore `overflow:visible`, so a table that needs sideways scrolling keeps its scroll box and inline header instead of becoming a page-wide scrollbar. |
 | 8 | Player names in the pinned Player column are capped (9em on phones, 13em from 768 px) and ellipsized, with the full name in the link's `title`; Players-table gutters shrink to 8 px from 768 px | A group with long English names (e.g. “Sit Sung Ning Kitty”) widened the sticky column until it took most of a phone screen and pushed every stat out of reach. Clamping the link caps both the column and the table's intrinsic width. |
-| 9 | Phone bottom bar has six items — Overview, Standings, Games, Leaders, Compare, More (Teams, Players) — instead of four plus a three-item More menu | Requested navigation layout: the most-used views get a permanent slot, and Teams/Players move under More. Labels drop to 9 px and the grid to `repeat(6, …)` in `tweaks.css` so six labels still fit a 360 px screen; the desktop rail keeps all seven views. |
+| 9 | The phone bottom bar shows Overview, Standings, Games, Leaders, Compare, and More. The More menu holds Teams, Players, and Story. | The most-used views get a permanent slot. Labels drop to 9 px and the grid to `repeat(6, …)` in `tweaks.css` so six labels fit a 360 px screen. The desktop rail shows every view. |
 | 10 | Season picker shows `33 · 第33屆驍籃` (and a full-name `title`) instead of the full league name, and its box is capped at 160 px on desktop / 152 px on phones so the Group picker keeps the rest of the row | Requested: the long season names squeezed the Group picker, whose names are the ones that must stay readable. The label is derived in `seasonShortName()` (`src/data.js`) by dropping the `青少年…` tail; below 380 px the picker type drops to 14 px so `YOUTH GIRLS U13` still fits next to it. |
 | 12 | Audit pass over every view (2026-10-19): scoreboard dash sits on the digits' optical centre; 最佳表現 客隊 header is right-aligned over its cells and the NIL placeholder is muted instead of accent-coloured; Standings latest results are full-width left-aligned and an unplayed fixture reads `Home — Away` instead of `— – —`; the player page pairs Per game with the radar and gives the points chart its own 760 px-capped card; Compare's player summary cards carry GP/PPG/RPG/APG; phone tables use 8 px side padding (the standings table fits its card again) and the Teams table hides Manager/Captain below 768 px so its ± column no longer clips | The desktop/phone screenshot audit found these as the only real alignment breaks; everything else matched the OD build. Table-density rules live at the bottom of `tweaks.css` next to the sticky-header block. |
 | 11 | On phones (and any window narrower than the table) the header row of a table that must scroll sideways is mirrored into a fixed strip pinned to the top of the screen, kept in sync with the card's horizontal scroll | `position: sticky` is resolved against the nearest scroll container; `design.css` makes the table card that container for sideways scrolling, so the header cannot follow the page. The strip is a portal inside `SortTable` (`thead-pin`), shown only while the real header is off-screen; it is `aria-hidden`, its cells are not focusable, and tapping it still sorts. Tables that fit their card keep the plain sticky header (deviation 7). |
@@ -194,7 +201,7 @@ Verify the exported site exactly as CI would ship it:
 ```bash
 python3 server.py --export docs
 python3 -m http.server 8010 --directory docs &
-VERIFY_BASE=http://127.0.0.1:8010 npm --prefix react-dashboard run verify:site   # 101 checks
+VERIFY_BASE=http://127.0.0.1:8010 npm --prefix react-dashboard run verify:site
 ```
 
 ## Syncing back to the Open Design project

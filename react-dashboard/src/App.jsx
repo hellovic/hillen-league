@@ -1,5 +1,5 @@
-import { Component, useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, groupName, genderForGroup, seasonsForGender, entityScope, routeDataReady, loadRouteData } from "./data.js";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, groupName, genderForGroup, seasonsForGender, entityScope, routeDataReady, loadRouteData, playerStory } from "./data.js";
 import { contextHash, seasonHash } from "./utils.js";
 import { PALETTES, PaletteContext } from "./theme.jsx";
 import { trackPageview } from "./analytics.js";
@@ -13,6 +13,7 @@ import TeamsView from "./views/TeamsView.jsx";
 import TeamDetail from "./views/TeamDetail.jsx";
 import PlayersView from "./views/PlayersView.jsx";
 import PlayerDetail from "./views/PlayerDetail.jsx";
+import PlayerStory, { StoryDirectory, StoryHeader } from "./views/PlayerStory.jsx";
 import GamesView from "./views/GamesView.jsx";
 import GameDetail from "./views/GameDetail.jsx";
 import LeadersView from "./views/LeadersView.jsx";
@@ -115,6 +116,7 @@ export default function App() {
   const [route, setRoute] = useState(parseHash);
   const [ctx, setCtx] = useState(initialCtx);
   const [theme, setTheme] = useState(initialTheme);
+  const posterRef = useRef(null);
 
   const [dataVersion, setDataVersion] = useState(0);
   const [dataError, setDataError] = useState(null);
@@ -217,6 +219,7 @@ export default function App() {
   const id = +parts[1] || null;
   const id2 = +parts[2] || null;
   const active = TAB_FOR[view] || view;
+  const story = view === "player-story" && id ? playerStory(id) : null;
 
   // After the visible page is painted, prepare only the selected group's
   // player list. This keeps a first Players/Compare visit responsive without
@@ -251,6 +254,8 @@ export default function App() {
         return id ? <TeamDetail ctx={ctx} id={id} onAdoptContext={adoptContext} /> : <TeamsView ctx={ctx} />;
       case "players":
         return id ? <PlayerDetail ctx={ctx} id={id} /> : <PlayersView ctx={ctx} />;
+      case "player-story":
+        return parts[1] ? <PlayerStory story={story} ctx={ctx} posterRef={posterRef} /> : <StoryDirectory />;
       case "games":
         return id ? <GameDetail ctx={ctx} id={id} onAdoptContext={adoptContext} /> : <GamesView ctx={ctx} />;
       case "compare":
@@ -282,7 +287,9 @@ export default function App() {
   return (
     <PaletteContext.Provider value={palette}>
       <div className="site-layout">
-        <Topbar
+        {view === "player-story" ? (
+          <StoryHeader ctx={ctx} theme={theme} onToggleTheme={toggleTheme} story={story} posterRef={posterRef} />
+        ) : <Topbar
           ctx={ctx}
           theme={theme}
           onGenderChange={changeGender}
@@ -291,7 +298,7 @@ export default function App() {
           onSeasonChange={changeSeason}
           onGroupChange={changeGroup}
           onAdoptContext={adoptContext}
-        />
+        />}
         <Tabs active={active} ctx={ctx} />
         <main id="view">
           <ViewBoundary key={view + "/" + parts.slice(1).join("/") + "/" + ctx.season + "/" + ctx.group}>

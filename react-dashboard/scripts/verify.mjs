@@ -16,7 +16,7 @@
  * the usual Linux/Windows install locations.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -166,6 +166,62 @@ const startup = await evaluate(`(() => ({
   fullBundle: performance.getEntriesByType("resource").some((r) => /\\/league-data\\.js/.test(r.name)),
 }))()`);
 check("overview boots without downloading full detail data", startup.manifest && startup.details === 0 && !startup.fullBundle, `${startup.details} detail payloads at startup`);
+
+// Story summaries load separately from the group files used by the box scores.
+await evaluate(`document.querySelector('#tabs [data-view="player-story"]').click()`);
+await waitFor(`!!document.querySelector("#story-search")`, "story directory");
+await evaluate(`(() => {
+  const search = document.querySelector("#story-search");
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(search, "楊沁柔");
+  search.dispatchEvent(new Event("input", { bubbles: true }));
+})()`);
+await waitFor(`document.querySelectorAll(".story-directory-link").length === 1`, "story search results");
+await evaluate(`document.querySelector(".story-directory-link").click()`);
+await waitFor(`document.querySelector("#story-player-name")?.textContent === "楊沁柔"`, "story player");
+const storySummary = await evaluate(`(() => {
+  const totals = [...document.querySelectorAll(".story-career-metrics dd")].map((el) => Number(el.textContent));
+  const details = performance.getEntriesByType("resource").some((item) => /^[0-9]+-[0-9]+[.]json/.test(item.name.split("/").at(-1)));
+  return { totals, details, aliases: document.querySelector(".story-identity-note")?.textContent.includes("Dual-ID"),
+    trajectory: !!document.querySelector(".story-trajectory") };
+})()`);
+check("player story joins archived IDs and shows season progression", storySummary.aliases && storySummary.trajectory, storySummary.totals.join(" / "));
+check("story summary renders without loading game box scores", !storySummary.details);
+await evaluate(`document.querySelector(".story-records button:nth-child(2)").click()`);
+check("record filter switches the featured performance", await evaluate(`document.querySelector(".story-records button:nth-child(2)").getAttribute("aria-pressed") === "true" && document.querySelector(".story-moments").textContent.includes("Rebound high")`));
+await evaluate(`document.querySelector(".story-log > summary").click()`);
+await waitFor(`!!document.querySelector(".story-game-row")`, "season log");
+check("season log lists games without rendering boxes", await evaluate(`!document.querySelector(".story-box")`));
+await evaluate(`document.querySelector(".story-game-row > summary").click()`);
+await waitFor(`!!document.querySelector(".story-box .story-metrics")`, "lazy box score");
+check("an expanded game row loads EFF and links to the full box score", await evaluate(`document.querySelector(".story-box .story-metrics").textContent.includes("EFF") && document.querySelector('.story-box a').hash.startsWith("#/games/")`));
+
+await open("/player-story/15432");
+const alternate = await evaluate(`[...document.querySelectorAll(".story-career-metrics dd")].map((el) => Number(el.textContent))`);
+check("alternate player ID opens the same story", JSON.stringify(alternate) === JSON.stringify(storySummary.totals));
+await evaluate(`Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: async (value) => { window.copiedStoryUrl = value; } }); document.querySelector(".story-actions > div button").click()`);
+await waitFor(`!!window.copiedStoryUrl`, "copied story link");
+check("copy uses the canonical story ID", await evaluate(`new URL(window.copiedStoryUrl).hash === "#/player-story/15165"`));
+await evaluate(`delete navigator.clipboard.writeText`);
+const posterDir = mkdtempSync(join(tmpdir(), "hl-story-poster-"));
+try {
+  await send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: posterDir });
+  await evaluate(`document.querySelector(".story-header-tools button").click()`);
+  check("share opens a painted poster", await evaluate(`(() => {
+    const canvas = document.querySelector(".story-poster-dialog[open] canvas");
+    return canvas?.width === 720 && canvas.getContext("2d").getImageData(12, 12, 1, 1).data[3] === 255;
+  })()`));
+  await evaluate(`document.querySelector(".story-poster-dialog > button").click()`);
+  const png = join(posterDir, "hillen-player-story-15165.png");
+  for (let i = 0; i < 50 && !existsSync(png); i++) await sleep(100);
+  check("story poster downloads as a PNG", existsSync(png) && readFileSync(png).subarray(0, 8).toString("hex") === "89504e470d0a1a0a");
+  await evaluate(`document.querySelector(".story-poster-dialog form button").click()`);
+} finally {
+  rmSync(posterDir, { recursive: true, force: true });
+}
+await evaluate(`document.querySelector(".story-actions a").click()`);
+await waitFor(`!!document.querySelector(".detail-actions a[href^='#/player-story/']")`, "story league stats link");
+check("league stats opens a scoped player profile with a Story shortcut", await evaluate(`location.hash.startsWith("#/players/") && location.hash.includes("?season=")`));
+
 await open("/teams/1515?season=32&group=26");
 check("historical deep link loads its detail file", await evaluate(`!!window.LEAGUE_DATA["32/26/teams/1515"] && document.querySelector("#t-roster") !== null`));
 
@@ -281,13 +337,18 @@ check("mobile Compare tab navigates", true, await evaluate("location.hash"));
 await evaluate(`document.querySelector("#more-nav").open = true`);
 await sleep(100);
 const moreItems = await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].map((b) => b.dataset.go)`);
-check("More menu holds Teams and Players", JSON.stringify(moreItems) === JSON.stringify(["teams", "players"]), moreItems.join(", "));
+check("More menu holds Teams, Players and Story", JSON.stringify(moreItems) === JSON.stringify(["teams", "players", "player-story"]), moreItems.join(", "));
 await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].find((b) => b.dataset.go === "players").click()`);
 await waitFor(`location.hash.startsWith("#/players")`, "mobile more-menu navigation");
 check("mobile “More” menu reaches Players", true, await evaluate("location.hash"));
+await evaluate(`document.querySelector("#more-nav").open = true`);
+await sleep(100);
+await evaluate(`document.querySelector('#more-nav [data-go="player-story"]').click()`);
+await waitFor(`!!document.querySelector("#story-search")`, "mobile Story directory");
+check("mobile More menu reaches Story and marks it current", await evaluate(`document.querySelector('#more-nav [data-go="player-story"]').getAttribute("aria-current") === "page"`));
 
 // The design's own acceptance test: the layout must not scroll sideways.
-const ROUTES = ["/season/33", "/standings", "/teams", "/players", "/games", "/leaders", "/compare/p/17864/15202", "/players/17864", "/teams/1595", "/games/20863"];
+const ROUTES = ["/season/33", "/standings", "/teams", "/players", "/games", "/leaders", "/compare/p/17864/15202", "/players/17864", "/teams/1595", "/games/20863", "/player-story", "/player-story/15165"];
 const overflows = [];
 for (const viewport of [{ w: 1440, h: 1000, m: false, name: "desktop" }, { w: 390, h: 844, m: true, name: "mobile" }]) {
   await setViewport(viewport.w, viewport.h, viewport.m);
@@ -295,6 +356,9 @@ for (const viewport of [{ w: 1440, h: 1000, m: false, name: "desktop" }, { w: 39
     await open(route);
     const overflow = await evaluate(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
     if (overflow > 1) overflows.push(`${viewport.name} ${route} +${overflow}px`);
+    if (viewport.m && route === "/player-story/15165") {
+      check("story header keeps its actions alongside the title on mobile", await evaluate(`Math.abs(document.querySelector(".story-topbar .brand").getBoundingClientRect().top - document.querySelector(".story-header-tools").getBoundingClientRect().top) < 8`));
+    }
   }
 }
 check("no horizontal overflow on any route", overflows.length === 0, overflows.join(", ") || "all " + ROUTES.length + " routes clean");

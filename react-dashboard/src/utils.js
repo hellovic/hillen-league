@@ -178,12 +178,20 @@ function legacyCopy(text, ok) {
   document.body.appendChild(ta);
   ta.select();
   try {
-    document.execCommand("copy");
-    ok();
+    if (document.execCommand("copy")) ok();
+    else prompt("Copy this link:", text);
   } catch (e) {
     prompt("Copy this link:", text);
   }
   document.body.removeChild(ta);
+}
+
+export function copyText(text, done) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done, () => legacyCopy(text, done));
+  } else {
+    legacyCopy(text, done);
+  }
 }
 
 export function copyShareLink(btn, kind, id) {
@@ -195,11 +203,7 @@ export function copyShareLink(btn, kind, id) {
       btn.textContent = was;
     }, 1500);
   };
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(url).then(done, () => legacyCopy(url, done));
-  } else {
-    legacyCopy(url, done);
-  }
+  copyText(url, done);
 }
 
 /* ---------------- CSV export ---------------- */

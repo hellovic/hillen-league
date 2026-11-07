@@ -102,6 +102,7 @@ export default function PlayerDetail({ ctx, id }) {
             <a className="row-link" href={`#/teams/${p.team_id}`}>{p.team_name}</a> · season {ctx.season}
           </div>
           <a className="csv-btn" href={`#/compare/p/${id}${contextQuery(ctx)}`}>⇄ Compare</a>
+          <a className="csv-btn" href={`#/player-story/${id}`}>Player Story</a>
           <ShareButton kind="players" id={id} />
         </div>
       </div>

@@ -46,6 +46,7 @@ export function api(path, params = {}) {
 function routeKeys(parts, ctx) {
   const [view, id, a, b] = parts;
   const playerList = `${ctx.season}/${ctx.group}/players`;
+  if (view === "player-story") return [id === undefined ? "player-story" : storyKey(+id)];
   if (["games", "teams", "players"].includes(view) && +id) {
     const key = apiKey(`${view}/${+id}`, view === "games" ? {} : view === "teams" ? { season: ctx.season } : ctx);
     return [key, ...(["teams", "players"].includes(view) ? [key.split("/").slice(0, 2).join("/") + "/players"] : [])];
@@ -57,6 +58,15 @@ function routeKeys(parts, ctx) {
       ...[a, b].filter((x) => +x).map((x) => apiKey(`${kind}/${+x}`, kind === "players" ? ctx : { season: ctx.season }))];
   }
   return [];
+}
+
+const storyKey = (id) => `player-story/${id % 32}`;
+export function playerStory(id) {
+  return RAW[storyKey(id)]?.[id] ?? null;
+}
+
+export function storyCatalog() {
+  return RAW["player-story"] || [];
 }
 
 export function routeDataReady(parts, ctx) {

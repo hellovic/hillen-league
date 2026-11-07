@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { contextHash, go, seasonHash } from "../utils.js";
 
 /* Six bottom-bar destinations, in the order Vic asked for:
- * Overview · Standings · Games · Leaders · Compare · More (Teams, Players).
- * The desktop rail keeps all seven views; teams and players live under More.
+ * Overview · Standings · Games · Leaders · Compare · More (Teams, Players, Story).
+ * The desktop rail keeps all views visible.
  * The first destination is called “Overview” on both breakpoints (UX-12), and
  * an active Teams/Players page marks the More control with aria-current plus a
  * visible dot, so the nested destination is discoverable (UX-12/UX-16). */
@@ -14,7 +14,7 @@ const PRIMARY = [
   ["leaders", "Leaders"],
   ["compare", "Compare"],
 ];
-const MORE = [["teams", "Teams"], ["players", "Players"]];
+const MORE = [["teams", "Teams"], ["players", "Players"], ["player-story", "Story"]];
 
 function IconGrid() {
   return (
