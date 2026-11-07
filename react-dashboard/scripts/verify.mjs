@@ -578,19 +578,21 @@ check("no Results pending wording survives anywhere", !/result pending/i.test(st
 check("a skipped fixture never shows a 0 score", (skippedScope ? /^—$/.test(statuses.skippedScore || "") : statuses.skipped === 0), `score cell "${statuses.skippedScore}"`);
 
 // UX-03: empty groups explain themselves instead of showing all-zero tables.
-// "Empty" also moves with the season, so pick a group that has teams but no
-// played game from the bundle rather than naming one.
+// Run these assertions only while the snapshot has a division in this state.
 const emptyGroup = await evaluate(`(() => {
   const groups = (window.LEAGUE_DATA || {})["season/33"]?.groups || [];
-  const empty = groups.filter((g) => /GIRL/i.test(g.name) && g.played === 0 && g.teams > 0);
-  return empty.length ? empty[0].group_id : 27;
+  return groups.find((g) => /GIRL/i.test(g.name) && g.played === 0 && g.teams > 0)?.group_id ?? null;
 })()`);
-await open(`/standings?season=33&group=${emptyGroup}`);
-const zeroTable = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), bars: document.querySelectorAll(".bar-row").length })`);
-check("standings explain an empty group instead of a zero chart", zeroTable.text.includes("No games played yet") && zeroTable.bars === 0, `group ${emptyGroup} · ${zeroTable.bars} bar rows`);
-await open(`/leaders?season=33&group=${emptyGroup}`);
-const zeroLeaders = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), tables: document.querySelectorAll("#view table.data").length })`);
-check("leaders explain an empty group instead of zero tables", zeroLeaders.text.includes("No games played yet") && zeroLeaders.text.includes("View fixtures") && zeroLeaders.tables === 0, `group ${emptyGroup} · ${zeroLeaders.tables} tables`);
+if (emptyGroup === null) {
+  console.log("SKIP  standings and leaders empty states · every registered Girls group has a result");
+} else {
+  await open(`/standings?season=33&group=${emptyGroup}`);
+  const zeroTable = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), bars: document.querySelectorAll(".bar-row").length })`);
+  check("standings explain an empty group instead of a zero chart", zeroTable.text.includes("No games played yet") && zeroTable.bars === 0, `group ${emptyGroup} · ${zeroTable.bars} bar rows`);
+  await open(`/leaders?season=33&group=${emptyGroup}`);
+  const zeroLeaders = await evaluate(`({ text: document.querySelector("#view").innerText.replace(/\\s+/g, " "), tables: document.querySelectorAll("#view table.data").length })`);
+  check("leaders explain an empty group instead of zero tables", zeroLeaders.text.includes("No games played yet") && zeroLeaders.text.includes("View fixtures") && zeroLeaders.tables === 0, `group ${emptyGroup} · ${zeroLeaders.tables} tables`);
+}
 
 // UX-04: search ranks the current group first and labels the scope.
 await open("/season/33?season=33&group=16");
