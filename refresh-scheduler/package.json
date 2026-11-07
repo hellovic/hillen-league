@@ -1,0 +1,15 @@
+{
+  "name": "hillen-league-refresh-fallback",
+  "scripts": {
+    "test": "node --test worker.test.mjs",
+    "build": "cf build",
+    "deploy": "cf deploy"
+  },
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.12",
+    "cf": "0.15.0",
+    "vite": "8.3.4"
+  }
+}

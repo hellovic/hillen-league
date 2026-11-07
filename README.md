@@ -334,6 +334,33 @@ on `main`, so a local `./start.sh` push goes live the same way.
 * Free-tier note: cloud runners use GitHub Actions minutes (public repos = free;
   private repos = a 2,000 min/month allowance). One run is a few minutes.
 
+### Independent fallback for late or missed runs
+
+The [fallback Worker](refresh-scheduler/worker.mjs) checks GitHub Actions 20 minutes
+after each configured slot. It requests the same refresh on `main` if there is
+no active or successful run created since that slot. GitHub labels the request
+with the original UTC slot. GitHub still runs the scraper, checks the export,
+and publishes to Pages. A complete GitHub Actions outage can delay both paths.
+
+To activate the fallback, push the workflow changes to `main`, then deploy the
+Worker with the [Cloudflare CLI](https://developers.cloudflare.com/cf/get-started/).
+Give it a [fine-grained GitHub token](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)
+scoped to `hellovic/hillen-league` with **Actions: Read and write**. Put the token
+in a private JSON file outside the repository under the key
+`GITHUB_ACTIONS_TOKEN` and pass that file as a Worker secret.
+
+```sh
+cd refresh-scheduler
+npm ci
+npm run deploy -- --secrets-file /path/to/private/github-secrets.json
+```
+
+The first scheduled Worker invocation should log `skip` with the existing run
+ID or `dispatch` with the fallback run ID. Keep the Worker cron times 20 minutes
+after the corresponding GitHub slots when editing the schedule. Run
+`node --test refresh-scheduler/worker.test.mjs` from the repository root to test
+the fallback without dispatching a real workflow.
+
 Prefer to keep it on your own machine instead? Run `./start.sh` via cron/launchd
 (needs your Mac to be awake at the scheduled time).
 
