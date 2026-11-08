@@ -1404,6 +1404,48 @@ check(
   `${teamH2H} → ${teamH2HHit}`
 );
 
+await setViewport(320, 725, true);
+await open("/standings?season=33&group=16");
+await evaluate(`document.querySelector("#language-toggle").click()`);
+await waitFor(`document.documentElement.lang === "zh-Hant"`, "Traditional Chinese");
+check("language changes in place and localizes headings, controls and title", await evaluate(`(() => (
+  location.hash === "#/standings?season=33&group=16" &&
+  document.querySelector(".view-head h2").textContent === "積分榜" &&
+  document.querySelector("#group-select").selectedOptions[0].textContent === "女子 U13" &&
+  document.querySelector("#global-search").placeholder === "球員、球隊、賽事…" &&
+  document.title.includes("驍籃聯賽數據平台")
+))()`));
+await sess("Page.reload");
+await waitFor(`document.documentElement.lang === "zh-Hant" && document.querySelector(".view-head h2")?.textContent === "積分榜"`, "persisted Traditional Chinese");
+check("Traditional Chinese persists after reload", await evaluate(`localStorage.getItem("courtside-language") === "zh-Hant"`));
+
+const translatedRoutes = [
+  ["/season/33", "最新賽果"], ["/standings", "小組積分榜"], ["/teams", "球隊"],
+  ["/players", "球員數據"], ["/games", "賽事"], ["/leaders", "數據榜"],
+  ["/compare/p/17864/15202", "主要數據"], ["/players/17864", "本屆總數"],
+  ["/teams/1595", "本屆戰績"], ["/games/20863", "最佳表現"],
+  ["/player-story", "女子組球員故事"], ["/player-story/15202", "精彩時刻"],
+];
+const translatedIssues = [];
+for (const width of [320, 527, 1440]) {
+  await setViewport(width, 844, width < 768);
+  for (const [route, heading] of translatedRoutes) {
+    await open(route);
+    const view = await evaluate(`({
+      text: document.querySelector("#view").innerText,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    })`);
+    if (!view.text.includes(heading) || view.overflow > 1) translatedIssues.push(`${width}px ${route} ${view.overflow}px overflow`);
+  }
+}
+check("Traditional Chinese renders on every dashboard route at three widths", !translatedIssues.length,
+  translatedIssues.join(", ") || `${translatedRoutes.length * 3} route and width combinations`);
+await evaluate(`document.querySelector(".story-toolbar button").click()`);
+check("the Story poster preview uses the selected language", await evaluate(`document.querySelector(".story-poster-dialog[open] h2").textContent === "分享故事海報" && document.querySelector(".story-poster-dialog > button").textContent.trim() === "下載 PNG"`));
+await evaluate(`document.querySelector(".story-poster-dialog form button").click(); document.querySelector("#language-toggle").click()`);
+await waitFor(`document.documentElement.lang === "en"`, "English restored");
+check("English can be restored without leaving the story", await evaluate(`location.hash === "#/player-story/15202" && document.querySelector("#story-moments-title").textContent === "Memorable Moments"`));
+
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 
 const failed = results.filter((r) => !r.ok);

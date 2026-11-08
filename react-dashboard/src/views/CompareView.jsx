@@ -1,3 +1,4 @@
+import { useLocale, useT } from "../locale.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, groupName } from "../data.js";
 import {
@@ -64,12 +65,13 @@ function IdentityStrip({ left, right }) {
 /* Three-column stat table. The header repeats name + team/record so every
  * value is attached to an identity even when the table is read on its own. */
 function CompareTable({ sideA, sideB, rows, className = "", caption }) {
+  const tr = useT();
   return (
     <table className={`data cmp-table ${className}`.trim()}>
       <caption className="sr-only">{caption}</caption>
       <thead>
         <tr>
-          <th scope="col">Stat</th>
+          <th scope="col">{tr("Stat")}</th>
           <th scope="col" className="num">
             <span className="cmp-th-name">{sideA.name}</span>
             <span className="cmp-th-team">{sideA.sub}</span>
@@ -83,7 +85,7 @@ function CompareTable({ sideA, sideB, rows, className = "", caption }) {
       <tbody>
         {rows.map((r) => (
           <tr key={r.label}>
-            <td>{r.label}</td>
+            <td>{tr(r.label)}</td>
             <td className={`num ${r.clsA}`}>{r.a}</td>
             <td className={`num ${r.clsB}`}>{r.b}</td>
           </tr>
@@ -97,6 +99,7 @@ function CompareTable({ sideA, sideB, rows, className = "", caption }) {
  * the table really is wider than its card. Keyboard users get a focusable
  * region, so the scroll is operable without a pointer. */
 function ScrollTable({ label, children }) {
+  const tr = useT();
   const ref = useRef(null);
   const [overflow, setOverflow] = useState(false);
   useEffect(() => {
@@ -117,34 +120,36 @@ function ScrollTable({ label, children }) {
       <div className="cmp-scroll" ref={ref} tabIndex={overflow ? 0 : undefined} role="region" aria-label={label}>
         {children}
       </div>
-      <p className="cmp-scroll-hint">Swipe or scroll sideways to see the rest of the table →</p>
+      <p className="cmp-scroll-hint">{tr("Swipe or scroll sideways to see the rest of the table →")}</p>
     </div>
   );
 }
 
 function CoreSection({ sideA, sideB, rows, guide = false }) {
-  const title = `Core season comparison: ${sideA.name} vs ${sideB.name}`;
+  const tr = useT();
+  const title = tr("Core season comparison: {first} vs {second}", { first: sideA.name, second: sideB.name });
   return (
     <section className="card cmp-core" aria-labelledby="cmp-core-title">
       <div className="cmp-section-head">
-        <h3 id="cmp-core-title">Core stats <span className="cn">season averages</span></h3>
+        <h3 id="cmp-core-title">{tr("Core stats")} <span className="cn">{tr("season averages")}</span></h3>
         {guide ? <StatGuide items={GUIDE_GROUPS.compare} /> : null}
       </div>
       <ScrollTable label={title}>
         <CompareTable sideA={sideA} sideB={sideB} rows={rows} className="cmp-core-table" caption={title} />
       </ScrollTable>
-      <p className="cmp-legend">Highlighted = better value · — = no record</p>
+      <p className="cmp-legend">{tr("Highlighted = better value · — = no record")}</p>
     </section>
   );
 }
 
 function AdvancedSection({ sideA, sideB, rows }) {
-  const title = `Advanced season comparison: ${sideA.name} vs ${sideB.name}`;
+  const tr = useT();
+  const title = tr("Advanced season comparison: {first} vs {second}", { first: sideA.name, second: sideB.name });
   return (
     <details className="card cmp-advanced">
       <summary className="cmp-advanced-summary">
-        <span className="cmp-advanced-label">Advanced metrics</span>
-        <span className="cmp-advanced-count">{rows.length} more stats</span>
+        <span className="cmp-advanced-label">{tr("Advanced metrics")}</span>
+        <span className="cmp-advanced-count">{tr("{count} more stats", { count: rows.length })}</span>
         <span className="cmp-advanced-caret" aria-hidden="true" />
       </summary>
       <div className="cmp-advanced-body">
@@ -174,6 +179,7 @@ function ChartLegend({ items }) {
 /* A data table that is visible on phones (where the SVG labels are small) and
  * screen-reader-only on wider screens, so chart data always has a text form. */
 function ChartData({ caption, headers, rows }) {
+  const tr = useT();
   return (
     <div className="cmp-chart-data">
       <table className="data cmp-trend-table">
@@ -181,7 +187,7 @@ function ChartData({ caption, headers, rows }) {
         <thead>
           <tr>
             {headers.map(([label, numeric]) => (
-              <th key={label} scope="col" className={numeric ? "num" : ""}>{label}</th>
+              <th key={label} scope="col" className={numeric ? "num" : ""}>{tr(label)}</th>
             ))}
           </tr>
         </thead>
@@ -200,10 +206,11 @@ function ChartData({ caption, headers, rows }) {
 }
 
 function PlayerTrend({ p, color }) {
+  const tr = useT();
   const games = sortByKickoff(p.games || []);
   return (
     <div className="card cmp-trend">
-      <h3>{p.player_name} — points per game</h3>
+      <h3>{tr("{name} — points per game", { name: p.player_name })}</h3>
       {games.length ? (
         <>
           <ChartLegend items={[{ name: "PTS", color }]} />
@@ -214,19 +221,20 @@ function PlayerTrend({ p, color }) {
             />
           </div>
           <ChartData
-            caption={`${p.player_name} points by game`}
+            caption={tr("{name} points by game", { name: p.player_name })}
             headers={[["Date", false], ["PTS", true]]}
             rows={games.map((x) => [fmtDate(x.game_date), x.pts])}
           />
         </>
       ) : (
-        <div className="chart-empty">No games.</div>
+        <div className="chart-empty">{tr("No games.")}</div>
       )}
     </div>
   );
 }
 
 function PlayerProfile({ pa, pb, palette }) {
+  const tr = useT();
   const g = (p) => Math.max(p.gp, 1);
   const metrics = [
     ["PTS", pa.pts / g(pa), pb.pts / g(pb)],
@@ -237,8 +245,8 @@ function PlayerProfile({ pa, pb, palette }) {
     ["EFF", pa.eff / g(pa), pb.eff / g(pb)],
   ];
   return (
-    <section className="card cmp-profile" aria-label={`Per-game profile: ${pa.player_name} vs ${pb.player_name}`}>
-      <h3>Per-game profile <span className="cn">side by side</span></h3>
+    <section className="card cmp-profile" aria-label={tr("Per-game profile: {first} vs {second}", { first: pa.player_name, second: pb.player_name })}>
+      <h3>{tr("Per-game profile")} <span className="cn">{tr("side by side")}</span></h3>
       <div className="cmp-bars">
         <div className="cmp-bars-head">
           <span aria-hidden="true" />
@@ -278,6 +286,7 @@ function PlayerProfile({ pa, pb, palette }) {
 }
 
 function ComparePlayers({ pa, pb, palette }) {
+  const tr = useT();
   const g = (p) => Math.max(p.gp, 1);
   const per = (v, p) => (p.gp ? n1(v / p.gp) : MISSING);
   const pct = (m, a) => pctStr(a ? (m / a) * 100 : null);
@@ -333,12 +342,12 @@ function ComparePlayers({ pa, pb, palette }) {
   );
 
   const h2h = (() => {
-    if (pa.team_id === pb.team_id) return <div className="h2h-record">Same team — no head-to-head.</div>;
+    if (pa.team_id === pb.team_id) return <div className="h2h-record">{tr("Same team — no head-to-head.")}</div>;
     const gamesA = new Map(pa.games.map((x) => [x.event_id, x]));
     const gamesB = new Map(pb.games.map((x) => [x.event_id, x]));
     const shared = [...gamesA.keys()].filter((id) => gamesB.has(id)).sort();
     if (!shared.length) {
-      return <div className="h2h-record">{pa.team_name} and {pb.team_name} never met this season.</div>;
+      return <div className="h2h-record">{tr("{first} and {second} never met this season.", { first: pa.team_name, second: pb.team_name })}</div>;
     }
     const line = (entry) => {
       const isHome = entry.home_team_id === entry.team_id;
@@ -350,7 +359,7 @@ function ComparePlayers({ pa, pb, palette }) {
       <table className="data h2h-player-table">
         <thead>
           <tr>
-            <th>Date</th>
+            <th>{tr("Date")}</th>
             <th>{pa.player_name} ({pa.team_name})</th>
             <th>{pb.player_name} ({pb.team_name})</th>
           </tr>
@@ -395,7 +404,7 @@ function ComparePlayers({ pa, pb, palette }) {
       <CoreSection sideA={sideA} sideB={sideB} rows={coreRows} guide />
       <AdvancedSection sideA={sideA} sideB={sideB} rows={advRows} />
       <div className="card compare-radar-card">
-        <h3>Per-game profile <span className="cn">vs each other</span></h3>
+        <h3>{tr("Per-game profile")} <span className="cn">{tr("vs each other")}</span></h3>
         <div aria-hidden="true">{radar}</div>
       </div>
       <PlayerProfile pa={pa} pb={pb} palette={palette} />
@@ -404,7 +413,7 @@ function ComparePlayers({ pa, pb, palette }) {
         <PlayerTrend p={pb} color={palette[1]} />
       </div>
       <div className="card">
-        <h3>Head-to-head <span className="cn">meetings</span></h3>
+        <h3>{tr("Head-to-head")} <span className="cn">{tr("meetings")}</span></h3>
         {h2h}
       </div>
     </>
@@ -412,8 +421,9 @@ function ComparePlayers({ pa, pb, palette }) {
 }
 
 function TeamTrend({ t, palette }) {
+  const tr = useT();
   const games = sortByKickoff((t.games || []).filter(hasResult));
-  if (!games.length) return <div className="chart-empty">No completed games.</div>;
+  if (!games.length) return <div className="chart-empty">{tr("No completed games.")}</div>;
   const rows = games.map((x) => {
     const isHome = x.home_team_id === t.team_id;
     const pf = isHome ? x.home_score : x.away_score;
@@ -439,7 +449,7 @@ function TeamTrend({ t, palette }) {
         />
       </div>
       <ChartData
-        caption={`${t.team_name} scoring by game`}
+        caption={tr("{name} scoring by game", { name: t.team_name })}
         headers={[["Date", false], ["Result", false], ["PF", true], ["PA", true]]}
         rows={rows.map((r) => [r.label, r.result, r.values[0], r.values[1]])}
       />
@@ -448,10 +458,11 @@ function TeamTrend({ t, palette }) {
 }
 
 function TeamHeadToHead({ ta, tb }) {
+  const tr = useT();
   const idsB = new Set(tb.games.map((x) => x.event_id));
   const shared = sortByKickoff(ta.games.filter((x) => idsB.has(x.event_id)));
   if (!shared.length) {
-    return <div className="h2h-record">These teams never met this season.</div>;
+    return <div className="h2h-record">{tr("These teams never met this season.")}</div>;
   }
   const played = shared.filter(hasResult);
   const series = played.reduce(
@@ -470,7 +481,7 @@ function TeamHeadToHead({ ta, tb }) {
     <>
       <table className="data h2h-team-table">
         <thead>
-          <tr><th>Date</th><th>Score</th><th>Venue</th><th className="num">Result</th></tr>
+          <tr><th>{tr("Date")}</th><th>{tr("Score")}</th><th>{tr("Venue")}</th><th className="num">{tr("Result")}</th></tr>
         </thead>
         <tbody>
           {shared.map((x) => {
@@ -478,12 +489,12 @@ function TeamHeadToHead({ ta, tb }) {
             const aScore = isHome ? x.home_score : x.away_score;
             const bScore = isHome ? x.away_score : x.home_score;
             const result = !hasResult(x)
-              ? gameStatus(x).label
+              ? tr(gameStatus(x).label)
               : aScore > bScore
                 ? ta.team_name
                 : bScore > aScore
                   ? tb.team_name
-                  : "Draw";
+                  : tr("Draw");
             return (
               <tr
                 key={x.event_id}
@@ -501,28 +512,28 @@ function TeamHeadToHead({ ta, tb }) {
                   }
                 }}
               >
-                <td data-label="Date">{x.game_date}</td>
-                <td data-label="Score" className="mono">{scoreText(x)}</td>
-                <td data-label="Venue">{x.venue || "—"}</td>
-                <td data-label="Result" className="num">{result}</td>
+                <td data-label={tr("Date")}>{x.game_date}</td>
+                <td data-label={tr("Score")} className="mono">{scoreText(x)}</td>
+                <td data-label={tr("Venue")}>{x.venue || "—"}</td>
+                <td data-label={tr("Result")} className="num">{result}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
       {played.length ? (
-        <div className="h2h-record">
-          Series: <b>{ta.team_name} {series.a}</b> – <b>{series.b} {tb.team_name}</b>
-          {series.draw ? ` · ${series.draw} drawn` : ""}
+        <div className="h2h-record">{tr("Series:")} <b>{ta.team_name} {series.a}</b> – <b>{series.b} {tb.team_name}</b>
+          {series.draw ? ` · ${tr("{count} drawn", { count: series.draw })}` : ""}
         </div>
       ) : (
-        <div className="h2h-record">No completed meetings yet this season.</div>
+        <div className="h2h-record">{tr("No completed meetings yet this season.")}</div>
       )}
     </>
   );
 }
 
 function CompareTeams({ ta, tb, palette }) {
+  const tr = useT();
   const per = (v, gp) => (gp ? n1(v / gp) : MISSING);
   const diff = (t) => t.pts_for - t.pts_against;
   const sideA = { name: ta.team_name, sub: `${ta.wins}-${ta.losses}`, color: palette[2] };
@@ -551,16 +562,16 @@ function CompareTeams({ ta, tb, palette }) {
       <AdvancedSection sideA={sideA} sideB={sideB} rows={advRows} />
       <div className="grid-2">
         <div className="card cmp-trend">
-          <h3>{ta.team_name} — scoring by game</h3>
+          <h3>{tr("{name} — scoring by game", { name: ta.team_name })}</h3>
           <TeamTrend t={ta} palette={palette} />
         </div>
         <div className="card cmp-trend">
-          <h3>{tb.team_name} — scoring by game</h3>
+          <h3>{tr("{name} — scoring by game", { name: tb.team_name })}</h3>
           <TeamTrend t={tb} palette={palette} />
         </div>
       </div>
       <div className="card">
-        <h3>Head-to-head <span className="cn">series</span></h3>
+        <h3>{tr("Head-to-head")} <span className="cn">{tr("series")}</span></h3>
         <TeamHeadToHead ta={ta} tb={tb} />
       </div>
     </>
@@ -568,6 +579,7 @@ function CompareTeams({ ta, tb, palette }) {
 }
 
 export default function CompareView({ ctx, type, a, b }) {
+  const { t: tr, group } = useLocale();
   const kind = type === "t" ? "t" : "p";
   const palette = usePalette();
   /* The pickers have to hold a half-finished choice: the URL only carries a
@@ -583,7 +595,7 @@ export default function CompareView({ ctx, type, a, b }) {
   }, [a, b, kind, ctx.season, ctx.group]);
   const idKey = kind === "p" ? "player_id" : "team_id";
   const nameKey = kind === "p" ? "player_name" : "team_name";
-  const noun = NOUN[kind];
+  const noun = tr(NOUN[kind]);
   const gname = groupName(ctx.season, ctx.group);
 
   let list = [];
@@ -607,19 +619,19 @@ export default function CompareView({ ctx, type, a, b }) {
       if (kind === "p") {
         const pa = api("players/" + a, ctx);
         const pb = api("players/" + b, ctx);
-        return [`${pa.player_name} vs ${pb.player_name}`, "Compare", "Season " + ctx.season];
+        return [`${pa.player_name} ${tr("vs")} ${pb.player_name}`, tr("Compare"), tr("Season {season}", ctx)];
       }
       const ta = api("teams/" + a, { season: ctx.season });
       const tb = api("teams/" + b, { season: ctx.season });
-      return [`${ta.team_name} vs ${tb.team_name}`, "Compare", "Season " + ctx.season];
+      return [`${ta.team_name} ${tr("vs")} ${tb.team_name}`, tr("Compare"), tr("Season {season}", ctx)];
     } catch (e) {
       return null;
     }
-  }, [kind, a, b, ctx.season, ctx.group]);
+  }, [kind, a, b, ctx.season, ctx.group, tr]);
 
   useEffect(() => {
-    setTitle(...(names || ["Compare", "Season " + ctx.season]));
-  }, [names && names.join("|")]);
+    setTitle(...(names || [tr("Compare"), tr("Season {season}", ctx)]));
+  }, [names && names.join("|"), ctx.season, tr]);
 
   const goCompare = (t, idA, idB) => {
     const base = `#/compare/${t}`;
@@ -640,36 +652,36 @@ export default function CompareView({ ctx, type, a, b }) {
         result = <CompareTeams ta={ta} tb={tb} palette={palette} />;
       }
     } catch (e) {
-      result = <div className="empty">{e.message}</div>;
+      result = <div className="empty">{tr(e.message)}</div>;
     }
   }
 
   let emptyMessage;
   if (pickedA && !pickedB) {
-    emptyMessage = `First ${noun}: ${pickedA}. Now choose a second ${noun} to open the comparison.`;
+    emptyMessage = tr("First {kind}: {name}. Now choose a second {kind} to open the comparison.", { kind: noun, name: pickedA });
   } else if (pickedB && !pickedA) {
-    emptyMessage = `Second ${noun}: ${pickedB}. Now choose a first ${noun} to open the comparison.`;
+    emptyMessage = tr("Second {kind}: {name}. Now choose a first {kind} to open the comparison.", { kind: noun, name: pickedB });
   } else {
-    emptyMessage = `Choose a first ${noun} and a second ${noun} above. Both sides are required.`;
+    emptyMessage = tr("Choose a first {kind} and a second {kind} above. Both sides are required.", { kind: noun });
   }
 
   return (
     <>
       <div className="view-head">
-        <h2>Compare</h2>
-        <div className="sub">Season {ctx.season} · {gname}</div>
+        <h2>{tr("Compare")}</h2>
+        <div className="sub">{tr("Season {season}", ctx)} · {group(gname)}</div>
       </div>
       <div className="card compare-card">
         <div className="compare-pickers">
           <div className="cmp-field">
-            <label htmlFor="cmp-type">Compare</label>
+            <label htmlFor="cmp-type">{tr("Compare")}</label>
             <select id="cmp-type" value={kind} onChange={(e) => goCompare(e.target.value, null, null)}>
-              <option value="p">Players</option>
-              <option value="t">Teams</option>
+              <option value="p">{tr("Players")}</option>
+              <option value="t">{tr("Teams")}</option>
             </select>
           </div>
           <div className="cmp-field">
-            <label htmlFor="cmp-a">{kind === "p" ? "First player" : "First team"}</label>
+            <label htmlFor="cmp-a">{tr(kind === "p" ? "First player" : "First team")}</label>
             <select
               id="cmp-a"
               value={pickA}
@@ -682,7 +694,7 @@ export default function CompareView({ ctx, type, a, b }) {
                 else if (!id) goCompare(kind, null, null);
               }}
             >
-              <option value="">— choose —</option>
+              <option value="">{tr("— choose —")}</option>
               {list.map((it) => (
                 <option key={kind === "p" ? `${it[idKey]}-${it.team_id}` : it[idKey]} value={it[idKey]}>
                   {kind === "p" ? `${it.player_name} (${it.team_name})` : it.team_name}
@@ -692,7 +704,7 @@ export default function CompareView({ ctx, type, a, b }) {
           </div>
           <span className="cmp-vs" aria-hidden="true">vs</span>
           <div className="cmp-field">
-            <label htmlFor="cmp-b">{kind === "p" ? "Second player" : "Second team"}</label>
+            <label htmlFor="cmp-b">{tr(kind === "p" ? "Second player" : "Second team")}</label>
             <select
               id="cmp-b"
               value={pickB}
@@ -705,7 +717,7 @@ export default function CompareView({ ctx, type, a, b }) {
                 else if (!id) goCompare(kind, null, null);
               }}
             >
-              <option value="">— choose —</option>
+              <option value="">{tr("— choose —")}</option>
               {list.map((it) => (
                 <option key={kind === "p" ? `${it[idKey]}-${it.team_id}` : it[idKey]} value={it[idKey]}>
                   {kind === "p" ? `${it.player_name} (${it.team_name})` : it.team_name}
@@ -717,10 +729,10 @@ export default function CompareView({ ctx, type, a, b }) {
         <div id="cmp-result">
           {result || (
             <div className="cmp-empty">
-              <p className="cmp-empty-title">{pickedA || pickedB ? "One side picked" : "Start a comparison"}</p>
+              <p className="cmp-empty-title">{tr(pickedA || pickedB ? "One side picked" : "Start a comparison")}</p>
               <p className="cmp-empty-body">{emptyMessage}</p>
               <p className="cmp-empty-tip">
-                Tip: open a {noun}’s page and press Compare, or use a shared comparison link.
+                {tr("Tip: open a {kind}’s page and press Compare, or use a shared comparison link.", { kind: noun })}
               </p>
             </div>
           )}

@@ -1,4 +1,4 @@
-# Hillen League — React dashboard (CourtSide v1.1)
+# Hillen League — React dashboard (CourtSide v1.2)
 
 A runnable React port of the Open Design project **“Dark Basketball Dashboard
 Designs”** (`9ac966f9-f287-4f65-b35e-59bfaeb29a5d`). The visual language —
@@ -23,6 +23,12 @@ Player profiles also link directly to their career story at
 Stories combine recorded appearances across matched player IDs and show
 parallel squads, roster-only entries, personal bests, and season game logs.
 The poster downloads as a PNG, and **Copy Story Link** gives a public deep link.
+
+## Language
+
+CourtSide v1.2 adds Traditional Chinese. Use **繁中** or **EN** beside the theme
+button to switch languages. The browser remembers your choice. League names,
+recorded results, and basketball stat abbreviations follow the source data.
 
 ## Commands
 

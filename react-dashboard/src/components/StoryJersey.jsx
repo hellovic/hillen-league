@@ -1,3 +1,5 @@
+import { useT } from "../locale.jsx";
+
 const WIDTH = 100;
 const HEIGHT = 111;
 const FONT = "system-ui, sans-serif";
@@ -45,10 +47,11 @@ export function paintStoryJersey(ctx, { name, number, x, y, width }) {
 }
 
 export default function StoryJersey({ name, number }) {
+  const tr = useT();
   return (
     <div className="story-jersey">
       <div className="story-jersey-mark"><span>HLN</span><span>{number == null ? "" : `#${jerseyNumber(number)}`}</span></div>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={number == null ? "Hillen League jersey" : `Primary jersey number ${number}`}>
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={number == null ? tr("Hillen League jersey") : tr("Primary jersey number {number}", { number })}>
         {SHAPES.map(({ d, fill, stroke }) => <path key={d} d={d} fill={fill} stroke={stroke} strokeWidth="2" />)}
         {lettering(name, number).map(({ text, y, fill, fontSize }) => (
           <text key={y} x={WIDTH / 2} y={y} textAnchor="middle" fill={fill} fontSize={fontSize} fontWeight="700" fontFamily={FONT}>{text}</text>

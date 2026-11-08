@@ -1,5 +1,6 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useRef, useState } from "react";
-import { api, groupName, scopeLabel } from "../data.js";
+import { api, groupName } from "../data.js";
 import { contextHash, csvDownload, go, hasResult, setTitle } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
@@ -18,6 +19,7 @@ const ORDER = ["mvp", "pts", "ast", "reb", "fg3", "blk", "ft", "stl"];
  * the strip scrolls horizontally instead of wrapping long bilingual labels.
  * Ranking rows, order and CSV output are untouched. */
 export default function LeadersView({ ctx }) {
+  const { t: tr, group, scope } = useLocale();
   const [selected, setSelected] = useState(null);
   const [jumpH, setJumpH] = useState(0);
   const navRef = useRef(null);
@@ -48,8 +50,8 @@ export default function LeadersView({ ctx }) {
   const resolved = games.filter(hasResult);
 
   useEffect(() => {
-    setTitle(groupName(ctx.season, ctx.group), "Leaders", "Season " + ctx.season);
-  }, [ctx.season, ctx.group]);
+    setTitle(group(groupName(ctx.season, ctx.group)), tr("Leaders"), tr("Season {season}", ctx));
+  }, [ctx.season, ctx.group, tr, group]);
 
   const prio = (c) => {
     const i = ORDER.indexOf(c);
@@ -148,13 +150,13 @@ export default function LeadersView({ ctx }) {
       <>
         <div className="view-head">
           <div className="view-head-copy">
-            <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
-            <h2>Leaders</h2>
+            <p className="eyebrow">{scope(ctx.season, ctx.group)}</p>
+            <h2>{tr("Leaders")}</h2>
           </div>
         </div>
         <div className="card">
           <ScopeEmpty
-            title="No teams in this group yet"
+            title={tr("No teams in this group yet")}
             text="Leaderboards appear once the group is drawn and results are recorded."
             href={"#/standings?season=" + ctx.season + "&group=" + ctx.group}
             linkLabel="View standings ↗"
@@ -169,8 +171,8 @@ export default function LeadersView({ ctx }) {
       <>
         <div className="view-head">
           <div className="view-head-copy">
-            <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
-            <h2>Leaders</h2>
+            <p className="eyebrow">{scope(ctx.season, ctx.group)}</p>
+            <h2>{tr("Leaders")}</h2>
           </div>
         </div>
         <div className="card">
@@ -200,21 +202,21 @@ export default function LeadersView({ ctx }) {
     <div className="leaders-view" style={jumpH ? { "--leader-jump-h": `${jumpH}px` } : undefined}>
       <div className="view-head">
         <div className="view-head-copy">
-          <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
-          <h2>Leaders</h2>
+          <p className="eyebrow">{scope(ctx.season, ctx.group)}</p>
+          <h2>{tr("Leaders")}</h2>
         </div>
         <div className="toolbar">
           <div className="sub">
-            {cats.length} categories · {resolved.length} played · {groupName(ctx.season, ctx.group)}
+            {tr("{categories} categories · {games} played", { categories: cats.length, games: resolved.length })} · {group(groupName(ctx.season, ctx.group))}
           </div>
           <StatGuide items={GUIDE_GROUPS.leaders} />
           <CsvButton onDownload={downloadCsv} />
         </div>
       </div>
 
-      <nav className="leader-jump" aria-label="Leaderboard categories" ref={navRef}>
-        <p className="leader-jump-label">Leaderboard categories</p>
-        <div className="leader-jump-strip" ref={stripRef} role="group" aria-label="Jump to a category">
+      <nav className="leader-jump" aria-label={tr("Leaderboard categories")} ref={navRef}>
+        <p className="leader-jump-label">{tr("Leaderboard categories")}</p>
+        <div className="leader-jump-strip" ref={stripRef} role="group" aria-label={tr("Jump to a category")}>
           {cats.map((cat) => {
             const en = cat.key.toUpperCase();
             const isCurrent = selected === cat.key;
@@ -228,7 +230,7 @@ export default function LeadersView({ ctx }) {
                 }}
                 aria-current={isCurrent ? "true" : undefined}
                 onClick={() => jumpTo(cat.key)}
-                title={`Jump to ${cat.cn}${cat.cn.toUpperCase() !== en ? ` (${en})` : ""} leaderboard`}
+                title={tr("Jump to {category} leaderboard", { category: cat.cn + (cat.cn.toUpperCase() !== en ? ` (${en})` : "") })}
               >
                 {isCurrent ? (
                   <span className="leader-chip-check" aria-hidden="true">
@@ -253,11 +255,11 @@ export default function LeadersView({ ctx }) {
               <thead>
                 <tr>
                   <th className="num">#</th>
-                  <th>Player</th>
-                  <th>Team</th>
+                  <th>{tr("Player")}</th>
+                  <th>{tr("Team")}</th>
                   <th className="num">GP</th>
-                  <th className="num">Total</th>
-                  <th className="num">Avg</th>
+                  <th className="num">{tr("Total")}</th>
+                  <th className="num">{tr("Avg")}</th>
                 </tr>
               </thead>
               <tbody>

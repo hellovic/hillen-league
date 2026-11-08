@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { api, groupName } from "../data.js";
 import { csvDownload, efgPct, n1, pct1, pctStr, setTitle, signed, sortRows, tsPct } from "../utils.js";
@@ -27,6 +28,7 @@ const KEYS = [
 ];
 
 export default function PlayersView({ ctx }) {
+  const { t: tr, group } = useLocale();
   const rows0 = api("players", ctx);
   const [q, setQ] = useState("");
   /* default order is points desc, but no header marker until a click — same as
@@ -38,8 +40,8 @@ export default function PlayersView({ ctx }) {
   const [allCols, setAllCols] = useState(false);
 
   useEffect(() => {
-    setTitle(groupName(ctx.season, ctx.group), "Players", "Season " + ctx.season);
-  }, [ctx.season, ctx.group]);
+    setTitle(group(groupName(ctx.season, ctx.group)), tr("Players"), tr("Season {season}", ctx));
+  }, [ctx.season, ctx.group, tr, group]);
 
   const players = useMemo(
     () =>
@@ -84,22 +86,22 @@ export default function PlayersView({ ctx }) {
   return (
     <>
       <div className="view-head">
-        <h2>Players</h2>
+        <h2>{tr("Players")}</h2>
         <div className="toolbar">
           <input
             type="search"
             id="player-search"
-            placeholder="Search name / team…"
+            placeholder={tr("Search name / team…")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <div className="sub">{players.length} players</div>
+          <div className="sub">{tr("{count} players", { count: players.length })}</div>
           <CsvButton onDownload={downloadCsv} />
         </div>
       </div>
       <div className="card">
         <div className="card-head">
-          <h3>Player statistics</h3>
+          <h3>{tr("Player statistics")}</h3>
           <StatGuide items={GUIDE_GROUPS.players} />
         </div>
         <MobileColumnsToggle

@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
 import { api, groupName } from "../data.js";
 import { contextQuery, csvDownload, efgPct, fmtDate, n1, pctStr, resultOf, setTitle, signed, tsPct } from "../utils.js";
@@ -30,6 +31,7 @@ const GAMELOG_COLS = [
 ];
 
 export default function PlayerDetail({ ctx, id }) {
+  const { t: tr, group } = useLocale();
   const palette = usePalette();
   const [allCols, setAllCols] = useState(false);
   let p = null;
@@ -42,21 +44,21 @@ export default function PlayerDetail({ ctx, id }) {
 
   useEffect(() => {
     if (p && !p.error) {
-      setTitle(p.player_name, p.team_name, groupName(ctx.season, ctx.group), "Season " + ctx.season);
+      setTitle(p.player_name, p.team_name, group(groupName(ctx.season, ctx.group)), tr("Season {season}", ctx));
     } else {
-      setTitle("Not found");
+      setTitle(tr("Not found"));
     }
-  }, [p && p.player_name, ctx.season, ctx.group]);
+  }, [p && p.player_name, ctx.season, ctx.group, tr, group]);
 
   if (err) {
     return (
       <div className="empty">
-        No stats — this player doesn't appear in {groupName(ctx.season, ctx.group)} · Season {ctx.season}. Try another group or season.
+        {tr("No stats — this player doesn’t appear in {scope}. Try another group or season.", { scope: `${group(groupName(ctx.season, ctx.group))} · ${tr("Season {season}", ctx)}` })}
       </div>
     );
   }
   if (!p) return null;
-  if (p.error) return <div className="empty">{p.error}</div>;
+  if (p.error) return <div className="empty">{tr(p.error)}</div>;
 
   const groupList = api("players", ctx);
   const gN = Math.max(groupList.length, 1);
@@ -74,7 +76,7 @@ export default function PlayerDetail({ ctx, id }) {
       series={[{ name: "PTS", color: palette[0] }]}
     />
   ) : (
-    <div className="chart-empty">No games played.</div>
+    <div className="chart-empty">{tr("No games played.")}</div>
   );
 
   const downloadCsv = () =>
@@ -94,17 +96,17 @@ export default function PlayerDetail({ ctx, id }) {
 
   return (
     <>
-      <a className="back" href="#/players">← Players</a>
+      <a className="back" href="#/players">{tr("← Players")}</a>
       <div className="view-head">
         <h2>{p.player_name}</h2>
         <div className="toolbar player-detail-toolbar">
           <div className="sub">
             <a className="row-link" href={`#/teams/${p.team_id}`} title={p.team_name}>{p.team_name}</a>
-            <span>· season {ctx.season}</span>
+            <span>· {tr("season {season}", ctx)}</span>
           </div>
           <div className="player-detail-actions">
-            <a className="csv-btn" href={`#/compare/p/${id}${contextQuery(ctx)}`}>⇄ Compare</a>
-            <a className="csv-btn" href={`#/player-story/${id}`}>Player Story</a>
+            <a className="csv-btn" href={`#/compare/p/${id}${contextQuery(ctx)}`}>{tr("⇄ Compare")}</a>
+            <a className="csv-btn" href={`#/player-story/${id}`}>{tr("Player Story")}</a>
             <ShareButton kind="players" id={id} />
           </div>
         </div>
@@ -113,7 +115,7 @@ export default function PlayerDetail({ ctx, id }) {
       <div className="grid-2">
         <div className="card">
           <div className="card-head">
-            <h3>Season totals</h3>
+            <h3>{tr("Season totals")}</h3>
             <StatGuide items={GUIDE_GROUPS.player} />
           </div>
           <div className="qstrip">
@@ -126,30 +128,30 @@ export default function PlayerDetail({ ctx, id }) {
             <div className="q"><b>{p.eff}</b><span>EFF</span></div>
           </div>
           <dl className="kv" style={{ marginTop: 12 }}>
-            <dt>Minutes</dt>
+            <dt>{tr("Minutes")}</dt>
             <dd className="mono">{n1(p.minutes)} ({n1(p.gp ? p.minutes / p.gp : null)}/g)</dd>
-            <dt>Shooting</dt>
+            <dt>{tr("Shooting")}</dt>
             <dd className="mono sstats">
               <span>{p.fgm}/{p.fga} FG</span>
               <span>{p.fg2m}/{p.fg2a} 2P</span>
               <span>{p.fg3m}/{p.fg3a} 3P</span>
               <span>{p.ftm}/{p.fta} FT</span>
             </dd>
-            <dt>Efficiency</dt>
+            <dt>{tr("Efficiency")}</dt>
             <dd className="mono sstats">
               <span>eFG% {pctStr(efgPct(p.fgm, p.fga, p.fg3m))}</span>
               <span>FT% {pctStr(p.fta ? (p.ftm / p.fta) * 100 : null)}</span>
               <span>TS% {pctStr(tsPct(p.pts, p.fga, p.fta))}</span>
             </dd>
-            <dt>Off / Def reb</dt><dd className="mono">{p.off_reb} / {p.def_reb}</dd>
-            <dt>Turnovers / fouls</dt><dd className="mono">{p.tov} / {p.pf}</dd>
-            <dt>Fast-break / blk-against</dt><dd className="mono">{p.fb} / {p.ba}</dd>
+            <dt>{tr("Off / Def reb")}</dt><dd className="mono">{p.off_reb} / {p.def_reb}</dd>
+            <dt>{tr("Turnovers / fouls")}</dt><dd className="mono">{p.tov} / {p.pf}</dd>
+            <dt>{tr("Fast-break / blk-against")}</dt><dd className="mono">{p.fb} / {p.ba}</dd>
             <dt>+/-</dt><dd className="mono">{signed(p.plus_minus)}</dd>
           </dl>
         </div>
         <div className="player-side">
         <div className="card">
-          <h3>Per game</h3>
+          <h3>{tr("Per game")}</h3>
           <div className="qstrip">
             <div className="q"><b>{(p.pts / Math.max(p.gp, 1)).toFixed(1)}</b><span>PPG</span></div>
             <div className="q"><b>{(p.reb / Math.max(p.gp, 1)).toFixed(1)}</b><span>RPG</span></div>
@@ -160,7 +162,7 @@ export default function PlayerDetail({ ctx, id }) {
           </div>
         </div>
         <div className="card">
-          <h3>vs group average <span className="cn">per game</span></h3>
+          <h3>{tr("vs group average")} <span className="cn">{tr("per game")}</span></h3>
           <RadarChart
             axes={axes}
             series={[
@@ -173,12 +175,12 @@ export default function PlayerDetail({ ctx, id }) {
       </div>
 
       <div className="card">
-        <h3>Points per game</h3>
+        <h3>{tr("Points per game")}</h3>
         <div className="chart-fit">{ptsBars}</div>
       </div>
 
       <div className="card">
-        <h3>Game log <span className="cn">比賽表現</span></h3>
+        <h3>{tr("Game log")} <span className="cn">比賽表現</span></h3>
         <CsvButton id="gamelog-csv" onDownload={downloadCsv} />
         <MobileColumnsToggle
           controls="t-gamelog"

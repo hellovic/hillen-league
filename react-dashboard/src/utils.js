@@ -1,3 +1,5 @@
+import { translate } from "./locale.jsx";
+
 export const APP_TITLE = "Hillen League Dashboard";
 
 export function fmtDate(d) {
@@ -5,7 +7,8 @@ export function fmtDate(d) {
 }
 
 export function setTitle(...parts) {
-  document.title = parts.filter((p) => p != null && String(p) !== "").concat(APP_TITLE).join(" - ");
+  document.title = parts.filter((p) => p != null && String(p) !== "")
+    .concat(translate(document.documentElement.lang, APP_TITLE)).join(" - ");
 }
 
 export function resultOf(g, teamId) {
@@ -170,6 +173,7 @@ function shareBase() {
 }
 
 function legacyCopy(text, ok) {
+  const label = translate(document.documentElement.lang, "Copy this link:");
   const ta = document.createElement("textarea");
   ta.value = text;
   ta.setAttribute("readonly", "");
@@ -179,9 +183,9 @@ function legacyCopy(text, ok) {
   ta.select();
   try {
     if (document.execCommand("copy")) ok();
-    else prompt("Copy this link:", text);
+    else prompt(label, text);
   } catch (e) {
-    prompt("Copy this link:", text);
+    prompt(label, text);
   }
   document.body.removeChild(ta);
 }
@@ -194,16 +198,8 @@ export function copyText(text, done) {
   }
 }
 
-export function copyShareLink(btn, kind, id) {
-  const url = `${shareBase()}${kind}/${id}/`;
-  const done = () => {
-    const was = btn.textContent;
-    btn.textContent = "✓ Copied";
-    setTimeout(() => {
-      btn.textContent = was;
-    }, 1500);
-  };
-  copyText(url, done);
+export function copyShareLink(kind, id, done) {
+  copyText(`${shareBase()}${kind}/${id}/`, done);
 }
 
 /* ---------------- CSV export ---------------- */

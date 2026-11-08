@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 import { useEffect, useState } from "react";
 import { contextHash, go, seasonHash } from "../utils.js";
 
@@ -79,6 +80,7 @@ function SelectedDot({ visible }) {
 }
 
 export default function MobileNav({ active, ctx }) {
+  const tr = useT();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     setOpen(false);
@@ -91,7 +93,7 @@ export default function MobileNav({ active, ctx }) {
   const inMore = MORE.some(([view]) => view === active);
 
   return (
-    <nav className="mobile-nav" id="mobile-nav" aria-label="League navigation">
+    <nav className="mobile-nav" id="mobile-nav" aria-label={tr("League navigation")}>
       {PRIMARY.map(([view, label]) => {
         const Icon = ICONS[view];
         return (
@@ -103,7 +105,7 @@ export default function MobileNav({ active, ctx }) {
             onClick={() => pick(view)}
           >
             <Icon />
-            <span className="nav-label">{label}</span>
+            <span className="nav-label">{tr(label)}</span>
             <SelectedDot visible={active === view} />
           </button>
         );
@@ -116,7 +118,7 @@ export default function MobileNav({ active, ctx }) {
       >
         <summary aria-current={inMore ? "page" : undefined}>
           <IconMore />
-          <span className="nav-label">More</span>
+          <span className="nav-label">{tr("More")}</span>
           <SelectedDot visible={inMore} />
         </summary>
         <div className="more-menu">
@@ -128,7 +130,7 @@ export default function MobileNav({ active, ctx }) {
               aria-current={active === view ? "page" : undefined}
               onClick={() => pick(view)}
             >
-              <span className="nav-label">{label}</span>
+              <span className="nav-label">{tr(label)}</span>
               <SelectedDot visible={active === view} />
             </button>
           ))}

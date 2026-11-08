@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 import { useEffect, useRef } from "react";
 import { paintStoryJersey } from "../components/StoryJersey.jsx";
 import { signed } from "../utils.js";
@@ -6,7 +7,7 @@ const WIDTH = 720;
 const HEIGHT = 820;
 const COLORS = { background: "#101112", card: "#1b1d20", line: "#34383d", white: "#f5f6f7", muted: "#b0b5bd", orange: "#ff8b50", cyan: "#72d4e8" };
 
-function paintPoster(canvas, story, note) {
+function paintPoster(canvas, story, note, tr) {
   const ctx = canvas.getContext("2d");
   const { background, card, line, white, muted, orange, cyan } = COLORS;
   function rect(x, y, width, height, color) {
@@ -20,7 +21,9 @@ function paintPoster(canvas, story, note) {
   }
 
   const lastSeason = story.scope.at(-1);
-  const seasonLine = story.scope.length === 1 ? `SEASON ${lastSeason}` : `SEASONS ${story.scope[0]}–${lastSeason}`;
+  const seasonLine = story.scope.length === 1
+    ? tr("SEASON {season}", { season: lastSeason })
+    : tr("SEASONS {first}–{last}", { first: story.scope[0], last: lastSeason });
   const header = ctx.createLinearGradient(0, 0, WIDTH, 280);
   header.addColorStop(0, "#392820");
   header.addColorStop(1, background);
@@ -30,7 +33,7 @@ function paintPoster(canvas, story, note) {
   rect(0, 0, WIDTH, 9, orange);
   rect(56, 52, 48, 48, orange);
   text("HL", 63, 85, 24, background, 900);
-  text("HILLEN LEAGUE  /  PLAYER STORY", 120, 83, 18, orange, 800);
+  text(tr("HILLEN LEAGUE  /  PLAYER STORY"), 120, 83, 18, orange, 800);
   paintStoryJersey(ctx, { name: story.name, number: story.jersey, x: 56, y: 106, width: 152 });
   text(seasonLine, 232, 161, 19, muted, 800);
   text(story.name, 232, 236, 62, white, 800, 432);
@@ -42,11 +45,11 @@ function paintPoster(canvas, story, note) {
     const x = 56 + (index % 2) * 312;
     const y = 335 + Math.floor(index / 2) * 118;
     rect(x, y, 296, 102, card);
-    text(label.toUpperCase(), x + 20, y + 27, 16, muted, 800);
+    text(tr(label.toUpperCase()), x + 20, y + 27, 16, muted, 800);
     text(value, x + 20, y + 78, 44, index % 2 ? orange : white, 800);
   });
 
-  text("BEST IN COLLECTED GAMES", 56, 604, 18, cyan, 800);
+  text(tr("BEST IN COLLECTED GAMES"), 56, 604, 18, cyan, 800);
   const bests = [["PTS", story.best.pts?.pts], ["REB", story.best.tot_reb?.tot_reb], ["EFF", story.best.eff ? signed(story.best.eff.eff) : null]];
   bests.forEach(([label, value], index) => {
     const x = 56 + index * 207;
@@ -55,12 +58,13 @@ function paintPoster(canvas, story, note) {
     text(value ?? "—", x + 16, 692, 32, white, 800);
   });
   rect(56, 740, 608, 2, line);
-  text(note, 56, 775, 18, muted, 500);
+  text(tr(note), 56, 775, 18, muted, 500);
 }
 
 export default function StoryPoster({ story, posterRef, archiveNote }) {
+  const tr = useT();
   const canvasRef = useRef(null);
-  useEffect(() => { paintPoster(canvasRef.current, story, archiveNote); }, [story, archiveNote]);
+  useEffect(() => { paintPoster(canvasRef.current, story, archiveNote, tr); }, [story, archiveNote, tr]);
 
   function downloadPoster() {
     canvasRef.current.toBlob((blob) => {
@@ -77,12 +81,12 @@ export default function StoryPoster({ story, posterRef, archiveNote }) {
   return (
     <dialog className="story-poster-dialog" ref={posterRef} aria-labelledby="story-poster-title">
       <div className="story-poster-head">
-        <h2 id="story-poster-title">Share Story Poster</h2>
-        <form method="dialog"><button type="submit" className="story-button" aria-label="Close poster">×</button></form>
+        <h2 id="story-poster-title">{tr("Share Story Poster")}</h2>
+        <form method="dialog"><button type="submit" className="story-button" aria-label={tr("Close poster")}>×</button></form>
       </div>
       <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} role="img"
-        aria-label={`Career summary poster for ${story.name}${story.jersey == null ? "" : `, jersey number ${story.jersey}`}`} />
-      <button type="button" className="story-button story-primary" onClick={downloadPoster}>Download PNG</button>
+        aria-label={tr("Career summary poster for {name}", story) + (story.jersey == null ? "" : tr(", jersey number {number}", { number: story.jersey }))} />
+      <button type="button" className="story-button story-primary" onClick={downloadPoster}>{tr("Download PNG")}</button>
     </dialog>
   );
 }

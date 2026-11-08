@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
 import { api } from "../data.js";
 import { csvDownload, hasResult, setTitle, signed } from "../utils.js";
@@ -50,6 +51,7 @@ function sortVal(key, b) {
 }
 
 export default function GameDetail({ ctx, id, onAdoptContext }) {
+  const { t: tr, group, language } = useLocale();
   const [teamSort, setTeamSort] = useState({});
   /* Per-card "full box score" state: each team card expands independently. */
   const [fullBox, setFullBox] = useState({});
@@ -69,19 +71,19 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
 
   useEffect(() => {
     if (!g || g.error) {
-      setTitle("Not found");
+      setTitle(tr("Not found"));
       return;
     }
     const statusNote =
       g.status !== "completed"
         ? g.status === "forfeit" ? "Forfeit" : g.status === "not_played" ? "Not played" : "Scheduled"
         : "";
-    setTitle(g.group_name, g.game_date, `${g.home_name} vs ${g.away_name}`, statusNote);
-  }, [g && g.event_id]);
+    setTitle(group(g.group_name), g.game_date, `${g.home_name} ${tr("vs")} ${g.away_name}`, tr(statusNote));
+  }, [g && g.event_id, tr, group]);
 
-  if (err) return <div className="empty">{err.message}</div>;
+  if (err) return <div className="empty">{tr(err.message)}</div>;
   if (!g) return null;
-  if (g.error) return <div className="empty">{g.error}</div>;
+  if (g.error) return <div className="empty">{tr(g.error)}</div>;
 
   const hw = g.home_score > g.away_score;
   const aw = g.away_score > g.home_score;
@@ -112,7 +114,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
     const totals = teamTotals(boxOf(tid));
     return (
       <tr>
-        <td colSpan="3"><b>Team total</b></td>
+        <td colSpan="3"><b>{tr("Team total")}</b></td>
         <td className="num mono">{totals.fg2m}-{totals.fg2a}</td>
         <td className="num mono">{totals.fg3m}-{totals.fg3a}</td>
         <td className="num mono">{totals.fgm}-{totals.fga}</td>
@@ -136,7 +138,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
         </a>
       </td>,
       <td className="num mono" key="min">
-        {dnp ? <span className="badge np" aria-label="Did not play">DNP</span> : b.minutes}
+        {dnp ? <span className="badge np" aria-label={tr("Did not play")}>DNP</span> : b.minutes}
       </td>,
       <td className="num mono" key="2pt">{b.fg2m}-{b.fg2a}</td>,
       <td className="num mono" key="3pt">{b.fg3m}-{b.fg3a}</td>,
@@ -176,8 +178,8 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
         <div className="card-head">
         <h3>
           {name} {color ? <span className="pill">{color}</span> : null}{" "}
-          <span className="cn">{win ? "WINNER" : "LOSER"}</span>
-          <button className="csv-btn csv-export team-table-csv" type="button" title="Download as CSV" onClick={downloadBoxCsv}>
+          <span className="cn">{tr(win ? "WINNER" : "LOSER")}</span>
+          <button className="csv-btn csv-export team-table-csv" type="button" title={tr("Download as CSV")} onClick={downloadBoxCsv}>
             CSV
           </button>
         </h3>
@@ -221,7 +223,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
     return (
       <table className="data quarter-table">
         <thead>
-          <tr><th></th>{labels.map((l) => <th key={l}>{l}</th>)}<th>Total</th></tr>
+          <tr><th></th>{labels.map((l) => <th key={l}>{l}</th>)}<th>{tr("Total")}</th></tr>
         </thead>
         <tbody>
           <tr>
@@ -252,7 +254,7 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
 
   const bestTable = (
     <div className="card">
-      <h3>最佳表現 <span className="cn">Best Performance</span></h3>
+      <h3>最佳表現 {language === "en" && <span className="cn">Best Performance</span>}</h3>
       <table className="data best-table">
         <thead>
           <tr><th className="side">主隊</th><th className="num"></th><th></th><th className="num"></th><th className="side">客隊</th></tr>
@@ -278,9 +280,9 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
 
   return (
     <>
-      <a className="back" href="#/games">← Games</a>
+      <a className="back" href="#/games">{tr("← Games")}</a>
       <div className="view-head">
-        <h2 className="game-detail-heading">{g.group_name} · {g.game_date}</h2>
+        <h2 className="game-detail-heading">{group(g.group_name)} · {g.game_date}</h2>
         <div className="toolbar detail-actions">
           <div className="sub">{g.venue || ""} · {g.start_time || ""}–{g.end_time || ""}</div>
           <ShareButton kind="games" id={id} />
@@ -309,11 +311,11 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
           quarterTable
         ) : g.status === "forfeit" ? (
           <div className="empty">
-            <b>Forfeit</b> — {hw ? g.home_name : g.away_name} awarded the win ({g.home_score ?? "—"}–{g.away_score ?? "—"} default).
+            <b>{tr("Forfeit")}</b> — {tr("{team} awarded the win ({score} default).", { team: hw ? g.home_name : g.away_name, score: `${g.home_score ?? "—"}–${g.away_score ?? "—"}` })}
           </div>
         ) : (
           <div className="empty">
-            {g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet."}
+            {tr(g.status === "not_played" ? "Game not played (walkover / no result)." : "Scheduled — no result yet.")}
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useMemo, useState } from "react";
 import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, groupName, genderForGroup, seasonsForGender, entityScope, routeDataReady, loadRouteData, playerStory } from "./data.js";
 import { contextHash, seasonHash } from "./utils.js";
 import { PALETTES, PaletteContext } from "./theme.jsx";
+import { useT } from "./locale.jsx";
 import { trackPageview } from "./analytics.js";
 import Topbar from "./components/Topbar.jsx";
 import StoryPromo from "./components/StoryPromo.jsx";
@@ -104,8 +105,8 @@ class ViewBoundary extends Component {
     if (this.state.error) {
       return (
         <div className="view-head">
-          <h2>Not found</h2>
-          <div className="sub">{this.state.error.message || "No data for that link."}</div>
+          <h2>{this.props.t("Not found")}</h2>
+          <div className="sub">{this.props.t(this.state.error.message || "No data for that link.")}</div>
         </div>
       );
     }
@@ -114,6 +115,7 @@ class ViewBoundary extends Component {
 }
 
 export default function App() {
+  const t = useT();
   const [route, setRoute] = useState(parseHash);
   const [ctx, setCtx] = useState(initialCtx);
   const [theme, setTheme] = useState(initialTheme);
@@ -252,8 +254,8 @@ export default function App() {
 
 
   const content = (() => {
-    if (currentDataError) return <div className="empty" role="alert">{currentDataError.message} <button type="button" onClick={() => { setDataError(null); setDataVersion((v) => v + 1); }}>Retry</button></div>;
-    if (!dataReady) return <div className="empty" role="status">Loading league data…</div>;
+    if (currentDataError) return <div className="empty" role="alert">{t(currentDataError.message)} <button type="button" onClick={() => { setDataError(null); setDataVersion((v) => v + 1); }}>{t("Retry")}</button></div>;
+    if (!dataReady) return <div className="empty" role="status">{t("Loading league data…")}</div>;
     switch (view) {
       case "teams":
         return id ? <TeamDetail ctx={ctx} id={id} onAdoptContext={adoptContext} /> : <TeamsView ctx={ctx} />;
@@ -307,7 +309,7 @@ export default function App() {
         </div>
         <Tabs active={active} ctx={ctx} />
         <main id="view">
-          <ViewBoundary key={viewKey}>
+          <ViewBoundary key={viewKey} t={t}>
             {content}
           </ViewBoundary>
         </main>

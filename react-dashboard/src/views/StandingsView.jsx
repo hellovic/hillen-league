@@ -1,5 +1,6 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
-import { api, groupName, scopeLabel } from "../data.js";
+import { api, groupName } from "../data.js";
 import {
   contextHash,
   csvDownload,
@@ -41,12 +42,13 @@ const KEYS = [
  * (striped) bar with both totals printed, a named legend, and a screen-reader
  * table. A team that has not played says so instead of drawing a zero bar. */
 export default function StandingsView({ ctx }) {
+  const { t: tr, group, scope } = useLocale();
   const [sort, setSort] = useState(null);
   const [standings, teams, games] = [api("standings", ctx), api("teams", ctx), api("games", ctx)];
 
   useEffect(() => {
-    setTitle(groupName(ctx.season, ctx.group), "Standings", "Season " + ctx.season);
-  }, [ctx.season, ctx.group]);
+    setTitle(group(groupName(ctx.season, ctx.group)), tr("Standings"), tr("Season {season}", ctx));
+  }, [ctx.season, ctx.group, tr, group]);
 
   const resolved = sortByKickoff(games.filter(hasResult), "desc");
   const latest = resolved.slice(0, 5);
@@ -88,12 +90,12 @@ export default function StandingsView({ ctx }) {
     <>
       <div className="view-head">
         <div className="view-head-copy">
-          <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
-          <h2>Standings</h2>
+          <p className="eyebrow">{scope(ctx.season, ctx.group)}</p>
+          <h2>{tr("Standings")}</h2>
         </div>
         <div className="toolbar">
           <div className="sub">
-            {teams.length} teams · {resolved.length} played
+            {tr("{teams} teams · {games} played", { teams: teams.length, games: resolved.length })}
           </div>
           <ShareButton kind="groups" id={`${ctx.season}/${ctx.group}`} />
           <CsvButton onDownload={downloadCsv} />
@@ -101,7 +103,7 @@ export default function StandingsView({ ctx }) {
       </div>
       <div className="grid-2">
         <div className="card">
-          <h3>Group Table</h3>
+          <h3>{tr("Group Table")}</h3>
           {standings.length ? (
             <SortTable
               columns={KEYS}
@@ -132,7 +134,7 @@ export default function StandingsView({ ctx }) {
             />
           ) : (
             <ScopeEmpty
-              title="No teams in this group yet"
+              title={tr("No teams in this group yet")}
               text="The table appears once this group's teams are entered."
             />
           )}
@@ -140,7 +142,7 @@ export default function StandingsView({ ctx }) {
         <div>
           <div className="card pfpa-card">
             <div className="card-head">
-              <h3>Points scored vs conceded</h3>
+              <h3>{tr("Points scored vs conceded")}</h3>
               <StatGuide items={GUIDE_GROUPS.standings} />
             </div>
             {hasScores ? (
@@ -148,12 +150,10 @@ export default function StandingsView({ ctx }) {
                 <p className="pfpa-legend">
                   <span className="pfpa-legend-item">
                     <span className="pfpa-swatch pf" aria-hidden="true" />
-                    <b>PF</b> points scored
-                  </span>
+                    <b>PF</b> {tr("points scored")} </span>
                   <span className="pfpa-legend-item">
                     <span className="pfpa-swatch pa" aria-hidden="true" />
-                    <b>PA</b> points conceded
-                  </span>
+                    <b>PA</b> {tr("points conceded")} </span>
                 </p>
                 <ul className="pfpa-list">
                   {teams.map((t) => {
@@ -183,27 +183,27 @@ export default function StandingsView({ ctx }) {
                             </span>
                           </span>
                         ) : (
-                          <span className="pfpa-none">No games played yet</span>
+                          <span className="pfpa-none">{tr("No games played yet")}</span>
                         )}
                       </li>
                     );
                   })}
                 </ul>
                 <p className="pfpa-note">
-                  Scored and conceded totals share one scale (group maximum {maxPts}); completed results only.
+                  {tr("Scored and conceded totals share one scale (group maximum {max}); completed results only.", { max: maxPts })}
                   {playedTeams.length < teams.length
-                    ? " Teams that have not played yet are listed without bars."
+                    ? " " + tr("Teams that have not played yet are listed without bars.")
                     : ""}
                 </p>
                 <div className="sr-only">
                   <table>
-                  <caption>Points scored (PF) and conceded (PA) by team in this group</caption>
+                  <caption>{tr("Points scored (PF) and conceded (PA) by team in this group")}</caption>
                   <thead>
                     <tr>
-                      <th scope="col">Team</th>
-                      <th scope="col">Games played</th>
-                      <th scope="col">PF, points scored</th>
-                      <th scope="col">PA, points conceded</th>
+                      <th scope="col">{tr("Team")}</th>
+                      <th scope="col">{tr("Games played")}</th>
+                      <th scope="col">{tr("PF, points scored")}</th>
+                      <th scope="col">{tr("PA, points conceded")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -221,14 +221,14 @@ export default function StandingsView({ ctx }) {
               </>
             ) : resolved.length ? (
               <ScopeEmpty
-                title="No scoring totals yet"
+                title={tr("No scoring totals yet")}
                 text="Results are recorded for this group, but no points have been counted yet (forfeits or no recorded score)."
                 href={contextHash("games", ctx)}
                 linkLabel="View fixtures ↗"
               />
             ) : (
               <ScopeEmpty
-                title="No games played yet"
+                title={tr("No games played yet")}
                 text="Points scored and conceded appear after this group's first final score."
                 href={contextHash("games", ctx)}
                 linkLabel="View fixtures ↗"
@@ -236,12 +236,12 @@ export default function StandingsView({ ctx }) {
             )}
           </div>
           <div className="card">
-            <h3>Latest results</h3>
+            <h3>{tr("Latest results")}</h3>
             {latest.length ? (
               latest.map(resultRow)
             ) : (
               <ScopeEmpty
-                title="No completed games yet"
+                title={tr("No completed games yet")}
                 text="Final scores are listed here once a result is recorded."
                 href={contextHash("games", ctx)}
                 linkLabel="View fixtures ↗"

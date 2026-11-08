@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
 import { api } from "../data.js";
 import { contextQuery, csvDownload, fmtDate, n1, resultOf, setTitle, signed, sortRows } from "../utils.js";
@@ -46,6 +47,7 @@ const LEADER_COLS = [
 ];
 
 export default function TeamDetail({ ctx, id, onAdoptContext }) {
+  const { t: tr, group, language } = useLocale();
   const palette = usePalette();
   const [allCols, setAllCols] = useState(false);
   const [allResultCols, setAllResultCols] = useState(false);
@@ -66,12 +68,12 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
   }, [t && t.season_id, t && t.group_id, ctx.season, ctx.group]);
 
   useEffect(() => {
-    if (t) setTitle(t.team_name, t.group_name, "Season " + ctx.season);
-  }, [t && t.team_name, t && t.group_name, ctx.season]);
+    if (t) setTitle(t.team_name, group(t.group_name), tr("Season {season}", ctx));
+  }, [t && t.team_name, t && t.group_name, ctx.season, tr, group]);
 
-  if (err) return <div className="empty">{err.message}</div>;
+  if (err) return <div className="empty">{tr(err.message)}</div>;
   if (!t) return null;
-  if (t.error) return <div className="empty">{t.error}</div>;
+  if (t.error) return <div className="empty">{tr(t.error)}</div>;
 
   const leaders = t.leaders.slice(0, 5);
   /* The roster payload only carries jersey + name; join the group player rows so
@@ -154,12 +156,12 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
 
   return (
     <>
-      <a className="back" href="#/teams">← Teams</a>
+      <a className="back" href="#/teams">{tr("← Teams")}</a>
       <div className="view-head">
         <h2>{t.team_name}</h2>
         <div className="toolbar detail-actions">
-          <div className="sub">{t.group_name || ""} · season {ctx.season}</div>
-          <a className="csv-btn" href={`#/compare/t/${id}${contextQuery(ctx)}`}>⇄ Compare</a>
+          <div className="sub">{group(t.group_name) || ""} · {tr("season {season}", ctx)}</div>
+          <a className="csv-btn" href={`#/compare/t/${id}${contextQuery(ctx)}`}>{tr("⇄ Compare")}</a>
           <ShareButton kind="teams" id={id} />
         </div>
       </div>
@@ -167,17 +169,17 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
       <div className="grid-2">
         <div className="card">
           <div className="card-head">
-            <h3>Season record</h3>
+            <h3>{tr("Season record")}</h3>
             <StatGuide items={GUIDE_GROUPS.standings} />
           </div>
           <div className="scoreboard" style={{ gap: 26 }}>
             <div className="team">
-              <div className="tname">W</div>
+              <div className="tname">{tr("W")}</div>
               <div className={`score ${t.wins > t.losses ? "winner" : ""}`}>{t.wins}</div>
             </div>
             <div className="vs">—</div>
             <div className="team">
-              <div className="tname">L</div>
+              <div className="tname">{tr("L")}</div>
               <div className={`score ${t.losses > t.wins ? "loser" : ""}`}>{t.losses}</div>
             </div>
           </div>
@@ -192,33 +194,33 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
           </div>
         </div>
         <div className="card">
-          <h3>Club info</h3>
+          <h3>{tr("Club info")}</h3>
           <dl className="kv">
-            <dt>Manager</dt><dd>{t.manager || "—"}</dd>
-            <dt>Captain</dt>
+            <dt>{tr("Manager")}</dt><dd>{t.manager || "—"}</dd>
+            <dt>{tr("Captain")}</dt>
             <dd>
               {t.captain_player_id
                 ? <a className="row-link" href={`#/players/${t.captain_player_id}`}>{t.captain_name}</a>
                 : "—"}
             </dd>
-            <dt>Home colour</dt><dd>{t.home_color || "—"}</dd>
-            <dt>Away colour</dt><dd>{t.away_color || "—"}</dd>
+            <dt>{tr("Home colour")}</dt><dd>{t.home_color || "—"}</dd>
+            <dt>{tr("Away colour")}</dt><dd>{t.away_color || "—"}</dd>
           </dl>
         </div>
       </div>
 
       <div className="card">
-        <h3>Scoring by game <span className="cn">green = scored · red = conceded · W/L in label</span></h3>
+        <h3>{tr("Scoring by game")} <span className="cn">{tr("green = scored · red = conceded · W/L in label")}</span></h3>
         <div className="chart-box">
           {trend
             ? <GroupedBars rows={trend.rows} series={trend.series} showValues h={170} />
-            : <div className="chart-empty">No completed games yet.</div>}
+            : <div className="chart-empty">{tr("No completed games yet.")}</div>}
         </div>
       </div>
 
       <div className="grid-2">
         <div className="card">
-          <h3>Roster <span className="cn">隊員名單</span></h3>
+          <h3>{tr("Roster")} {language === "en" && <span className="cn">隊員名單</span>}</h3>
           <CsvButton id="roster-csv" onDownload={rosterCsv} />
           <MobileColumnsToggle
             controls="t-roster"
@@ -263,7 +265,7 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
           />
         </div>
         <div className="card">
-          <h3>Season leaders</h3>
+          <h3>{tr("Season leaders")}</h3>
           <MobileColumnsToggle
             controls="t-leaders"
             expanded={allLeaderCols}
@@ -297,7 +299,7 @@ export default function TeamDetail({ ctx, id, onAdoptContext }) {
       </div>
 
       <div className="card">
-        <h3>Results <span className="cn">賽程</span></h3>
+        <h3>{tr("Results")} <span className="cn">賽程</span></h3>
         <CsvButton id="results-csv" onDownload={resultsCsv} />
         <MobileColumnsToggle
           controls="t-team-results"

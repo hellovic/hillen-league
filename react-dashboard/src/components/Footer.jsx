@@ -1,15 +1,17 @@
+import { useT } from "../locale.jsx";
 import { meta } from "../data.js";
 
 export default function Footer({gender = "girls"}) {
+  const tr = useT();
   const c = meta.gender_counts?.[gender] || meta.counts || {};
   return (
     <footer className="foot">
-      {gender === "boys" ? "Boys" : "Girls"} data snapshot · hillen-sports.com
+      {tr("{gender} data snapshot", { gender: tr(gender === "boys" ? "Boys" : "Girls") })} · hillen-sports.com · CourtSide v1.2
       <br />
       <span id="foot-counts">
-        {`${c.teams} teams · ${c.players} players · ${c.games} games · ${c.box_scores} box-score rows`}
+        {tr("{teams} teams · {players} players · {games} games · {boxScores} box-score rows", { ...c, boxScores: c.box_scores })}
       </span>
-      <span id="foot-fresh">{meta.refreshed_at ? ` · data refresh ${meta.refreshed_at}` : ""}</span>
+      <span id="foot-fresh">{meta.refreshed_at ? ` · ${tr("data refresh {date}", { date: meta.refreshed_at })}` : ""}</span>
     </footer>
   );
 }

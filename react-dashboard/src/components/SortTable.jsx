@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { go } from "../utils.js";
@@ -41,6 +42,7 @@ export default function SortTable({
   compact,
   compactExpanded = false,
 }) {
+  const tr = useT();
   const tableRef = useRef(null);
   const cardRef = useRef(null);
   const pinWrapRef = useRef(null);
@@ -138,7 +140,7 @@ export default function SortTable({
       card.removeEventListener("scroll", onScroll);
       card.classList.remove("fit", "scrollable");
     };
-  }, [rows, compact, compactExpanded]);
+  }, [rows, compact, compactExpanded, tr]);
 
   /* Dragging the pinned strip sideways pans the real table (and the reverse is
    * handled above), so the header behaves like part of the table. */
@@ -164,7 +166,7 @@ export default function SortTable({
           /* Keep the columnheader role: a role="button" here would erase the
            * header semantics screen readers need. The header stays focusable,
            * Enter/Space sorts it, and aria-sort carries the state (UX-11). */
-          aria-label={clickable ? `Sort by ${col.label}` : undefined}
+          aria-label={clickable ? tr("Sort by {column}", { column: tr(col.label) }) : undefined}
           data-key={clickable ? col.key : undefined}
           className={cls || undefined}
           aria-sort={
@@ -188,7 +190,7 @@ export default function SortTable({
               : undefined
           }
         >
-          {col.label}
+          {tr(col.label)}
           {isSorted ? (sorted.dir === "asc" ? " ▲" : " ▼") : ""}
         </th>
       );
@@ -245,14 +247,14 @@ export default function SortTable({
           ) : (
             <tr>
               <td colSpan={columns.length} className="empty">
-                {emptyText}
+                {tr(emptyText)}
               </td>
             </tr>
           )}
         </tbody>
         {footer ? <tfoot>{footer}</tfoot> : null}
       </table>
-      <div className="table-scroll-hint">Swipe sideways for more columns →</div>
+      <div className="table-scroll-hint">{tr("Swipe sideways for more columns →")}</div>
       {createPortal(
         <div className="thead-pin" ref={pinWrapRef} aria-hidden="true">
           <div className="thead-pin-scroll" ref={pinScrollRef} onScroll={onPinScroll}>

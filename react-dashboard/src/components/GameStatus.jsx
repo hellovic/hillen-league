@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 import { gameStatus } from "../utils.js";
 
 /**
@@ -17,6 +18,7 @@ import { gameStatus } from "../utils.js";
  * text. Use `gameStatus()` / `hasResult()` for sorting, filtering, counts.
  */
 export default function GameStatus({ game, className = "" }) {
+  const tr = useT();
   if (!game) return null;
   const st = gameStatus(game);
   return (
@@ -24,7 +26,7 @@ export default function GameStatus({ game, className = "" }) {
       className={`game-status game-status--${st.tone}${className ? ` ${className}` : ""}`}
       data-status={st.code}
     >
-      {st.label}
+      {tr(st.label)}
     </span>
   );
 }

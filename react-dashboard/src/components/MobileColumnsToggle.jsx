@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 import { useIsPhone } from "../useMediaQuery.js";
 
 /* Phone-only "show the full table" button. On wider screens it renders nothing,
@@ -10,6 +11,7 @@ export default function MobileColumnsToggle({
   onToggle,
   label,
 }) {
+  const tr = useT();
   const isPhone = useIsPhone();
   if (!isPhone) return null;
   return (
@@ -23,7 +25,7 @@ export default function MobileColumnsToggle({
       <span className="table-cols-toggle-caret" aria-hidden="true">
         {expanded ? "▾" : "▸"}
       </span>
-      <span>{label}</span>
+      <span>{tr(label)}</span>
     </button>
   );
 }

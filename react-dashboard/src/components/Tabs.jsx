@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 import { contextHash, go, seasonHash } from "../utils.js";
 
 const TABS = [
@@ -12,8 +13,9 @@ const TABS = [
 ];
 
 export default function Tabs({ active, ctx }) {
+  const tr = useT();
   return (
-    <nav className="tabs" id="tabs" aria-label="League navigation">
+    <nav className="tabs" id="tabs" aria-label={tr("League navigation")}>
       {TABS.map(([view, label]) => (
         <button
           key={view}
@@ -23,7 +25,7 @@ export default function Tabs({ active, ctx }) {
           className={active === view ? "active" : undefined}
           onClick={() => go(view === "season" ? seasonHash(ctx.season, ctx.gender) : contextHash(view, ctx))}
         >
-          {label}
+          {tr(label)}
         </button>
       ))}
     </nav>

@@ -1,3 +1,4 @@
+import { useT } from "../locale.jsx";
 /**
  * ScopeEmpty — shared explanatory empty state (UX-19) for a scoped section.
  *
@@ -9,13 +10,14 @@
  *   className  optional. Extra classes on the root <div>.
  */
 export default function ScopeEmpty({ title, text, href, linkLabel = "View fixtures ↗", className = "" }) {
+  const tr = useT();
   return (
     <div className={`scope-empty${className ? ` ${className}` : ""}`}>
-      <p className="scope-empty-title">{title}</p>
-      {text ? <p className="scope-empty-text">{text}</p> : null}
+      <p className="scope-empty-title">{tr(title)}</p>
+      {text ? <p className="scope-empty-text">{tr(text)}</p> : null}
       {href ? (
         <a className="scope-inline-link" href={href}>
-          {linkLabel}
+          {tr(linkLabel)}
         </a>
       ) : null}
     </div>

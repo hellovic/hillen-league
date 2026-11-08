@@ -1,5 +1,6 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
-import { api, groupName, scopeLabel } from "../data.js";
+import { api, groupName } from "../data.js";
 import { contextHash, csvDownload, gameStatus, hasResult, kickoffKey, scoreText, setTitle, sortByKickoff, sortRows } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
@@ -21,6 +22,7 @@ const KEYS = [
  * is the shared GameStatus badge, so a skipped fixture (past, no score) is never
  * confused with "Final" or "Scheduled". Missing scores stay em dashes. */
 export default function GamesView({ ctx }) {
+  const { t: tr, group, scope } = useLocale();
   const [sort, setSort] = useState(null);
   const games = api("games", ctx);
   const resolved = games.filter(hasResult);
@@ -30,8 +32,8 @@ export default function GamesView({ ctx }) {
   const newestFirst = sortByKickoff(games, "desc");
 
   useEffect(() => {
-    setTitle(groupName(ctx.season, ctx.group), "Games", "Season " + ctx.season);
-  }, [ctx.season, ctx.group]);
+    setTitle(group(groupName(ctx.season, ctx.group)), tr("Games"), tr("Season {season}", ctx));
+  }, [ctx.season, ctx.group, tr, group]);
 
   const rows = sort ? sortRows(games, sort.key, sort.dir) : newestFirst;
 
@@ -50,13 +52,13 @@ export default function GamesView({ ctx }) {
     <>
       <div className="view-head">
         <div className="view-head-copy">
-          <p className="eyebrow">{scopeLabel(ctx.season, ctx.group)}</p>
-          <h2>Games</h2>
+          <p className="eyebrow">{scope(ctx.season, ctx.group)}</p>
+          <h2>{tr("Games")}</h2>
         </div>
         <div className="toolbar">
           <div className="sub">
-            {games.length} fixtures · {resolved.length} played
-            {skipped.length ? ` · ${skipped.length} skipped` : ""}
+            {tr("{fixtures} fixtures · {games} played", { fixtures: games.length, games: resolved.length })}
+            {skipped.length ? ` · ${tr("{count} skipped", { count: skipped.length })}` : ""}
           </div>
           <CsvButton onDownload={downloadCsv} />
         </div>
@@ -87,7 +89,7 @@ export default function GamesView({ ctx }) {
           </div>
         ) : (
           <ScopeEmpty
-            title="No fixtures yet"
+            title={tr("No fixtures yet")}
             text="This group has no scheduled games in the bundle."
             href={contextHash("standings", ctx)}
             linkLabel="View standings ↗"

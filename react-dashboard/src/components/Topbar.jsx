@@ -1,5 +1,6 @@
 import { groupName, seasonGroups, seasonName, seasonShortName, seasonsForGender } from "../data.js";
 import SearchBox from "./SearchBox.jsx";
+import { useLocale } from "../locale.jsx";
 import { useIsPhone } from "../useMediaQuery.js";
 
 /* Header for every view.
@@ -22,10 +23,13 @@ function shortGroup(seasonId, groupId) {
 }
 
 export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
+  const { language, setLanguage, t, group } = useLocale();
   const isPhone = useIsPhone();
   const groups = seasonGroups(ctx.season,ctx.gender);
   const isLight = theme === "light";
-  const themeLabel = isLight ? "Switch to dark mode" : "Switch to light mode";
+  const themeLabel = t(isLight ? "Switch to dark mode" : "Switch to light mode");
+  const inChinese = language === "zh-Hant";
+  const languageLabel = inChinese ? "Switch to English" : "切換至繁體中文";
 
   const seasonOptions = seasonsForGender(ctx.gender).map((s) => (
     <option key={s.season_id} value={s.season_id}>
@@ -34,7 +38,7 @@ export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, 
   ));
   const groupOptions = groups.map((g) => (
     <option key={g.group_id} value={g.group_id}>
-      {isPhone ? shortGroup(ctx.season, g.group_id) : g.name}
+      {group(isPhone && !inChinese ? shortGroup(ctx.season, g.group_id) : g.name)}
     </option>
   ));
 
@@ -43,18 +47,23 @@ export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, 
       <div className="brand">
         <div className="logo" aria-hidden="true">HL</div>
         <div>
-          <h1>Hillen League</h1>
+          <h1>{t("Hillen League")}</h1>
           <p id="meta-line" className="meta-line">
             {allGroups
-              ? `${seasonName(ctx.season)} · ${ctx.gender === "boys" ? "Boys" : "Girls"} · All groups`
-              : `${seasonName(ctx.season)} · ${groupName(ctx.season, ctx.group) || "Group " + ctx.group}`}
+              ? `${seasonName(ctx.season)} · ${t(ctx.gender === "boys" ? "Boys" : "Girls")} · ${t("All groups")}`
+              : `${seasonName(ctx.season)} · ${group(groupName(ctx.season, ctx.group)) || t("Group {group}", ctx)}`}
           </p>
         </div>
       </div>
       <div className="header-tools">
-      <div className="gender-switch" role="group" aria-label="League division">
-        {["girls","boys"].map((gender) => <button key={gender} id={`gender-${gender}`} type="button" aria-pressed={ctx.gender === gender} onClick={() => onGenderChange(gender)}>{gender === "girls" ? "Girls" : "Boys"}</button>)}
+      <div className="gender-switch" role="group" aria-label={t("League division")}>
+        {["girls","boys"].map((gender) => <button key={gender} id={`gender-${gender}`} type="button" aria-pressed={ctx.gender === gender} onClick={() => onGenderChange(gender)}>{t(gender === "girls" ? "Girls" : "Boys")}</button>)}
       </div>
+      <button type="button" className="theme-toggle language-toggle" id="language-toggle"
+        lang={inChinese ? "en" : "zh-Hant"} aria-label={languageLabel} title={languageLabel}
+        onClick={() => setLanguage(inChinese ? "en" : "zh-Hant")}>
+        {inChinese ? "EN" : "繁中"}
+      </button>
       <button
         className="theme-toggle"
         id="theme-toggle"
@@ -79,7 +88,7 @@ export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, 
         <SearchBox key={ctx.gender} ctx={ctx} onAdoptContext={onAdoptContext} />
         <select
           id="season-select"
-          aria-label="Season"
+          aria-label={t("Season")}
           title={seasonName(ctx.season)}
           value={ctx.season}
           onChange={(e) => onSeasonChange(+e.target.value)}
@@ -87,14 +96,14 @@ export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, 
           {seasonOptions}
         </select>
         {allGroups ? (
-          <span className="all-groups-pill" title="This page shows every group in the season">
-            All groups
+          <span className="all-groups-pill" title={t("This page shows every group in the season")}>
+            {t("All groups")}
           </span>
         ) : (
           <select
             id="group-select"
-            aria-label="Group"
-            title={groupName(ctx.season, ctx.group)}
+            aria-label={t("Group")}
+            title={group(groupName(ctx.season, ctx.group))}
             value={ctx.group}
             onChange={(e) => onGroupChange(+e.target.value)}
           >

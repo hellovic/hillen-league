@@ -181,3 +181,11 @@ body.orange .filter-note {
   line-height: 1.5;
   color: var(--muted);
 }
+
+/* Keep the language control beside the theme toggle on the shared header. */
+body.orange .header-tools .language-toggle { padding: 0; }
+html[lang="zh-Hant"] body.orange .tabs::before { content: "聯賽"; }
+html[lang="zh-Hant"] body.orange #t-games td:nth-child(5)::before { content: "場地："; }
+@media (max-width: 359px) {
+  body.orange .topbar.compact .brand h1 { white-space: normal; }
+}

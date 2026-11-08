@@ -23,12 +23,13 @@ import "./styles/ux-standings.css";
 import "./styles/gender-switch.css";
 
 import App from "./App.jsx";
+import { LocaleProvider } from "./locale.jsx";
 import { initAnalytics } from "./analytics.js";
 
 initAnalytics();
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <LocaleProvider><App /></LocaleProvider>
   </React.StrictMode>
 );

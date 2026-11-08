@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
 import { api, groupName } from "../data.js";
 import { csvDownload, setTitle, sortRows } from "../utils.js";
@@ -18,6 +19,7 @@ const KEYS = [
 ];
 
 export default function TeamsView({ ctx }) {
+  const { t: tr, group } = useLocale();
   const [sort, setSort] = useState(null);
   /* UX-05/UX-21: phones default to Team / GP / W / L / ± so the table fits; the
    * disclosure restores PF, PA and the staff columns. */
@@ -25,8 +27,8 @@ export default function TeamsView({ ctx }) {
   const teams = api("teams", ctx);
 
   useEffect(() => {
-    setTitle(groupName(ctx.season, ctx.group), "Teams", "Season " + ctx.season);
-  }, [ctx.season, ctx.group]);
+    setTitle(group(groupName(ctx.season, ctx.group)), tr("Teams"), tr("Season {season}", ctx));
+  }, [ctx.season, ctx.group, tr, group]);
 
   const rows = sort ? sortRows(teams, sort.key, sort.dir) : teams;
 
@@ -40,9 +42,9 @@ export default function TeamsView({ ctx }) {
   return (
     <>
       <div className="view-head">
-        <h2>Teams</h2>
+        <h2>{tr("Teams")}</h2>
         <div className="toolbar">
-          <div className="sub">{teams.length} teams · season {ctx.season}</div>
+          <div className="sub">{tr("{count} teams · season {season}", { count: teams.length, season: ctx.season })}</div>
           <CsvButton onDownload={downloadCsv} />
           <MobileColumnsToggle
             controls="teams-table"

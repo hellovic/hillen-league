@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useEffect } from "react";
 import { api, groupAgeSort, groupGender } from "../data.js";
 import { fmtDate, hasResult, scoreText, seasonHash, setTitle, sortByKickoff } from "../utils.js";
@@ -19,6 +20,7 @@ const shortGroupName = (name) =>
     .replace(/^GIRLS/i, "Girls");
 
 export default function SeasonView({ ctx, seasonId }) {
+  const { t: tr, group, language } = useLocale();
   const season = +seasonId;
   let sp = null;
   let error = null;
@@ -32,15 +34,14 @@ export default function SeasonView({ ctx, seasonId }) {
   }
 
   useEffect(() => {
-    if (sp) setTitle(sp.season_name, "Season " + season);
-    else setTitle("No such season");
-  }, [season, sp && sp.season_name]);
+    if (sp) setTitle(sp.season_name, tr("Season {season}", { season }));
+    else setTitle(tr("No such season"));
+  }, [season, sp && sp.season_name, tr]);
 
   if (error) {
     const seasons = (window.LEAGUE_DATA?.meta?.seasons) || [];
     return (
-      <div className="empty">
-        No such season. Available:{" "}
+      <div className="empty">{tr("No such season. Available:")}{" "}
         {seasons.map((s, i) => (
           <span key={s.season_id}>
             {i ? " · " : null}
@@ -72,7 +73,7 @@ export default function SeasonView({ ctx, seasonId }) {
     const bits = [];
     if (kind === "result" && g.start_time) bits.push(g.start_time);
     if (kind === "result" && g.venue) bits.push(g.venue);
-    if (kind === "fixture") bits.push(g.venue || "Venue TBC");
+    if (kind === "fixture") bits.push(g.venue || tr("Venue TBC"));
     return bits.length ? bits.join(" · ") : "";
   };
 
@@ -82,7 +83,7 @@ export default function SeasonView({ ctx, seasonId }) {
       <a className="game-row" href={`#/games/${g.event_id}`} key={g.event_id}>
         <div className="gr-top">
           <span className="gr-when">{fmtDate(g.game_date)}</span>
-          {g.group_short ? <span className="gr-group">{g.group_short}</span> : null}
+          {g.group_short ? <span className="gr-group">{language === "zh-Hant" ? group(g.group_name) : g.group_short}</span> : null}
           <GameStatus game={g} className="gr-status" />
         </div>
         <div className="gr-match">
@@ -105,39 +106,39 @@ export default function SeasonView({ ctx, seasonId }) {
       {/* The owner asked for the old season hero + totals strip to be removed
         * (2026-10-19): the header already names the season and says “All groups”,
         * so the page opens straight on the results. */}
-      <h2 className="sr-only">{sp.season_name} overview</h2>
+      <h2 className="sr-only">{tr("{season} overview", { season: sp.season_name })}</h2>
 
       <div className="dashboard-grid">
         <aside className="results-column">
           <section className="card results">
             <div className="section-head">
               <div>
-                <h3>Latest results</h3>
+                <h3>{tr("Latest results")}</h3>
               </div>
             </div>
             {latest.length ? (
               latest.map((g) => row(g, "result"))
             ) : (
-              <p className="scope-note">No completed games yet in this season.</p>
+              <p className="scope-note">{tr("No completed games yet in this season.")}</p>
             )}
           </section>
 
           <section className={`upcoming card${upcoming.length ? "" : " upcoming-empty"}`}>
             <div className="section-head">
-              <h3>Next on court</h3>
+              <h3>{tr("Next on court")}</h3>
               <span className="small-dot" aria-hidden="true" />
             </div>
             {upcoming.length ? (
               upcoming.slice(0, 5).map((g) => row(g, "fixture"))
             ) : (
-              <p>No upcoming games scheduled.</p>
+              <p>{tr("No upcoming games scheduled.")}</p>
             )}
           </section>
         </aside>
 
         {/* No section heading: the group cards are self-describing (each names
           * its division) and the owner asked for the duplicate label to go. */}
-        <section className="division-section" aria-label={`${ctx.gender === "boys" ? "Boys" : "Girls"} groups in Season ${season}`}>
+        <section className="division-section" aria-label={tr("{gender} groups in Season {season}", { gender: tr(ctx.gender === "boys" ? "Boys" : "Girls"), season })}>
           <div className="grid-cards">
             {groups.map((g) => {
               const age = (g.name.match(/(GIRLS?\s+)?U\d+/) || ["—"])[0].replace(/^GIRLS?\s+/i, "GIRLS ");
@@ -152,28 +153,28 @@ export default function SeasonView({ ctx, seasonId }) {
                   href={`#/standings?season=${season}&group=${g.group_id}`}
                 >
                   <div className="od-row division-top">
-                    <span className="division-age">{age}</span>
-                    {label ? <span className="division-group">{label}</span> : null}
+                    <span className="division-age">{group(age)}</span>
+                    {label ? <span className="division-group">{group(label)}</span> : null}
                     <span className="division-arrow" aria-hidden="true">↗</span>
                   </div>
-                  <h3>{shortGroupName(g.name)}</h3>
+                  <h3>{group(shortGroupName(g.name))}</h3>
                   <p className="season-size">
-                    {`${g.teams} teams · ${gResolved.length} played`}
+                    {tr("{teams} teams · {games} played", { teams: g.teams, games: gResolved.length })}
                   </p>
                   <div className="division-leader">
                     <span className="leader-label">
-                      {leader ? "LEADING TEAM" : "GROUP STATUS"}
+                      {tr(leader ? "LEADING TEAM" : "GROUP STATUS")}
                     </span>
                     <span className="od-clamp-2">
                       {empty
-                        ? "No teams entered yet"
+                        ? tr("No teams entered yet")
                         : leader
                         ? leader.team_name
-                        : "No games played yet"}
+                        : tr("No games played yet")}
                     </span>
                     {leader ? (
                       <span className="leader-record od-nowrap">
-                        {leader.wins}W · {leader.losses}L <b>{leader.points} pts</b>
+                        {tr("{wins}W · {losses}L", leader)} <b>{tr("{points} pts", leader)}</b>
                       </span>
                     ) : null}
                   </div>

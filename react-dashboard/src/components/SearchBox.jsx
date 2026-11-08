@@ -1,3 +1,4 @@
+import { useLocale } from "../locale.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildSearchIndex, groupName, searchMatches } from "../data.js";
 import { go } from "../utils.js";
@@ -20,6 +21,7 @@ import { useIsPhone } from "../useMediaQuery.js";
  *    with Arrow/Home/End/Enter navigation;
  *  - desktop keeps the familiar dropdown and its three-line context rows. */
 export default function SearchBox({ ctx, onAdoptContext }) {
+  const { t: tr, group, language } = useLocale();
   const isPhone = useIsPhone();
   const [q, setQ] = useState("");
   const [items, setItems] = useState(null);
@@ -251,7 +253,7 @@ export default function SearchBox({ ctx, onAdoptContext }) {
   const sections = (() => {
     const buckets = [
       { key: "group", label: "This group", items: [] },
-      { key: "season", label: `Season ${ctx.season}`, items: [] },
+      { key: "season", label: tr("Season {season}", ctx), items: [] },
       { key: "other", label: "Other seasons", items: [] },
       { key: "division", label: ctx.gender === "boys" ? "Girls players" : "Boys players", items: [] },
       { key: "venue", label: "Matching fixture details", items: [] },
@@ -338,19 +340,15 @@ export default function SearchBox({ ctx, onAdoptContext }) {
 
   return (
     <div className={`gsearch${surface ? " gsearch-surface" : ""}`} ref={boxRef}>
-      <label className="search-label" htmlFor="global-search">
-        Search the league
-      </label>
+      <label className="search-label" htmlFor="global-search">{tr("Search the league")} </label>
       <div className="gs-actions">
         {q ? (
-          <button type="button" className="gs-clear" onClick={clearQuery}>
-            Clear
-          </button>
+          <button type="button" className="gs-clear" onClick={clearQuery}>{tr("Clear")} </button>
         ) : null}
         <button
           type="button"
           className="gs-close"
-          aria-label="Close search"
+          aria-label={tr("Close search")}
           onClick={() => closeSurface()}
         >
           ✕
@@ -359,11 +357,11 @@ export default function SearchBox({ ctx, onAdoptContext }) {
       <input
         type="search"
         id="global-search"
-        placeholder="Players, teams, games…"
+        placeholder={tr("Players, teams, games…")}
         autoComplete="off"
         value={q}
         role="combobox"
-        aria-label="Search players, teams and games"
+        aria-label={tr("Search players, teams and games")}
         aria-autocomplete="list"
         aria-controls="global-results"
         aria-expanded={open ? "true" : "false"}
@@ -411,16 +409,19 @@ export default function SearchBox({ ctx, onAdoptContext }) {
         id="global-results"
         className={`global-results${open ? " open" : ""}`}
         role="listbox"
-        aria-label="Search results"
+        aria-label={tr("Search results")}
       >
         {hasItems
           ? sections.map((section) =>
               section.items.length ? (
                 <div className="gs-section-group" key={section.key}>
-                  <div className="gs-section">{section.label}</div>
+                  <div className="gs-section">{tr(section.label)}</div>
                   {section.items.map((it) => {
                     optionIndex += 1;
                     const idx = optionIndex;
+                    const groupLabel = groupName(it.season, it.group);
+                    const scopeLabel = `${tr("Season {season}", it)} · ${group(groupLabel)}`;
+                    const subtitle = language === "zh-Hant" ? it.sub.replace(`${it.season} · ${groupLabel}`, scopeLabel) : it.sub;
                     return (
                       <a
                         key={`${it.kind}-${it.href}-${idx}`}
@@ -430,17 +431,16 @@ export default function SearchBox({ ctx, onAdoptContext }) {
                         role="option"
                         aria-selected={active === idx ? "true" : "false"}
                         data-kind={it.kind}
-                        title={it.sub}
+                        title={subtitle}
                         onClick={(e) => {
                           e.preventDefault();
                           pick(it);
                         }}
                       >
-                        <span className="gs-k">{it.kind}</span>
+                        <span className="gs-k">{tr(it.kind)}</span>
                         <span className="gs-label">{it.label}</span>
-                        <span className="gs-sub">{it.sub}</span>
-                        <span className="gs-scope">
-                          Season {it.season} · {groupName(it.season, it.group)}
+                        <span className="gs-sub">{subtitle}</span>
+                        <span className="gs-scope">{scopeLabel}
                         </span>
                       </a>
                     );
@@ -450,14 +450,12 @@ export default function SearchBox({ ctx, onAdoptContext }) {
             )
           : null}
         {open && surface && !q.trim() ? (
-          <div className="gs-hint">
-            Search player names across Boys and Girls. Teams and games follow the selected division.
-          </div>
+          <div className="gs-hint">{tr("Search player names across Boys and Girls. Teams and games follow the selected division.")} </div>
         ) : null}
-        {open && surface && q.trim() && !items ? <div className="gs-empty">Searching…</div> : null}
+        {open && surface && q.trim() && !items ? <div className="gs-empty">{tr("Searching…")}</div> : null}
         {open && items && items.length === 0 ? (
           <div className="gs-empty">
-            No matches for “{q.trim()}”. Try a shorter name or a different season.
+            {tr("No matches for “{query}”. Try a shorter name or a different season.", { query: q.trim() })}
           </div>
         ) : null}
       </div>
