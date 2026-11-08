@@ -388,8 +388,10 @@
 
 .story-directory { max-width: 790px; }
 .story-directory-search { display: grid; gap: 8px; }
+.story-directory-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .story-directory-search input {
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 9px 12px;
   border: 1px solid var(--line);

@@ -1,7 +1,8 @@
 import { useLocale, useT } from "../locale.jsx";
 import { useEffect, useRef, useState } from "react";
 import { api, groupName, loadRouteData, routeDataReady, storyCatalog } from "../data.js";
-import { contextHash, contextQuery, copyText, n1, pct1, resultOf, setTitle, signed } from "../utils.js";
+import { contextHash, contextQuery, copyShareLink, n1, pct1, resultOf, setTitle, signed } from "../utils.js";
+import { ShareButton } from "../components/Buttons.jsx";
 import StoryJersey from "../components/StoryJersey.jsx";
 import StoryPoster from "./StoryPoster.jsx";
 import "../styles/player-story.css";
@@ -46,8 +47,11 @@ export function StoryDirectory({ gender }) {
     <div className="story-page story-directory">
       <div className="story-directory-search">
         <SectionTitle title={tr("{division} Player Stories", { division })} tag={tr("{count} stories", { count: results.length.toLocaleString() })} />
-        <input id="story-search" type="search" value={query} placeholder={tr("Search by player name")} aria-label={tr("Search by player name")}
-          onChange={(event) => { setQuery(event.target.value); setLimit(STORY_PAGE_SIZE); }} />
+        <div className="story-directory-controls">
+          <input id="story-search" type="search" value={query} placeholder={tr("Search by player name")} aria-label={tr("Search by player name")}
+            onChange={(event) => { setQuery(event.target.value); setLimit(STORY_PAGE_SIZE); }} />
+          <ShareButton kind="player-story" query={gender === "boys" ? "?gender=boys" : ""} />
+        </div>
       </div>
       {results.length === 0 && <p className="story-muted">{tr("No player stories found.")}</p>}
       <ul className="story-directory-list">
@@ -344,7 +348,7 @@ function Chronicles({ chapters }) {
 function StoryActions({ story, ctx, posterRef }) {
   const tr = useT();
   const [copied, setCopied] = useState(false);
-  const copy = () => copyText(new URL(storyHref(story.id), location.href).href, () => setCopied(true));
+  const copy = () => copyShareLink("player-story", story.id, () => setCopied(true));
   return (
     <div className="story-actions">
       <button type="button" className="story-button story-primary" onClick={() => posterRef.current?.showModal()}><Icon name="share" /> {tr("Share Story Poster")}</button>

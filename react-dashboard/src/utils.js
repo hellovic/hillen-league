@@ -161,13 +161,8 @@ export function go(hash) {
   if (location.hash !== hash) location.hash = hash;
 }
 
-/* ---------------- share links ----------------
- * Copy the address the visitor is actually on. The export also publishes real
- * per-entity paths (games/<id>/, teams/<id>/…) with their own Open Graph tags,
- * but inside the SPA the current hash URL is what the user sees in the bar. */
-/* Copy the URL of the generated share stub (`games/20863/`, `players/17864/`…),
- * not the current hash URL: only a real URL can carry og:/twitter: tags into a
- * chat-app link preview. The stub forwards to the equivalent hash route. */
+/* The generated share page carries Open Graph tags for chat previews and
+ * forwards visitors to the equivalent hash route. */
 function shareBase() {
   return location.origin + location.pathname.replace(/[^/]*$/, "");
 }
@@ -198,8 +193,9 @@ export function copyText(text, done) {
   }
 }
 
-export function copyShareLink(kind, id, done) {
-  copyText(`${shareBase()}${kind}/${id}/`, done);
+export function copyShareLink(kind, id, done, query = "") {
+  const path = id == null ? `${kind}/` : `${kind}/${id}/`;
+  copyText(`${shareBase()}${path}${query}`, done);
 }
 
 /* ---------------- CSV export ---------------- */

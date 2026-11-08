@@ -2,7 +2,7 @@ import { useLocale, useT } from "../locale.jsx";
 import { useEffect, useRef, useState } from "react";
 import { copyShareLink, csvDownload } from "../utils.js";
 
-export function ShareButton({ kind, id }) {
+export function ShareButton({ kind, id, query }) {
   const { language, t: tr } = useLocale();
   const [copied, setCopied] = useState(false);
   const timeout = useRef(null);
@@ -18,12 +18,12 @@ export function ShareButton({ kind, id }) {
     <button
       className="csv-btn"
       type="button"
-      title={language === "zh-Hant" ? tr("Copy a share link") : `Copy a link that previews this ${noun} ${what} in WhatsApp and other chat apps`}
+      title={language === "zh-Hant" || kind === "player-story" ? tr("Copy a share link") : `Copy a link that previews this ${noun} ${what} in WhatsApp and other chat apps`}
       onClick={() => copyShareLink(kind, id, () => {
         setCopied(true);
         clearTimeout(timeout.current);
         timeout.current = setTimeout(() => setCopied(false), 1500);
-      })}
+      }, query)}
     >
       {tr(copied ? "✓ Copied" : "Copy link")}
     </button>

@@ -437,8 +437,8 @@ def game_payload(conn, eid):
     return game
 
 
-def preview_page(kind, ident, title, desc, hash_target):
-    """One shareable page for one entity (game / team / player), at a real path.
+def preview_page(path, title, desc, hash_target, *, keep_query=False):
+    """One shareable page with its own metadata, at a real path.
 
     Why this exists. The dashboard is a hash-routed SPA, and a URL fragment is
     never sent to the server: WhatsApp (or Telegram / Slack / iMessage / …)
@@ -470,8 +470,11 @@ def preview_page(kind, ident, title, desc, hash_target):
     """
     from html import escape
 
-    url = f"{SITE_URL}{kind}/{ident}/"
+    url = f"{SITE_URL}{path}/"
     e_title, e_desc = escape(title), escape(desc)
+    redirect = json.dumps(hash_target)
+    if keep_query:
+        redirect += " + location.search"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -487,7 +490,7 @@ def preview_page(kind, ident, title, desc, hash_target):
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{e_title}">
 <meta name="twitter:description" content="{e_desc}">
-<script>location.replace({json.dumps(hash_target)});</script>
+<script>location.replace({redirect});</script>
 </head>
 <body>
 <p>Taking you to <a href="{escape(hash_target)}">{e_title}</a>…</p>
@@ -871,19 +874,16 @@ def export_static(out_dir, db_path=DB_PATH):
         bundle = build_league_bundle(conn, db_path)
         bundle_size = write_league_data(os.path.join(out_dir, "league-data.js"),
                                         bundle)
-        boot_size = write_split_data(out_dir, bundle, build_player_stories(bundle))
+        story_catalog, story_buckets = build_player_stories(bundle)
+        boot_size = write_split_data(out_dir, bundle, (story_catalog, story_buckets))
         # ---- share pages: a real URL per entity (see preview_page) ----
-        def write_share(kind, ident, title, desc, target):
+        def write_share(path, title, desc, target, *, keep_query=False):
             """target is a hash route relative to the site root, e.g. "#/games/1"."""
-            ident = str(ident)
-            pd = os.path.join(out_dir, kind, ident)
+            pd = os.path.join(out_dir, path)
             os.makedirs(pd, exist_ok=True)
-            # A stub lives one directory per path segment below the root
-            # (games/20863/ is 2 deep, groups/33/11/ is 3), so climb back out of
-            # exactly that many — plus the kind directory — to reach the site root.
-            up = "../" * (ident.count("/") + 2)
+            up = "../" * (path.count("/") + 1)
             with open(os.path.join(pd, "index.html"), "w", encoding="utf-8") as f:
-                f.write(preview_page(kind, ident, title, desc, up + target))
+                f.write(preview_page(path, title, desc, up + target, keep_query=keep_query))
 
         n_share = 0
         for eid in game_ids:
@@ -904,7 +904,7 @@ def export_static(out_dir, db_path=DB_PATH):
                  "not_played": "Not played"}.get(g["status"]),
                 group_names.get((g["season_id"], g["group_id"])),
                 when, g["venue"], season_names.get(g["season_id"])) if x)
-            write_share("games", eid, title, desc, f"#/games/{eid}")
+            write_share(f"games/{eid}", title, desc, f"#/games/{eid}")
             n_share += 1
 
         for tid, (season, _grp) in sorted(team_best.items()):
@@ -917,7 +917,7 @@ def export_static(out_dir, db_path=DB_PATH):
                 f"{t['pts_for']} PF / {t['pts_against']} PA",
                 f"roster {len(t['roster'])}",
                 season_names.get(season)) if x)
-            write_share("teams", tid, title, desc, f"#/teams/{tid}")
+            write_share(f"teams/{tid}", title, desc, f"#/teams/{tid}")
             n_share += 1
 
         for pid, (season, _gp, neg_group) in sorted(player_best.items()):
@@ -935,9 +935,23 @@ def export_static(out_dir, db_path=DB_PATH):
                 season_names.get(season)) if x)
             # the season/group suffix is what opens a shared player link in the
             # right context — player ids repeat across seasons (app.js route())
-            write_share("players", pid, title, desc,
+            write_share(f"players/{pid}", title, desc,
                         f"#/players/{pid}?season={season}&group={group}")
             n_share += 1
+
+        write_share("player-story", "Player Stories — Hillen League",
+                    "Find a player and explore their recorded seasons, squads and standout games.",
+                    "#/player-story", keep_query=True)
+        n_share += 1
+        for bucket in story_buckets.values():
+            for pid, story in bucket.items():
+                first, last = story["scope"][0], story["scope"][-1]
+                seasons = f"Season {first}" if first == last else f"Seasons {first}–{last}"
+                games, points = story["totals"]["games"], story["totals"]["points"]
+                desc = f"{story['team']} · {seasons} · {games} GP · {points} PTS"
+                write_share(f"player-story/{pid}", f"{story['name']} — Player Story", desc,
+                            f"#/player-story/{story['id']}")
+                n_share += 1
 
         # One page per season+group. The group is the unit people actually pass
         # around (a group's standings table is what a parent sends to another
@@ -954,7 +968,7 @@ def export_static(out_dir, db_path=DB_PATH):
             title = f"{gname} · Season {season} standings"
             desc = " · ".join(x for x in (top, f"{len(rows)} teams",
                                           season_names.get(season)) if x)
-            write_share("groups", f"{season}/{group}", title, desc,
+            write_share(f"groups/{season}/{group}", title, desc,
                         f"#/standings?season={season}&group={group}")
             n_share += 1
 
@@ -967,7 +981,7 @@ def export_static(out_dir, db_path=DB_PATH):
                 f"{t['groups']} groups", f"{t['teams']} teams",
                 f"{t['games']} games ({t['played']} played)",
                 f"data through {t['last_game']}" if t["last_game"] else None) if x)
-            write_share("seasons", _s["season_id"], sp["season_name"], desc,
+            write_share(f"seasons/{_s['season_id']}", sp["season_name"], desc,
                         f"#/season/{_s['season_id']}")
             n_share += 1
 

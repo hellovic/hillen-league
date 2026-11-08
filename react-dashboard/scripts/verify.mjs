@@ -242,7 +242,7 @@ const alternate = await evaluate(`[...document.querySelectorAll(".story-career-m
 check("alternate player ID opens the same story", JSON.stringify(alternate) === JSON.stringify(storySummary.totals));
 await evaluate(`Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: async (value) => { window.copiedStoryUrl = value; } }); document.querySelector(".story-actions > div button").click()`);
 await waitFor(`!!window.copiedStoryUrl`, "copied story link");
-check("copy uses the canonical story ID", await evaluate(`new URL(window.copiedStoryUrl).hash === "#/player-story/15165"`));
+check("copy uses the canonical story share page", await evaluate(`window.copiedStoryUrl === ${JSON.stringify(BASE + "/player-story/15165/")}`));
 await evaluate(`delete navigator.clipboard.writeText`);
 const posterDir = mkdtempSync(join(tmpdir(), "hl-story-poster-"));
 try {
@@ -432,6 +432,10 @@ const boysStories = await evaluate(`(() => {
   };
 })()`);
 check("Story directory shows the Boys archive with a compact search", boysStories.heading === "Boys Player Stories" && boysStories.height <= 85 && boysStories.matches, `${boysStories.height}px`);
+await evaluate(`Object.defineProperty(navigator.clipboard, "writeText", { configurable: true, value: async (value) => { window.copiedStoryDirectory = value; } }); document.querySelector(".story-directory-controls button").click()`);
+await waitFor(`!!window.copiedStoryDirectory`, "copied Story directory link");
+check("Story directory copies a share page with the selected division", await evaluate(`window.copiedStoryDirectory === ${JSON.stringify(BASE + "/player-story/?gender=boys")}`));
+await evaluate(`delete navigator.clipboard.writeText`);
 await evaluate(`(() => {
   const search = document.querySelector("#story-search");
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(search, "楊沁柔");

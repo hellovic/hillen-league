@@ -36,7 +36,7 @@ class ExportTests(unittest.TestCase):
             self.assertNotEqual(previous["33/16/players/15202"], updated["33/16/players/15202"])
             self.assertEqual(previous["32/26/players/15202"], updated["32/26/players/15202"])
 
-    def test_data_change_does_not_invalidate_app_or_styles(self):
+    def test_export_story_previews_and_asset_versions(self):
         def fake_build(directory):
             path = Path(directory)
             (path / "assets").mkdir()
@@ -53,6 +53,15 @@ class ExportTests(unittest.TestCase):
             output = str(Path(directory) / "site")
             server.export_static(output, db)
             before = Path(output, "index.html").read_text()
+            story_title = '<meta property="og:title" content="鍾睿心 — Player Story">'
+            for player_id in (15380, 15423):
+                page = Path(output, "player-story", str(player_id), "index.html").read_text(encoding="utf-8")
+                self.assertIn(story_title, page)
+                self.assertIn(f'content="{server.SITE_URL}player-story/{player_id}/"', page)
+                self.assertIn('location.replace("../../#/player-story/15380")', page)
+            directory_page = Path(output, "player-story", "index.html").read_text(encoding="utf-8")
+            self.assertIn('<meta property="og:title" content="Player Stories — Hillen League">', directory_page)
+            self.assertIn('location.replace("../#/player-story" + location.search)', directory_page)
             with closing(sqlite3.connect(db)) as c:
                 c.execute("UPDATE refresh_meta SET value='2026-11-05 08:05:00'")
                 c.commit()
