@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, groupName, loadRouteData, routeDataReady, storyCatalog } from "../data.js";
 import { contextHash, contextQuery, copyText, n1, pct1, resultOf, setTitle, signed } from "../utils.js";
+import StoryJersey from "../components/StoryJersey.jsx";
 import StoryPoster from "./StoryPoster.jsx";
 import "../styles/player-story.css";
 
@@ -12,7 +13,6 @@ const storyHref = (id) => `#/player-story/${id}`;
 const searchKey = (value) => value.normalize("NFKC").trim().toLowerCase();
 const gameCount = (count) => `${count} ${count === 1 ? "game" : "games"}`;
 const seasonRange = (scope) => scope.length === 1 ? `Season ${scope[0]}` : `Seasons ${scope[0]}–${scope.at(-1)}`;
-const jerseyNumber = (number) => number == null ? "—" : String(number).padStart(2, "0");
 const shooting = (made, attempts) => made == null || attempts == null ? "—" : `${made}/${attempts}`;
 
 const ICONS = {
@@ -69,25 +69,6 @@ function SectionTitle({ title, tag, id }) {
   return <div className="story-section-title"><h2 id={id}>{title}</h2>{tag && <span>{tag}</span>}</div>;
 }
 
-function Jersey({ name, number }) {
-  const surname = /^[\u3400-\u9fff]/.test(name) ? Array.from(name)[0] : name.split(/\s+/).at(-1).slice(0, 10);
-  return (
-    <div className="story-jersey">
-      <div className="story-jersey-mark"><span>HLN</span><span>{number == null ? "" : `#${jerseyNumber(number)}`}</span></div>
-      <svg viewBox="0 0 100 111" role="img" aria-label={number == null ? "Hillen League jersey" : `Primary jersey number ${number}`}>
-        <path d="M17 17 35 9Q50 28 65 9l18 8q-5 18 8 30l-9 11-2 41q-30 10-60 0l-2-41-9-11q13-12 8-30Z"
-          fill="#ff8b50" stroke="#ffb78e" strokeWidth="2" />
-        <path d="m25 14 10-5q15 19 30 0l10 5q-2 21 10 34l-8 8-2 39q-25 7-50 0l-2-39-8-8q12-13 10-34Z"
-          fill="#24272b" stroke="#101112" strokeWidth="2" />
-        <path d="M33 10q17 24 34 0" fill="none" stroke="#ffb78e" strokeWidth="2" />
-        <text x="50" y="47" textAnchor="middle" fill="#ffad70" fontSize="10" fontWeight="700">{surname}</text>
-        <text x="50" y="79" textAnchor="middle" fill="#fff" fontSize="31" fontWeight="700" fontFamily="system-ui, sans-serif">{jerseyNumber(number)}</text>
-        <path d="M42 87h16" stroke="#ff8b50" strokeWidth="2" />
-      </svg>
-    </div>
-  );
-}
-
 function Metrics({ items, className = "" }) {
   return <dl className={`story-metrics ${className}`}>
     {items.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? "—"}</dd></div>)}
@@ -103,7 +84,7 @@ function Profile({ story }) {
         <span className="story-label">Career file</span>
       </div>
       <div className="story-identity">
-        <Jersey name={story.name} number={story.jersey} />
+        <StoryJersey name={story.name} number={story.jersey} />
         <div>
           <h2 id="story-player-name">{story.name}</h2>
           <p className="story-muted">{story.team}</p>

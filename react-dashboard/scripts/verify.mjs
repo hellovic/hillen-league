@@ -238,6 +238,20 @@ try {
     const canvas = document.querySelector(".story-poster-dialog[open] canvas");
     return canvas?.width === 720 && canvas.getContext("2d").getImageData(12, 12, 1, 1).data[3] === 255;
   })()`));
+  check("poster canvas includes the jersey, surname and number", await evaluate(`(() => {
+    const canvas = document.querySelector(".story-poster-dialog canvas");
+    const ctx = canvas.getContext("2d");
+    const hasColor = ({ data }, red, green, blue) => {
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i] === red && data[i + 1] === green && data[i + 2] === blue) return true;
+      }
+      return false;
+    };
+    const jersey = ctx.getImageData(512, 106, 152, 169);
+    const lettering = ctx.getImageData(550, 155, 76, 73);
+    return hasColor(jersey, 255, 139, 80) && hasColor(lettering, 255, 173, 112) &&
+      hasColor(lettering, 255, 255, 255);
+  })()`));
   await evaluate(`document.querySelector(".story-poster-dialog > button").click()`);
   const png = join(posterDir, "hillen-player-story-15165.png");
   for (let i = 0; i < 50 && !existsSync(png); i++) await sleep(100);

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { paintStoryJersey } from "../components/StoryJersey.jsx";
 import { signed } from "../utils.js";
 
 const WIDTH = 720;
@@ -31,8 +32,9 @@ function paintPoster(canvas, story, note) {
   text("HL", 63, 85, 24, background, 900);
   text("HILLEN LEAGUE  /  PLAYER STORY", 120, 83, 18, orange, 800);
   text(seasonLine, 56, 161, 19, muted, 800);
-  text(story.name, 56, 236, 62, white, 800);
-  text(story.team, 56, 275, 24, muted, 600);
+  text(story.name, 56, 236, 62, white, 800, 432);
+  text(story.team, 56, 275, 24, muted, 600, 432);
+  paintStoryJersey(ctx, { name: story.name, number: story.jersey, x: 512, y: 106, width: 152 });
   rect(56, 306, 608, 2, line);
 
   const totals = Object.entries(story.totals);
@@ -78,7 +80,8 @@ export default function StoryPoster({ story, posterRef, archiveNote }) {
         <h2 id="story-poster-title">Share Story Poster</h2>
         <form method="dialog"><button type="submit" className="story-button" aria-label="Close poster">×</button></form>
       </div>
-      <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} role="img" aria-label={`Career summary poster for ${story.name}`} />
+      <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} role="img"
+        aria-label={`Career summary poster for ${story.name}${story.jersey == null ? "" : `, jersey number ${story.jersey}`}`} />
       <button type="button" className="story-button story-primary" onClick={downloadPoster}>Download PNG</button>
     </dialog>
   );
