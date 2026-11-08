@@ -174,7 +174,7 @@ const spotlight = await evaluate(`(() => {
     stats: link.querySelector(".story-promo-stats").textContent,
     action: link.querySelector(".story-promo-go").textContent.trim(),
     underHeader: link.previousElementSibling.matches("header.topbar"),
-    directoryLoaded: Array.isArray(window.LEAGUE_DATA["player-story"]),
+    directoryLoaded: !!window.LEAGUE_DATA["player-story"],
   };
 })()`);
 check("Story spotlight sits under the header and needs no directory download", spotlight.underHeader && !spotlight.directoryLoaded && spotlight.action.startsWith("Go"));
@@ -404,6 +404,32 @@ check("mobile More menu reaches Games and marks itself current", await evaluate(
 await evaluate(`document.querySelector('#mobile-nav > [data-go="player-story"]').click()`);
 await waitFor(`!!document.querySelector("#story-search")`, "mobile Story directory");
 check("mobile Story tab opens the directory and marks itself current", await evaluate(`document.querySelector('#mobile-nav > [data-go="player-story"]').getAttribute("aria-current") === "page"`));
+
+await setViewport(527, 725, true);
+await open("/player-story?season=33&group=14&gender=boys");
+const boysStories = await evaluate(`(() => {
+  const search = document.querySelector(".story-directory-search");
+  const entries = window.LEAGUE_DATA["player-story"].boys;
+  const links = [...document.querySelectorAll(".story-directory-link")];
+  return {
+    heading: search.querySelector("h2").textContent,
+    height: Math.round(search.getBoundingClientRect().height),
+    matches: links.length > 0 && links.every((link, index) => {
+      const entry = entries[index];
+      return link.hash === "#/player-story/" + entry.id && link.querySelector("small").textContent === entry.team;
+    }),
+  };
+})()`);
+check("Story directory shows the Boys archive with a compact search", boysStories.heading === "Boys Player Stories" && boysStories.height <= 85 && boysStories.matches, `${boysStories.height}px`);
+await evaluate(`(() => {
+  const search = document.querySelector("#story-search");
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(search, "楊沁柔");
+  search.dispatchEvent(new Event("input", { bubbles: true }));
+})()`);
+check("Boys directory search excludes a Girls-only player", await evaluate(`!document.querySelector(".story-directory-link")`));
+await evaluate(`document.querySelector("#gender-girls").click()`);
+await waitFor(`document.querySelector(".story-directory-link strong")?.textContent === "楊沁柔"`, "Girls story search");
+check("switching to Girls updates the directory while keeping the search", await evaluate(`document.querySelector(".story-directory-search h2").textContent === "Girls Player Stories" && document.querySelector("#story-search").value === "楊沁柔"`));
 
 // The design's own acceptance test: the layout must not scroll sideways.
 const ROUTES = ["/season/33", "/standings", "/teams", "/players", "/games", "/leaders", "/compare/p/17864/15202", "/players/17864", "/teams/1595", "/games/20863", "/player-story", "/player-story/15165"];

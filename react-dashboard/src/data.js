@@ -66,8 +66,8 @@ export function playerStory(id) {
   return RAW[storyKey(id)]?.[id] ?? null;
 }
 
-export function storyCatalog() {
-  return RAW["player-story"] || [];
+export function storyCatalog(gender) {
+  return RAW["player-story"]?.[gender] || [];
 }
 
 export function routeDataReady(parts, ctx) {

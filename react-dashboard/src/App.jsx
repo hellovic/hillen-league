@@ -260,7 +260,7 @@ export default function App() {
       case "players":
         return id ? <PlayerDetail ctx={ctx} id={id} /> : <PlayersView ctx={ctx} />;
       case "player-story":
-        return parts[1] ? <PlayerStory story={playerStory(id)} ctx={ctx} /> : <StoryDirectory />;
+        return parts[1] ? <PlayerStory story={playerStory(id)} ctx={ctx} /> : <StoryDirectory gender={ctx.gender} />;
       case "games":
         return id ? <GameDetail ctx={ctx} id={id} onAdoptContext={adoptContext} /> : <GamesView ctx={ctx} />;
       case "compare":

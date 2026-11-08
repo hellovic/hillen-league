@@ -31,23 +31,20 @@ function statsHref(story, ctx) {
   return p ? `#/players/${p.id}${contextQuery(p)}` : contextHash("players", ctx);
 }
 
-export function StoryDirectory() {
+export function StoryDirectory({ gender }) {
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(STORY_PAGE_SIZE);
   useEffect(() => { setTitle("Player Story"); }, []);
   const search = searchKey(query);
-  const results = storyCatalog().filter((entry) => searchKey(entry.name).includes(search));
+  const results = storyCatalog(gender).filter((entry) => searchKey(entry.name).includes(search));
+  const division = gender === "boys" ? "Boys" : "Girls";
   return (
     <div className="story-page story-directory">
-      <div className="story-card story-directory-hero">
-        <p className="story-kicker">Hillen League · Career archive</p>
-        <h2>Find a Player Story</h2>
-        <p>Explore seasons, squads and standout games from the Hillen League archive.</p>
-        <label htmlFor="story-search">Search by player name</label>
-        <input id="story-search" type="search" value={query} placeholder="Search the archive"
+      <div className="story-directory-search">
+        <SectionTitle title={`${division} Player Stories`} tag={`${results.length.toLocaleString()} stories`} />
+        <input id="story-search" type="search" value={query} placeholder="Search by player name" aria-label="Search by player name"
           onChange={(event) => { setQuery(event.target.value); setLimit(STORY_PAGE_SIZE); }} />
       </div>
-      <SectionTitle title={search ? "Search results" : "Player archive"} tag={`${results.length.toLocaleString()} stories`} />
       {results.length === 0 && <p className="story-muted">No player stories found.</p>}
       <ul className="story-directory-list">
         {results.slice(0, limit).map((entry) => (

@@ -381,18 +381,11 @@
 .story-primary:hover { filter: brightness(1.12); }
 
 .story-directory { max-width: 790px; }
-.story-directory-hero {
-  background: linear-gradient(115deg, color-mix(in srgb, var(--accent) 13%, var(--card)), var(--card) 72%);
-  padding: clamp(16px, 4vw, 30px);
-}
-.story-directory-hero h2 { margin: 6px 0; font: 650 clamp(24px, 5vw, 36px)/1.2 var(--display); }
-.story-directory-hero p:not(.story-kicker) { color: var(--muted); }
-.story-directory-hero label { display: block; font-size: 12px; font-weight: 700; margin-top: 14px; }
-.story-directory-hero input {
+.story-directory-search { display: grid; gap: 8px; }
+.story-directory-search input {
   width: 100%;
   min-height: 44px;
   padding: 9px 12px;
-  margin-top: 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--bg2);

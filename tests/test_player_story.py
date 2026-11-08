@@ -10,7 +10,13 @@ class PlayerStoryTests(unittest.TestCase):
     def test_normalized_ids_share_a_career_and_only_positive_minutes_count(self):
         teams = {10: "Club", 20: "School", 30: "Select"}
         names = {1: " Ａda ", 2: "Ada", 3: "Mina", 4: "Mina", 5: "Reserve"}
-        bundle = {"meta": {"combos": [{"season": 31, "group": 10}, {"season": 32, "group": 10}]}}
+        bundle = {"meta": {
+            "combos": [{"season": 31, "group": 10}, {"season": 32, "group": 10}],
+            "groups": [
+                {"season_id": 31, "group_id": 10, "name": "Girls U11"},
+                {"season_id": 32, "group_id": 10, "name": "Boys U11"},
+            ],
+        }}
         for season, rosters in ((31, {10: [1, 3], 20: [2, 4]}), (32, {30: [2, 5]})):
             prefix = f"{season}/10"
             bundle[f"{prefix}/teams"] = [{"team_id": team, "team_name": teams[team]} for team in rosters]
@@ -53,7 +59,12 @@ class PlayerStoryTests(unittest.TestCase):
         self.assertFalse(buckets[5][5]["best"])
         self.assertTrue(buckets[3][3]["identity_conflict"])
         self.assertEqual([4], buckets[4][4]["ids"])
-        self.assertEqual({1, 3, 4, 5}, {entry["id"] for entry in catalog})
+        self.assertEqual({1, 3, 4}, {entry["id"] for entry in catalog["girls"]})
+        self.assertEqual({1, 5}, {entry["id"] for entry in catalog["boys"]})
+        ada_girls = next(entry for entry in catalog["girls"] if entry["id"] == 1)
+        ada_boys = next(entry for entry in catalog["boys"] if entry["id"] == 1)
+        self.assertEqual(("Club", 2), (ada_girls["team"], ada_girls["games"]))
+        self.assertEqual(("Select", 0), (ada_boys["team"], ada_boys["games"]))
 
         with tempfile.TemporaryDirectory() as directory:
             write_split_data(directory, bundle, (catalog, buckets))

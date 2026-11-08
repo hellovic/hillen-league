@@ -614,7 +614,11 @@ def build_player_stories(bundle):
         # Ignore unnamed roster placeholders such as "." when linking IDs.
         by_name[normalized if any(c.isalnum() for c in normalized) else pid].append(pid)
 
-    catalog, buckets = [], defaultdict(dict)
+    divisions = {
+        (group["season_id"], group["group_id"]): "girls" if "GIRL" in group["name"].upper() else "boys"
+        for group in bundle["meta"]["groups"]
+    }
+    catalog, buckets = {"girls": [], "boys": []}, defaultdict(dict)
     for ids in by_name.values():
         sides = defaultdict(set)
         for pid in ids:
@@ -624,13 +628,20 @@ def build_player_stories(bundle):
         conflict = len(ids) > 1 and any(len(side) > 1 for side in sides.values())
         for linked in ([[pid] for pid in ids] if conflict else [ids]):
             story = player_story_summary(linked, names, teams, rosters, appearances, bundle, conflict)
-            catalog.append({
-                "id": story["id"], "name": story["name"], "team": story["team"],
-                "games": story["totals"]["games"],
-            })
+            squads_by_division = defaultdict(list)
+            for chapter in story["chapters"]:
+                for team in chapter["teams"]:
+                    squads_by_division[divisions[chapter["season"], team["group"]]].append(team)
+            for division, squads in squads_by_division.items():
+                team = max(reversed(squads), key=lambda squad: (squad["gp"] > 0, squad["name"] == story["team"]))
+                catalog[division].append({
+                    "id": story["id"], "name": story["name"], "team": team["name"],
+                    "games": sum(squad["gp"] for squad in squads),
+                })
             for pid in linked:
                 buckets[pid % 32][pid] = story
-    catalog.sort(key=lambda entry: (-entry["games"], entry["name"], entry["id"]))
+    for entries in catalog.values():
+        entries.sort(key=lambda entry: (-entry["games"], entry["name"], entry["id"]))
     return catalog, buckets
 
 
