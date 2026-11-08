@@ -2,19 +2,19 @@ import { useEffect, useState } from "react";
 import { contextHash, go, seasonHash } from "../utils.js";
 
 /* Six bottom-bar destinations, in the order Vic asked for:
- * Overview · Standings · Games · Leaders · Compare · More (Teams, Players, Story).
+ * Overview · Standings · Story · Leaders · Compare · More (Teams, Players, Games).
  * The desktop rail keeps all views visible.
  * The first destination is called “Overview” on both breakpoints (UX-12), and
- * an active Teams/Players page marks the More control with aria-current plus a
+ * an active nested page marks the More control with aria-current plus a
  * visible dot, so the nested destination is discoverable (UX-12/UX-16). */
 const PRIMARY = [
   ["season", "Overview"],
   ["standings", "Standings"],
-  ["games", "Games"],
+  ["player-story", "Story"],
   ["leaders", "Leaders"],
   ["compare", "Compare"],
 ];
-const MORE = [["teams", "Teams"], ["players", "Players"], ["player-story", "Story"]];
+const MORE = [["teams", "Teams"], ["players", "Players"], ["games", "Games"]];
 
 function IconGrid() {
   return (
@@ -31,10 +31,10 @@ function IconBars() {
     </svg>
   );
 }
-function IconCalendar() {
+function IconStory() {
   return (
-    <svg className="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 11h18" />
+    <svg className="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 6c-2.5-2-6-2-9-1v14c3-1 6.5-1 9 1 2.5-2 6-2 9-1V5c-3-1-6.5-1-9 1Zm0 0v14" />
     </svg>
   );
 }
@@ -65,13 +65,13 @@ function IconMore() {
 const ICONS = {
   season: IconGrid,
   standings: IconBars,
-  games: IconCalendar,
+  "player-story": IconStory,
   leaders: IconTrophy,
   compare: IconCompare,
 };
 
 /* The dot is a non-colour selected cue (UX-16): it is shown on the current
- * destination and on More when a nested Teams/Players page is current. */
+ * destination and on More when a nested page is current. */
 function SelectedDot({ visible }) {
   return (
     <span className="nav-dot" aria-hidden="true" data-visible={visible ? "true" : "false"} />

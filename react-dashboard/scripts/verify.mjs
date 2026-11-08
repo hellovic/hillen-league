@@ -322,8 +322,9 @@ check("mobile shell shows bottom nav and hides the tab rail",
 const bottomBar = await evaluate(
   `[...document.querySelectorAll("#mobile-nav > button, #mobile-nav > details")].map((el) => el.querySelector("span").innerText.trim())`
 );
+const expectedBottomBar = ["Overview", "Standings", "Story", "Leaders", "Compare", "More"];
 check("six bottom-bar destinations, in Vic's order",
-  JSON.stringify(bottomBar) === JSON.stringify(["Overview", "Standings", "Games", "Leaders", "Compare", "More"]),
+  JSON.stringify(bottomBar) === JSON.stringify(expectedBottomBar),
   bottomBar.join(" · "));
 await evaluate(`[...document.querySelectorAll("#mobile-nav [data-go]")].find((b) => b.dataset.go === "standings").click()`);
 await waitFor(`location.hash.startsWith("#/standings")`, "mobile nav navigation");
@@ -337,15 +338,18 @@ check("mobile Compare tab navigates", true, await evaluate("location.hash"));
 await evaluate(`document.querySelector("#more-nav").open = true`);
 await sleep(100);
 const moreItems = await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].map((b) => b.dataset.go)`);
-check("More menu holds Teams, Players and Story", JSON.stringify(moreItems) === JSON.stringify(["teams", "players", "player-story"]), moreItems.join(", "));
+check("More menu holds Teams, Players and Games", JSON.stringify(moreItems) === JSON.stringify(["teams", "players", "games"]), moreItems.join(", "));
 await evaluate(`[...document.querySelectorAll("#more-nav [data-go]")].find((b) => b.dataset.go === "players").click()`);
 await waitFor(`location.hash.startsWith("#/players")`, "mobile more-menu navigation");
 check("mobile “More” menu reaches Players", true, await evaluate("location.hash"));
 await evaluate(`document.querySelector("#more-nav").open = true`);
 await sleep(100);
-await evaluate(`document.querySelector('#more-nav [data-go="player-story"]').click()`);
+await evaluate(`document.querySelector('#more-nav [data-go="games"]').click()`);
+await waitFor(`document.documentElement.dataset.route === "games"`, "mobile Games navigation");
+check("mobile More menu reaches Games and marks itself current", await evaluate(`document.querySelector("#more-nav > summary").getAttribute("aria-current") === "page"`));
+await evaluate(`document.querySelector('#mobile-nav > [data-go="player-story"]').click()`);
 await waitFor(`!!document.querySelector("#story-search")`, "mobile Story directory");
-check("mobile More menu reaches Story and marks it current", await evaluate(`document.querySelector('#more-nav [data-go="player-story"]').getAttribute("aria-current") === "page"`));
+check("mobile Story tab opens the directory and marks itself current", await evaluate(`document.querySelector('#mobile-nav > [data-go="player-story"]').getAttribute("aria-current") === "page"`));
 
 // The design's own acceptance test: the layout must not scroll sideways.
 const ROUTES = ["/season/33", "/standings", "/teams", "/players", "/games", "/leaders", "/compare/p/17864/15202", "/players/17864", "/teams/1595", "/games/20863", "/player-story", "/player-story/15165"];
@@ -1032,7 +1036,7 @@ const nav = await evaluate(`(() => {
   }));
   return { labels, navH: Math.round(document.querySelector("#mobile-nav").getBoundingClientRect().height) };
 })()`);
-check("phone nav labels are readable and unclipped", nav.labels.map((l) => l.text).join(",") === "Overview,Standings,Games,Leaders,Compare,More" && nav.labels.every((l) => l.size >= 9.5) && nav.labels.every((l) => l.clip <= 1) && nav.navH <= 70, nav.labels.map((l) => `${l.text} ${l.size}px`).join(" "));
+check("phone nav labels are readable and unclipped", JSON.stringify(nav.labels.map((l) => l.text)) === JSON.stringify(expectedBottomBar) && nav.labels.every((l) => l.size >= 9.5 && l.clip <= 1) && nav.navH <= 70, nav.labels.map((l) => `${l.text} ${l.size}px`).join(" "));
 
 // UX-12: the More tab marks itself while a nested page (teams/players) is open.
 await open("/players");
