@@ -97,13 +97,16 @@ export default function PlayerDetail({ ctx, id }) {
       <a className="back" href="#/players">← Players</a>
       <div className="view-head">
         <h2>{p.player_name}</h2>
-        <div className="toolbar detail-actions">
+        <div className="toolbar player-detail-toolbar">
           <div className="sub">
-            <a className="row-link" href={`#/teams/${p.team_id}`}>{p.team_name}</a> · season {ctx.season}
+            <a className="row-link" href={`#/teams/${p.team_id}`} title={p.team_name}>{p.team_name}</a>
+            <span>· season {ctx.season}</span>
           </div>
-          <a className="csv-btn" href={`#/compare/p/${id}${contextQuery(ctx)}`}>⇄ Compare</a>
-          <a className="csv-btn" href={`#/player-story/${id}`}>Player Story</a>
-          <ShareButton kind="players" id={id} />
+          <div className="player-detail-actions">
+            <a className="csv-btn" href={`#/compare/p/${id}${contextQuery(ctx)}`}>⇄ Compare</a>
+            <a className="csv-btn" href={`#/player-story/${id}`}>Player Story</a>
+            <ShareButton kind="players" id={id} />
+          </div>
         </div>
       </div>
 

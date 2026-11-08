@@ -112,7 +112,7 @@
   }
 }
 
-/* Detail headers (game / team / player) carry a sub line plus one or two
+/* Game and team headers carry a sub line plus one or two
  * actions. On a phone let the sub line own its row and keep the actions in a
  * single row, instead of wrapping the second button onto an orphan line. */
 @media (max-width: 767px) {
@@ -126,6 +126,41 @@
   body.orange .view-head .toolbar.detail-actions > .sub {
     grid-column: 1 / -1;
   }
+}
+
+body.orange .player-detail-toolbar {
+  gap: 4px 12px;
+  min-width: 0;
+}
+body.orange .player-detail-toolbar > .sub {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.player-detail-toolbar .row-link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player-detail-toolbar .sub > span { flex: none; }
+.player-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+body.orange .player-detail-actions .csv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.25;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 /* Season overview: the page is season-wide, so the header shows a static scope

@@ -241,7 +241,7 @@ try {
   rmSync(posterDir, { recursive: true, force: true });
 }
 await evaluate(`document.querySelector(".story-actions a").click()`);
-await waitFor(`!!document.querySelector(".detail-actions a[href^='#/player-story/']")`, "story league stats link");
+await waitFor(`!!document.querySelector(".player-detail-actions a[href^='#/player-story/']")`, "story league stats link");
 check("league stats opens a scoped player profile with a Story shortcut", await evaluate(`location.hash.startsWith("#/players/") && location.hash.includes("?season=")`));
 
 await open("/teams/1515?season=32&group=26");
@@ -1136,6 +1136,27 @@ check("Boys search finds 石文嫣 before venue matches", searchFromBoys.kind ==
 await evaluate(`document.querySelector("#global-results a[data-kind]").click()`);
 await waitFor(`document.documentElement.dataset.route === "players/15202"`, "cross-division player profile");
 check("cross-division search opens the right player and selects Girls", await evaluate(`document.querySelector(".view-head h2").textContent === "石文嫣" && document.querySelector("#gender-girls").getAttribute("aria-pressed") === "true" && document.querySelector("#group-select").value === "16"`));
+const playerToolbar = `(() => {
+  const toolbar = document.querySelector(".player-detail-toolbar");
+  const actions = [...toolbar.querySelectorAll(".csv-btn")];
+  const positions = actions.map((el) => el.getBoundingClientRect());
+  const context = toolbar.querySelector(".sub").getBoundingClientRect();
+  return {
+    labels: actions.map((el) => el.textContent.trim()).join(", "),
+    oneActionRow: positions.length === 3 && positions.every((rect) => rect.top === positions[0].top),
+    contextBesideActions: context.right <= positions[0].left && context.top >= positions[0].top && context.bottom <= positions[0].bottom,
+    consistent: actions.every((el) => {
+      const style = getComputedStyle(el);
+      return style.textDecorationLine === "none" && style.fontSize === "12px";
+    }),
+    fits: toolbar.scrollWidth <= toolbar.clientWidth && positions.every((rect) => rect.height >= 44),
+  };
+})()`;
+const phoneToolbar = await evaluate(playerToolbar);
+check("player context and all three matching actions fit one row at 503 px", phoneToolbar.oneActionRow && phoneToolbar.contextBesideActions && phoneToolbar.consistent && phoneToolbar.fits, phoneToolbar.labels);
+await setViewport(320, 725, true);
+const narrowToolbar = await evaluate(playerToolbar);
+check("player actions stay together with 44 px targets at 320 px", narrowToolbar.oneActionRow && narrowToolbar.fits, narrowToolbar.labels);
 
 // ------------------------------------------------- review regression checks
 await setViewport(1440, 1000, false);
