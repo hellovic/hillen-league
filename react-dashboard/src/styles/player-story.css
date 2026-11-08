@@ -105,7 +105,7 @@
   display: grid;
   grid-template-columns: clamp(75px, 24%, 112px) minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  column-gap: clamp(16px, 4vw, 24px);
   margin-block: 12px;
 }
 .story-identity h2 { font: 680 clamp(24px, 6vw, 37px)/1.2 var(--display); }
