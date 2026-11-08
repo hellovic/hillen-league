@@ -352,24 +352,16 @@ body.orange .compare-card .h2h-tag { display: none; }
   body.orange .card.compare-radar-card { display: none; }
 }
 
-/* UX-05 / UX-21 — standings on a phone.
- * Group tables carry eight columns (# Team GP W L F ± Pts) and long club names
- * push the points column off-screen at 320–390 px. Phones default to
- * # / Team / W / L / Pts; the "Full table" disclosure restores GP, F and ±.
- * Column numbers follow StandingsView's renderRow: 3 = GP, 6 = F, 7 = ±. */
+/* Standings keep all eight columns on phones. Wrap long team names to give
+ * the numeric columns room at narrow widths. */
 @media (max-width: 767px) {
-  body.orange table.data[data-compact="standings"]:not(.cols-expanded) thead th:nth-child(3),
-  body.orange table.data[data-compact="standings"]:not(.cols-expanded) tbody td:nth-child(3),
-  body.orange table.data[data-compact="standings"]:not(.cols-expanded) thead th:nth-child(6),
-  body.orange table.data[data-compact="standings"]:not(.cols-expanded) tbody td:nth-child(6),
-  body.orange table.data[data-compact="standings"]:not(.cols-expanded) thead th:nth-child(7),
-  body.orange table.data[data-compact="standings"]:not(.cols-expanded) tbody td:nth-child(7) {
-    display: none;
+  body.orange .card table.data[data-compact="standings"] td:nth-child(2) {
+    white-space: normal;
   }
-  /* Keep the team column readable but never wide: 11em at 12.5 px ≈ 138 px,
-   * which still leaves the points column inside a 320 px card. */
   body.orange .card table.data[data-compact="standings"] a.nm {
-    max-width: 11em;
+    display: inline;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 

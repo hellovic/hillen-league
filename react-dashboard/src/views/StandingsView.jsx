@@ -15,7 +15,6 @@ import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import SortTable from "../components/SortTable.jsx";
 import GameStatus from "../components/GameStatus.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
-import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import StatGuide from "../components/StatGuide.jsx";
 import { GUIDE_GROUPS } from "../glossary.js";
 
@@ -43,9 +42,6 @@ const KEYS = [
  * table. A team that has not played says so instead of drawing a zero bar. */
 export default function StandingsView({ ctx }) {
   const [sort, setSort] = useState(null);
-  /* UX-05/UX-21: phones get # / Team / W / L / Pts by default (the eight-column
-   * table does not fit 320 px); the disclosure reveals GP, F and ±. */
-  const [allCols, setAllCols] = useState(false);
   const [standings, teams, games] = [api("standings", ctx), api("teams", ctx), api("games", ctx)];
 
   useEffect(() => {
@@ -101,48 +97,39 @@ export default function StandingsView({ ctx }) {
           </div>
           <ShareButton kind="groups" id={`${ctx.season}/${ctx.group}`} />
           <CsvButton onDownload={downloadCsv} />
-          <MobileColumnsToggle
-            controls="st-table"
-            expanded={allCols}
-            onToggle={() => setAllCols((v) => !v)}
-            label="Full table"
-          />
         </div>
       </div>
       <div className="grid-2">
         <div className="card">
           <h3>Group Table</h3>
           {standings.length ? (
-            <div id="st-table">
-              <SortTable
-                columns={KEYS}
-                rows={rows}
-                tableId="t-standings"
-                pin={2}
-                compact="standings"
-                compactExpanded={allCols}
-                sort={sort}
-                onSort={setSort}
-                rowKey={(s) => s.team_id}
-                rowHref={(s) => `#/teams/${s.team_id}`}
-                renderRow={(s) => [
-                  <td className="num" key="pos">{s.pos ?? s.rank}</td>,
-                  <td key="team">
-                    <a className="row-link nm" title={s.team_name} href={`#/teams/${s.team_id}`}>
-                      {s.team_name}
-                    </a>
-                  </td>,
-                  <td className="num" key="gp">{s.gp}</td>,
-                  <td className="num" key="w">{s.wins}</td>,
-                  <td className="num" key="l">{s.losses}</td>,
-                  <td className="num" key="f">{s.forfeits}</td>,
-                  <td className={`num ${s.diff === null ? "" : s.diff >= 0 ? "winner" : "loser"}`} key="diff">
-                    {s.diff === null ? "—" : s.diff > 0 ? "+" + s.diff : s.diff}
-                  </td>,
-                  <td className="num" key="pts">{s.points}</td>,
-                ]}
-              />
-            </div>
+            <SortTable
+              columns={KEYS}
+              rows={rows}
+              tableId="t-standings"
+              pin={2}
+              compact="standings"
+              sort={sort}
+              onSort={setSort}
+              rowKey={(s) => s.team_id}
+              rowHref={(s) => `#/teams/${s.team_id}`}
+              renderRow={(s) => [
+                <td className="num" key="pos">{s.pos ?? s.rank}</td>,
+                <td key="team">
+                  <a className="row-link nm" title={s.team_name} href={`#/teams/${s.team_id}`}>
+                    {s.team_name}
+                  </a>
+                </td>,
+                <td className="num" key="gp">{s.gp}</td>,
+                <td className="num" key="w">{s.wins}</td>,
+                <td className="num" key="l">{s.losses}</td>,
+                <td className="num" key="f">{s.forfeits}</td>,
+                <td className={`num ${s.diff === null ? "" : s.diff >= 0 ? "winner" : "loser"}`} key="diff">
+                  {s.diff === null ? "—" : s.diff > 0 ? "+" + s.diff : s.diff}
+                </td>,
+                <td className="num" key="pts">{s.points}</td>,
+              ]}
+            />
           ) : (
             <ScopeEmpty
               title="No teams in this group yet"

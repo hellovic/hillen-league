@@ -853,33 +853,25 @@ await evaluate(`document.querySelector('[aria-controls^="t-box-"]').click()`);
 await sleep(150);
 check("collapsing restores the eight-column box score", await evaluate(`[...document.querySelector('#view table[data-compact="box"]').tHead.rows[0].cells].filter((c) => c.getClientRects().length > 0).length === 8`));
 
-// UX-05 / UX-21: standings on a phone keeps Points visible, and long club names
-// must never push the card (or the page) into a sideways scroll.
-await setViewport(320, 640, true);
-await open("/standings?season=33&group=11");
-const phoneSt = await evaluate(`(() => {
-  const ths = [...document.querySelectorAll("#t-standings thead th")];
-  const card = document.querySelector("#st-table").closest(".card");
-  return {
-    visible: ths.filter((th) => th.getClientRects().length > 0).map((th) => th.innerText.trim()),
-    total: ths.length,
-    cardOverflow: card.scrollWidth - card.clientWidth,
-    pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  };
-})()`);
-check("phone standings keeps points visible without sideways scroll", phoneSt.visible.some((t) => /^pts$/i.test(t)) && phoneSt.visible.length <= 6 && phoneSt.cardOverflow <= 1 && phoneSt.pageOverflow <= 1, `${phoneSt.visible.join(",")} / card ${phoneSt.cardOverflow}px / page ${phoneSt.pageOverflow}px`);
-await evaluate(`document.querySelector(".table-cols-toggle").click()`);
-await sleep(150);
-const expandedSt = await evaluate(`(() => { const ths = [...document.querySelectorAll("#t-standings thead th")]; return ths.filter((th) => th.getClientRects().length > 0).length; })()`);
-check("phone standings disclosure reveals every column", expandedSt === phoneSt.total, `${expandedSt}/${phoneSt.total}`);
-await evaluate(`document.querySelector(".table-cols-toggle").click()`);
-await sleep(100);
-for (const w of [375, 390]) {
+// Standings keep every column visible even with long team names.
+for (const w of [320, 375, 390, 527]) {
   await setViewport(w, 700, true);
-  await open("/season/33");
-  await open("/standings?season=33&group=11");
-  const m = await evaluate(`(() => { const card = document.querySelector("#st-table").closest(".card"); return { card: card.scrollWidth - card.clientWidth, page: document.documentElement.scrollWidth - document.documentElement.clientWidth }; })()`);
-  check(`standings fit a ${w} px phone with long club names`, m.card <= 1 && m.page <= 1, `card ${m.card}px / page ${m.page}px`);
+  await open(`/standings?season=33&group=${w === 527 ? 16 : 11}`);
+  const standings = await evaluate(`(() => {
+    const table = document.querySelector("#t-standings");
+    const card = table.closest(".card");
+    return {
+      headers: [...table.tHead.rows[0].cells].filter((cell) => cell.getClientRects().length).map((cell) => cell.textContent.trim()).join(","),
+      fullRows: [...table.tBodies[0].rows].every((row) => [...row.cells].filter((cell) => cell.getClientRects().length).length === 8),
+      toggle: !!document.querySelector("#view .table-cols-toggle"),
+      cardOverflow: card.scrollWidth - card.clientWidth,
+      pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  })()`);
+  check(`full standings fit a ${w} px phone without a toggle`,
+    standings.headers === "#,Team,GP,W,L,F,±,Pts" && standings.fullRows && !standings.toggle &&
+    standings.cardOverflow <= 1 && standings.pageOverflow <= 1,
+    `${standings.headers} / card ${standings.cardOverflow}px / page ${standings.pageOverflow}px`);
 }
 
 // Teams: same phone budget — PF/PA and the staff columns sit behind the
