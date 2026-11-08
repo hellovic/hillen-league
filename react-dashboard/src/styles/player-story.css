@@ -68,15 +68,15 @@
   background: var(--accent);
 }
 .story-section-title > span { text-align: right; }
-.story-layout .story-section-title {
+.story-section-title {
   container-type: inline-size;
   white-space: nowrap;
 }
-.story-layout .story-section-title h2 { font-size: clamp(13px, 5cqi, 19px); }
-.story-layout .story-section-title > span { font-size: clamp(8px, 2.75cqi, 10px); }
+.story-section-title h2 { font-size: clamp(13px, 5cqi, 19px); }
+.story-section-title > span { font-size: clamp(8px, 2.75cqi, 10px); }
 @container (max-width: 360px) {
-  .story-layout .story-section-title h2 { letter-spacing: 0; }
-  .story-layout .story-section-title > span { letter-spacing: .04em; }
+  .story-section-title h2 { letter-spacing: 0; }
+  .story-section-title > span { letter-spacing: .04em; }
 }
 .story-tag {
   flex: none;
@@ -433,5 +433,4 @@
   .story-hero-banner .story-kicker { letter-spacing: .04em; }
   .story-squad-grid { grid-template-columns: minmax(0, 1fr); }
   .story-match h3 { font-size: 17px; }
-  .story-section-title h2 { font-size: 17px; }
 }

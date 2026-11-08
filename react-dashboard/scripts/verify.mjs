@@ -1450,6 +1450,31 @@ await evaluate(`document.querySelector(".story-poster-dialog form button").click
 await waitFor(`document.documentElement.lang === "en"`, "English restored");
 check("English can be restored without leaving the story", await evaluate(`location.hash === "#/player-story/15202" && document.querySelector("#story-moments-title").textContent === "Memorable Moments"`));
 
+await setViewport(320, 725, true);
+const wrappedDirectoryTitles = [];
+for (const language of ["en", "zh-Hant"]) {
+  if (language === "zh-Hant") {
+    await evaluate(`document.querySelector("#language-toggle").click()`);
+    await waitFor(`document.documentElement.lang === "zh-Hant"`, "Traditional Chinese");
+  }
+  for (const gender of ["girls", "boys"]) {
+    await open(`/player-story?gender=${gender}`);
+    const fits = await evaluate(`(() => {
+      const row = document.querySelector(".story-directory-search .story-section-title");
+      const [title, count] = row.children;
+      const text = document.createRange();
+      text.selectNodeContents(title);
+      const lines = text.getClientRects();
+      const countBounds = count.getBoundingClientRect();
+      return lines.length === 1 && lines[0].right <= countBounds.left &&
+        countBounds.right <= row.getBoundingClientRect().right + 1;
+    })()`);
+    if (!fits) wrappedDirectoryTitles.push(`${language}/${gender}`);
+  }
+}
+check("Story directory headings fit beside the count at 320 px in both languages", !wrappedDirectoryTitles.length,
+  wrappedDirectoryTitles.join(", "));
+
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 
 const failed = results.filter((r) => !r.ok);
