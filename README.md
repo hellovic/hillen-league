@@ -5,7 +5,7 @@ https://www.hillen-sports.com/hillenyouth/ for analysis.
 
 **Current contents:** Three seasons of **Youth Girls** data, plus all **30 Youth Boys divisions in season 33**.
 
-Season 33 has 37 divisions: 7 girls and 30 boys (U9 ×3, U11 ×7, U13 ×6, U15 ×8, U17 ×5, U20 ×1). Girls is the default; the Girls/Boys switch beside Light/Dark separates overview, fixtures, pickers and search. U20 can include 18- and 19-year-olds; these are Youth League divisions, not an open-age adult league.
+Season 33 has 37 divisions: 7 girls and 30 boys (U9 ×3, U11 ×7, U13 ×6, U15 ×8, U17 ×5, U20 ×1). Girls is the default; the Girls/Boys switch beside Light/Dark separates overview, fixtures, and pickers. U20 can include 18- and 19-year-olds; these are Youth League divisions, not an open-age adult league.
 
 The 6 November captured dataset contains **259 fixtures and 5,948 box-score rows**, across 175 global team IDs and 2,152 player IDs. The girls-only counts below describe the historical baseline. Scheduled refreshes now include all 30 boys divisions in the same process, retaining serial requests and the 0.4-second courtesy delay.
 
@@ -67,7 +67,7 @@ A zero-dependency web dashboard over the database:
   id lists the seasons that exist.
 - **Season/group live in the URL** — `#/standings?season=33&group=11` opens exactly that table, so a standings link is shareable like a game link. Changing either dropdown (or clicking a tab) writes the pair into the fragment with `history.replaceState`, so the address bar always describes what you are looking at while Back still leaves the page instead of rewinding through every season you tried. `route()` validates the values — an unknown season is ignored and an unknown group falls back to that season's first group — and the older positional form `#/players/<id>/<season>/<group>` is still accepted. Compare links carry the context too, since their pickers list one season's group.
 - **Compare** — pick two players or two teams: side-by-side stats (better value highlighted), radar, per-game charts, and head-to-head meetings with series record (shareable URL `#/compare/p/<idA>/<idB>`)
-- **Global search** — header box that matches players, teams, and games **across all seasons/groups** and jumps to the page
+- **Global search** — header box that finds player names across Boys and Girls. Teams and games follow the selected division
 - **Light/dark theme toggle** (persisted), and a footer **data-through** date
 - **CSV export** — a ⬇ CSV button on every table (standings, teams, players, games, box scores, game logs, rosters, leaders); Excel-friendly (UTF-8 BOM)
 - Mobile-friendly, age-group-sorted group switcher, live API mode locally / static mode on GitHub Pages

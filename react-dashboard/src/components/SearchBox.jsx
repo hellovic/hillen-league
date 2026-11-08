@@ -4,8 +4,9 @@ import { go } from "../utils.js";
 import { useIsPhone } from "../useMediaQuery.js";
 
 /* Global search with the same behaviour as setupGlobalSearch(): focus runs the
- * search, typing is debounced 100 ms, results span every season/group, and
- * picking a hit from another context switches the selectors to match it.
+ * search, typing is debounced 100 ms, and picking a hit switches the selectors
+ * to match it. Player names span both divisions. Teams and games follow the
+ * selected division.
  *
  * UX-20 — phone context:
  *  - a phone opens a full-screen search surface sized to window.visualViewport,
@@ -244,23 +245,25 @@ export default function SearchBox({ ctx, onAdoptContext }) {
   }, [active]);
 
   /* Result groups, in the relevance order produced by searchMatches(): the
-   * current group first, then the rest of the current season, then older
-   * seasons (UX-04). Headings are plain divs — never anchors — so the result
+   * current group, rest of season, older seasons, other division's players,
+   * then matches against fixture details. Headings are plain divs so the result
    * list contract (`#global-results a[data-kind]`) stays intact. */
   const sections = (() => {
     const buckets = [
       { key: "group", label: "This group", items: [] },
       { key: "season", label: `Season ${ctx.season}`, items: [] },
       { key: "other", label: "Other seasons", items: [] },
+      { key: "division", label: ctx.gender === "boys" ? "Girls players" : "Boys players", items: [] },
+      { key: "venue", label: "Matching fixture details", items: [] },
     ];
     for (const it of items || []) {
-      const bucket =
+      const scope =
         it.season === ctx.season && it.group === ctx.group
-          ? buckets[0]
+          ? "group"
           : it.season === ctx.season
-          ? buckets[1]
-          : buckets[2];
-      bucket.items.push(it);
+          ? "season"
+          : "other";
+      buckets.find(({ key }) => key === (it.section || scope)).items.push(it);
     }
     return buckets;
   })();
@@ -448,7 +451,7 @@ export default function SearchBox({ ctx, onAdoptContext }) {
           : null}
         {open && surface && !q.trim() ? (
           <div className="gs-hint">
-            Type a player, team or fixture name. Results cover all {ctx.gender === "boys" ? "boys" : "girls"} seasons and groups.
+            Search player names across Boys and Girls. Teams and games follow the selected division.
           </div>
         ) : null}
         {open && surface && q.trim() && !items ? <div className="gs-empty">Searching…</div> : null}

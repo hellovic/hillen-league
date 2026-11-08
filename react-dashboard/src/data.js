@@ -176,26 +176,26 @@ const searchIndexes = new Map();
 export function buildSearchIndex(gender = "girls") {
   if (searchIndexes.has(gender)) return searchIndexes.get(gender);
   const players = [], teams = [], games = [];
-  for (const combo of meta.combos || []) {
-    if (genderForGroup(combo.season, combo.group) !== gender) continue;
-    let p, t, g;
-    try {
-      p = playerIndex[`${combo.season}/${combo.group}`] || api("players", { season: combo.season, group: combo.group });
-      t = api("teams", { season: combo.season, group: combo.group });
-      g = api("games", { season: combo.season, group: combo.group });
-    } catch (e) {
-      continue;
+  for (const { season, group } of meta.combos || []) {
+    const prefix = `${season}/${group}`;
+    const divisionName = groupName(season, group);
+    const otherDivision = groupGender(divisionName) !== gender;
+    const ctx = `${season} · ${divisionName || "group " + group}`;
+    for (const x of playerIndex[prefix] || RAW[`${prefix}/players`] || []) {
+      players.push({
+        name: x.player_name, sub: `${x.team_name} · ${ctx}`,
+        href: `#/players/${x.player_id}?season=${season}&group=${group}`,
+        season, group, otherDivision,
+      });
     }
-    const gr = meta.groups.find((x) => x.season_id === combo.season && x.group_id === combo.group) || {};
-    const ctx = `${combo.season} · ${gr.name || "group " + combo.group}`;
-    for (const x of p) players.push({ name: x.player_name, sub: `${x.team_name} · ${ctx}`, href: `#/players/${x.player_id}`, season: combo.season, group: combo.group });
-    for (const x of t) teams.push({ name: x.team_name, sub: ctx, href: `#/teams/${x.team_id}`, season: combo.season, group: combo.group });
-    for (const x of g) games.push({
+    if (otherDivision) continue;
+    for (const x of RAW[`${prefix}/teams`] || []) teams.push({ name: x.team_name, sub: ctx, href: `#/teams/${x.team_id}`, season, group });
+    for (const x of RAW[`${prefix}/games`] || []) games.push({
       name: `${x.home_name} vs ${x.away_name}`,
       sub: `${x.game_date}${x.venue ? ` · ${x.venue}` : ""} · ${ctx}`,
       href: `#/games/${x.event_id}`,
-      season: combo.season,
-      group: combo.group,
+      season,
+      group,
     });
   }
   const index = { players, teams, games };
@@ -203,11 +203,14 @@ export function buildSearchIndex(gender = "girls") {
   return index;
 }
 
-/* Relevance order for the global search box (UX-04). Explicit and stable:
+/* Relevance order for the global search box (UX-04). Name matches come before
+ * fixtures matched by venue or date. Within each category, rank by scope:
  *
  *   scope 0  the season + group the dashboard is currently showing
  *   scope 1  other groups of the current season
- *   scope 2  older (and any other) seasons
+ *   scope 2  older seasons in the selected division
+ *   scope 3  players in the other division in the current season
+ *   scope 4  players in the other division from other seasons
  *
  * and inside one scope tier:
  *
@@ -221,7 +224,7 @@ export function buildSearchIndex(gender = "girls") {
  * keystrokes never reshuffle equal results. `ctx` is optional; without it every
  * result lands in scope 2 and is ordered by match quality alone.
  *
- * `query=""` returns nothing (the box only searches from two characters up).
+ * `query=""` returns nothing. A single character can match a surname.
  * The 30-result cap is a hard contract with the dropdown layout. */
 const KIND_ORDER = { team: 0, player: 1, game: 2 };
 
@@ -240,7 +243,8 @@ export function searchMatches(idx, q, ctx = null) {
     else if (matchSub && String(row.sub || "").toLowerCase().includes(needle)) quality = 3;
     if (quality < 0) return;
     let scope = 2;
-    if (season != null) {
+    if (row.otherDivision) scope = row.season === season ? 3 : 4;
+    else if (season != null) {
       if (group != null && row.season === season && row.group === group) scope = 0;
       else if (row.season === season) scope = 1;
     }
@@ -251,18 +255,20 @@ export function searchMatches(idx, q, ctx = null) {
   idx.games.forEach((g, i) => consider("game", g, i, true));
   scored.sort(
     (a, b) =>
+      (a.quality === 3) - (b.quality === 3) ||
       a.scope - b.scope ||
       a.quality - b.quality ||
       a.label.length - b.label.length ||
       KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
       a.order - b.order
   );
-  return scored.slice(0, 30).map(({ kind, label, sub, href, season: s, group: g }) => ({
+  return scored.slice(0, 30).map(({ kind, label, sub, href, season: s, group: g, scope, quality }) => ({
     kind,
     label,
     sub,
     href,
     season: s,
     group: g,
+    section: scope >= 3 ? "division" : quality === 3 ? "venue" : null,
   }));
 }

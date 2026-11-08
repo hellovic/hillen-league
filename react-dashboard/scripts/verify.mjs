@@ -1118,6 +1118,25 @@ const sheetClosed = await evaluate(`(() => ({
 }))()`);
 check("phone search sheet closes with Escape", !sheetClosed.surface && sheetClosed.expanded === "false", `expanded=${sheetClosed.expanded}`);
 
+await setViewport(503, 725, true);
+await open("/player-story/15202?season=33&group=22&gender=boys");
+await evaluate(`(() => {
+  const input = document.querySelector("#global-search");
+  input.click();
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "石");
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+})()`);
+await waitFor(`!!document.querySelector('#global-results [data-kind="player"]')`, "cross-division surname results");
+const searchFromBoys = await evaluate(`(() => {
+  const first = document.querySelector("#global-results a[data-kind]");
+  return { kind: first.dataset.kind, section: first.closest(".gs-section-group").querySelector(".gs-section").textContent,
+    label: first.querySelector(".gs-label").textContent, href: first.hash };
+})()`);
+check("Boys search finds 石文嫣 before venue matches", searchFromBoys.kind === "player" && searchFromBoys.section === "Girls players" && searchFromBoys.label === "石文嫣" && searchFromBoys.href.includes("season=33"));
+await evaluate(`document.querySelector("#global-results a[data-kind]").click()`);
+await waitFor(`document.documentElement.dataset.route === "players/15202"`, "cross-division player profile");
+check("cross-division search opens the right player and selects Girls", await evaluate(`document.querySelector(".view-head h2").textContent === "石文嫣" && document.querySelector("#gender-girls").getAttribute("aria-pressed") === "true" && document.querySelector("#group-select").value === "16"`));
+
 // ------------------------------------------------- review regression checks
 await setViewport(1440, 1000, false);
 
