@@ -223,6 +223,20 @@ await evaluate(`document.querySelector(".story-game-row > summary").click()`);
 await waitFor(`!!document.querySelector(".story-box .story-metrics")`, "lazy box score");
 check("an expanded game row loads EFF and links to the full box score", await evaluate(`document.querySelector(".story-box .story-metrics").textContent.includes("EFF") && document.querySelector('.story-box a').hash.startsWith("#/games/")`));
 
+// Record the canvas text and its transformed position. Glyph pixels vary with
+// the fonts and antialiasing available on the machine running Chrome.
+await evaluate(`(() => {
+  const original = CanvasRenderingContext2D.prototype.fillText;
+  window.posterText = [];
+  CanvasRenderingContext2D.prototype.fillText = function (value, x, y, ...args) {
+    if (this.canvas.closest(".story-poster-dialog")) {
+      const position = this.getTransform().transformPoint({ x, y });
+      window.posterText.push({ value: String(value), x: position.x, y: position.y });
+    }
+    return original.call(this, value, x, y, ...args);
+  };
+  window.restorePosterProbe = () => { CanvasRenderingContext2D.prototype.fillText = original; };
+})()`);
 await open("/player-story/15432");
 const alternate = await evaluate(`[...document.querySelectorAll(".story-career-metrics dd")].map((el) => Number(el.textContent))`);
 check("alternate player ID opens the same story", JSON.stringify(alternate) === JSON.stringify(storySummary.totals));
@@ -240,17 +254,13 @@ try {
   })()`));
   check("poster canvas includes the jersey and lettering on the left", await evaluate(`(() => {
     const canvas = document.querySelector(".story-poster-dialog canvas");
-    const ctx = canvas.getContext("2d");
-    const hasColor = ({ data }, red, green, blue) => {
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i] === red && data[i + 1] === green && data[i + 2] === blue) return true;
-      }
-      return false;
-    };
-    const jersey = ctx.getImageData(56, 106, 152, 169);
-    const lettering = ctx.getImageData(94, 155, 76, 73);
-    return hasColor(jersey, 255, 139, 80) && hasColor(lettering, 255, 173, 112) &&
-      hasColor(lettering, 255, 255, 255);
+    const { data } = canvas.getContext("2d").getImageData(56, 106, 152, 169);
+    const hasJersey = data.some((red, i) => i % 4 === 0 && red > 230 &&
+      data[i + 1] >= 115 && data[i + 1] <= 175 && data[i + 2] >= 60 && data[i + 2] <= 105);
+    const labels = [...document.querySelectorAll(".story-jersey svg text")].map((node) => node.textContent);
+    const hasLettering = labels.length === 2 && labels.every((label) => window.posterText.some(({ value, x, y }) =>
+      value === label && x > 56 && x < 208 && y > 106 && y < 275));
+    return hasJersey && hasLettering;
   })()`));
   await evaluate(`document.querySelector(".story-poster-dialog > button").click()`);
   const png = join(posterDir, "hillen-player-story-15165.png");
@@ -258,6 +268,7 @@ try {
   check("story poster downloads as a PNG", existsSync(png) && readFileSync(png).subarray(0, 8).toString("hex") === "89504e470d0a1a0a");
   await evaluate(`document.querySelector(".story-poster-dialog form button").click()`);
 } finally {
+  await evaluate(`window.restorePosterProbe(); delete window.restorePosterProbe; delete window.posterText`);
   rmSync(posterDir, { recursive: true, force: true });
 }
 await evaluate(`document.querySelector(".story-actions a").click()`);
