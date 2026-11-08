@@ -208,8 +208,14 @@ const storySummary = await evaluate(`(() => {
 })()`);
 check("player story joins archived IDs and shows season progression", storySummary.aliases && storySummary.trajectory, storySummary.totals.join(" / "));
 check("story summary renders without loading game box scores", !storySummary.details);
-await evaluate(`document.querySelector(".story-records button:nth-child(2)").click()`);
-check("record filter switches the featured performance", await evaluate(`document.querySelector(".story-records button:nth-child(2)").getAttribute("aria-pressed") === "true" && document.querySelector(".story-moments").textContent.includes("Rebound high")`));
+check("EFF is the first personal best and shows the recorded efficiency game", await evaluate(`(() => {
+  const first = document.querySelector(".story-records button");
+  const cards = document.querySelectorAll(".story-masterclass");
+  return first.textContent.trim().startsWith("EFF high") && first.getAttribute("aria-pressed") === "true" &&
+    cards.length === 1 && cards[0].querySelector(".story-match .story-tag").textContent === "EFF " + first.querySelector("b").textContent;
+})()`));
+await evaluate(`[...document.querySelectorAll(".story-records button")].find((button) => button.textContent.trim().startsWith("REB high")).click()`);
+check("record filter switches the featured performance", await evaluate(`document.querySelector('.story-records button[aria-pressed="true"]').textContent.trim().startsWith("REB high") && document.querySelector(".story-moments").textContent.includes("Rebound high")`));
 await evaluate(`document.querySelector(".story-log > summary").click()`);
 await waitFor(`!!document.querySelector(".story-game-row")`, "season log");
 check("season log lists games without rendering boxes", await evaluate(`!document.querySelector(".story-box")`));

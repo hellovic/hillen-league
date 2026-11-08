@@ -4,7 +4,7 @@ import { contextHash, contextQuery, copyText, n1, pct1, resultOf, setTitle, sign
 import StoryPoster from "./StoryPoster.jsx";
 import "../styles/player-story.css";
 
-const RECORDS = [["pts", "PTS", "Highest scoring game"], ["tot_reb", "REB", "Rebound high"],
+const RECORDS = [["eff", "EFF"], ["pts", "PTS", "Highest scoring game"], ["tot_reb", "REB", "Rebound high"],
   ["ast", "AST", "Assist high"], ["stl", "STL", "Steal high"], ["blk", "BLK", "Block high"]];
 const ARCHIVE_NOTE = "Recorded Hillen League games only.";
 const STORY_PAGE_SIZE = 24;
@@ -224,13 +224,13 @@ function Moments({ first, best }) {
           <div className="story-records" role="group" aria-label="Personal bests in collected games">
             {RECORDS.filter(([key]) => best[key]).map(([key, label]) => (
               <button key={key} type="button" aria-pressed={metric === key} onClick={() => setMetric(key)}>
-                {label} high <b>{best[key][key]}</b> <span aria-hidden="true">›</span>
+                {label} high <b>{key === "eff" ? signed(best[key][key]) : best[key][key]}</b> <span aria-hidden="true">›</span>
               </button>
             ))}
           </div>
           <Moment title="First recorded game" caveat="First recorded appearance" game={first}
             metrics={[["PTS", first.pts], ["REB", first.tot_reb], ["STL", first.stl]]} />
-          {record && <Moment title={title} caveat="Best in collected games" game={record} showEff
+          {key !== "eff" && record && <Moment title={title} caveat="Best in collected games" game={record} showEff
             metrics={key === "pts"
               ? [["PTS", record.pts], ["REB", record.tot_reb], ["AST", record.ast], ["FG%", pct1(record.fga && record.fgm != null ? record.fgm / record.fga * 100 : null)]]
               : [[label, record[key]], ["PTS", record.pts], ["EFF", record.eff]]} />}
