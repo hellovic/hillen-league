@@ -91,17 +91,15 @@ export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, 
             All groups
           </span>
         ) : (
-          <label htmlFor="group-select">
-            Group
-            <select
-              id="group-select"
-              title={groupName(ctx.season, ctx.group)}
-              value={ctx.group}
-              onChange={(e) => onGroupChange(+e.target.value)}
-            >
-              {groupOptions}
-            </select>
-          </label>
+          <select
+            id="group-select"
+            aria-label="Group"
+            title={groupName(ctx.season, ctx.group)}
+            value={ctx.group}
+            onChange={(e) => onGroupChange(+e.target.value)}
+          >
+            {groupOptions}
+          </select>
         )}
       </div>
     </header>

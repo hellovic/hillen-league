@@ -10,7 +10,7 @@
  * Desktop markup is identical; only the compact class changes the layout. */
 
 body.orange .topbar .theme-toggle { width: 44px; }
-body.orange .topbar #season-select { align-self: end; }
+body.orange .topbar .controls > select { align-self: end; }
 
 @media (max-width: 767px) {
   body.orange .topbar.compact {
@@ -89,14 +89,6 @@ body.orange .topbar #season-select { align-self: end; }
     right: auto;
     width: min(360px, calc(100vw - 24px));
     max-height: min(340px, calc(100vh - 200px));
-  }
-  body.orange .topbar.compact .controls > label {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-    min-width: 0;
-    font-size: 11px;
-    color: var(--muted);
   }
   body.orange .topbar.compact .controls select {
     width: 100%;

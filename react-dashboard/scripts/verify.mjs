@@ -533,6 +533,7 @@ await open("/standings");
 const phoneHeader = await evaluate(`(() => {
   const h = document.querySelector(".topbar");
   const selects = [...document.querySelectorAll(".controls select")];
+  const searchBottom = document.querySelector("#global-search").getBoundingClientRect().bottom;
   return {
     height: Math.round(h.getBoundingClientRect().height),
     compact: h.classList.contains("compact"),
@@ -542,6 +543,8 @@ const phoneHeader = await evaluate(`(() => {
       h: Math.round(s.getBoundingClientRect().height),
       w: Math.round(s.getBoundingClientRect().width),
       label: (s.selectedOptions[0] ? s.selectedOptions[0].innerText : "").trim(),
+      accessibleName: s.getAttribute("aria-label"),
+      gap: s.getBoundingClientRect().top - searchBottom,
     })),
   };
 })()`);
@@ -550,6 +553,10 @@ check("phone header shows both pickers without a popup",
   !phoneHeader.popup && phoneHeader.selects.length === 2 && phoneHeader.selects.every((s) => s.h >= 44),
   phoneHeader.selects.map((s) => `${s.id} ${s.w}px "${s.label}"`).join(", "));
 check("phone group label keeps ‘GIRLS’", /GIRLS/i.test(phoneHeader.selects[1]?.label || ""), phoneHeader.selects[1]?.label || "missing");
+check("phone season and group pickers share a caption-free row below search",
+  phoneHeader.selects.map((s) => s.accessibleName).join(",") === "Season,Group" &&
+  phoneHeader.selects.every((s) => s.gap > 0 && s.gap <= 12) &&
+  phoneHeader.selects[0].gap === phoneHeader.selects[1].gap);
 
 // One change applies immediately: no panel, no Apply button.
 await evaluate(`(() => {
