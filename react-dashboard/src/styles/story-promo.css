@@ -1,0 +1,75 @@
+.league-header {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.story-promo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 8px 40px 0;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.25;
+  text-decoration: none;
+}
+.story-promo:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.story-promo-badge {
+  flex: none;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 15%, var(--card));
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.story-promo-player {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+}
+.story-promo-player strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.story-promo-stats {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.story-promo-go {
+  flex: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+.story-promo-go > span {
+  padding-left: 2px;
+  font-size: 16px;
+  line-height: 0;
+}
+@media (min-width: 1440px) {
+  .story-promo { margin-inline: 64px; }
+}
+@media (max-width: 1023px) {
+  .story-promo { margin-inline: 24px; }
+}
+@media (max-width: 767px) {
+  .story-promo { margin-inline: 16px; }
+}
+@media (max-width: 350px) {
+  .story-promo { gap: 7px; padding-inline: 9px; }
+}

@@ -28,6 +28,7 @@ import datetime
 import hashlib
 import json
 import os
+import random
 import re
 import shutil
 import sqlite3
@@ -768,6 +769,18 @@ def write_split_data(directory, bundle, player_stories=None):
                 routes[key] = url
     if player_stories is not None:
         catalog, buckets = player_stories
+        # Keep the banner independent of the on-demand story directory and game logs.
+        eligible = [
+            story for bucket in buckets.values() for pid, story in bucket.items()
+            if pid == story["id"] and story["totals"]["games"]
+            and any(char.isalnum() for char in story["name"])
+        ]
+        sample = random.Random(bundle["meta"].get("refreshed_at") or 0)
+        bootstrap["__story_spotlights"] = [
+            {"ids": story["ids"], "name": story["name"],
+             "points": story["totals"]["points"], "games": story["totals"]["games"]}
+            for story in sample.sample(eligible, min(32, len(eligible)))
+        ]
         list_files["player-story"] = emit("player-story.json", {"player-story": catalog})
         for number, stories in buckets.items():
             key = f"player-story/{number}"

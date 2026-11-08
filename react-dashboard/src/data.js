@@ -15,6 +15,7 @@ export const DEFAULT_GROUP = meta.default_group ?? 16;
 const detailFiles = RAW.__detail_files || {};
 const listFiles = RAW.__list_files || {};
 const playerIndex = RAW.__players_index || {};
+export const storySpotlights = RAW.__story_spotlights || [];
 const fileFor = (key) => listFiles[key] || detailFiles[key];
 const pendingFiles = new Map();
 const owns = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);

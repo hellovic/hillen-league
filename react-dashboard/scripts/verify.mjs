@@ -167,6 +167,28 @@ const startup = await evaluate(`(() => ({
 }))()`);
 check("overview boots without downloading full detail data", startup.manifest && startup.details === 0 && !startup.fullBundle, `${startup.details} detail payloads at startup`);
 
+const spotlight = await evaluate(`(() => {
+  const link = document.querySelector(".story-promo");
+  return {
+    route: link.hash.slice(2), name: link.querySelector("strong").textContent,
+    stats: link.querySelector(".story-promo-stats").textContent,
+    action: link.querySelector(".story-promo-go").textContent.trim(),
+    underHeader: link.previousElementSibling.matches("header.topbar"),
+    directoryLoaded: Array.isArray(window.LEAGUE_DATA["player-story"]),
+  };
+})()`);
+check("Story spotlight sits under the header and needs no directory download", spotlight.underHeader && !spotlight.directoryLoaded && spotlight.action.startsWith("Go"));
+await evaluate(`document.querySelector(".story-promo-go").click()`);
+await waitFor(`document.documentElement.dataset.route === ${JSON.stringify(spotlight.route)}`, "featured player story");
+const featuredStory = await evaluate(`(() => {
+  const metrics = [...document.querySelectorAll(".story-career-metrics dd")];
+  return { name: document.querySelector("#story-player-name").textContent,
+    stats: "· " + metrics[3].textContent + " PTS (" + metrics[2].textContent + " GP)",
+    next: document.querySelector(".story-promo").hash.slice(2) };
+})()`);
+check("Go opens the featured career with matching points and games", featuredStory.name === spotlight.name && featuredStory.stats === spotlight.stats);
+check("the featured career offers another player's story", featuredStory.next !== spotlight.route);
+
 // Story summaries load separately from the group files used by the box scores.
 await evaluate(`document.querySelector('#tabs [data-view="player-story"]').click()`);
 await waitFor(`!!document.querySelector("#story-search")`, "story directory");
@@ -354,19 +376,22 @@ check("mobile Story tab opens the directory and marks itself current", await eva
 // The design's own acceptance test: the layout must not scroll sideways.
 const ROUTES = ["/season/33", "/standings", "/teams", "/players", "/games", "/leaders", "/compare/p/17864/15202", "/players/17864", "/teams/1595", "/games/20863", "/player-story", "/player-story/15165"];
 const overflows = [];
+const missingSpotlights = [];
 for (const viewport of [{ w: 1440, h: 1000, m: false, name: "desktop" }, { w: 390, h: 844, m: true, name: "mobile" }]) {
   await setViewport(viewport.w, viewport.h, viewport.m);
   for (const route of ROUTES) {
     await open(route);
     const overflow = await evaluate(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
     if (overflow > 1) overflows.push(`${viewport.name} ${route} +${overflow}px`);
+    if (!(await evaluate(`document.querySelector(".story-promo")?.getBoundingClientRect().height >= 44`))) missingSpotlights.push(`${viewport.name} ${route}`);
   }
 }
 check("no horizontal overflow on any route", overflows.length === 0, overflows.join(", ") || "all " + ROUTES.length + " routes clean");
+check("Story spotlight is visible on every checked route", missingSpotlights.length === 0, missingSpotlights.join(", "));
 
 await setViewport(503, 725, true);
 const headerGeometry = `(() => {
-  const header = document.querySelector(".site-layout > header");
+  const header = document.querySelector(".league-header > header");
   return [header.className, header.querySelector("h1").textContent,
     ...[".brand", ".header-tools", ".gsearch", "#season-select", "#group-select"].map((selector) => {
       const { x, y, width, height } = header.querySelector(selector).getBoundingClientRect();
@@ -461,7 +486,7 @@ await waitFor(`!!document.querySelector("#t-box-1595")`, "game box score rendere
 await evaluate(`document.querySelector('[aria-controls="t-box-1595"]').click()`);
 await waitFor(`document.querySelector('[aria-controls="t-box-1595"]').getAttribute("aria-expanded") === "true"`, "full box score open");
 await sleep(250);
-await evaluate("window.scrollTo(0, 1500)");
+await evaluate(`window.scrollBy(0, document.querySelector("#t-box-1595 thead").getBoundingClientRect().bottom + 16)`);
 await sleep(300);
 const gamePin = await evaluate(pinStrip("#t-box-1595"));
 check("game box-score header pins to the top on a phone", gamePin.on && gamePin.top === 0 && gamePin.aligned && gamePin.overflow <= 1, `top ${gamePin.top}, aligned ${gamePin.aligned}, ${gamePin.overflow}px overflow`);

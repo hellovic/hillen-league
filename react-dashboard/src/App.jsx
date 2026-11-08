@@ -4,6 +4,7 @@ import { contextHash, seasonHash } from "./utils.js";
 import { PALETTES, PaletteContext } from "./theme.jsx";
 import { trackPageview } from "./analytics.js";
 import Topbar from "./components/Topbar.jsx";
+import StoryPromo from "./components/StoryPromo.jsx";
 import Tabs from "./components/Tabs.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import Footer from "./components/Footer.jsx";
@@ -291,16 +292,19 @@ export default function App() {
   return (
     <PaletteContext.Provider value={palette}>
       <div className="site-layout">
-        <Topbar
-          ctx={ctx}
-          theme={theme}
-          onGenderChange={changeGender}
-          allGroups={view === "season"}
-          onToggleTheme={toggleTheme}
-          onSeasonChange={changeSeason}
-          onGroupChange={changeGroup}
-          onAdoptContext={adoptContext}
-        />
+        <div className="league-header">
+          <Topbar
+            ctx={ctx}
+            theme={theme}
+            onGenderChange={changeGender}
+            allGroups={view === "season"}
+            onToggleTheme={toggleTheme}
+            onSeasonChange={changeSeason}
+            onGroupChange={changeGroup}
+            onAdoptContext={adoptContext}
+          />
+          <StoryPromo key={parts.join("/")} currentPlayerId={view === "player-story" ? id : null} />
+        </div>
         <Tabs active={active} ctx={ctx} />
         <main id="view">
           <ViewBoundary key={viewKey}>

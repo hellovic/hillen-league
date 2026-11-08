@@ -1,6 +1,9 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from server import build_player_stories
+from server import build_player_stories, write_split_data
 
 
 class PlayerStoryTests(unittest.TestCase):
@@ -51,3 +54,11 @@ class PlayerStoryTests(unittest.TestCase):
         self.assertTrue(buckets[3][3]["identity_conflict"])
         self.assertEqual([4], buckets[4][4]["ids"])
         self.assertEqual({1, 3, 4, 5}, {entry["id"] for entry in catalog})
+
+        with tempfile.TemporaryDirectory() as directory:
+            write_split_data(directory, bundle, (catalog, buckets))
+            bootstrap = Path(directory, "league-bootstrap-lite.js").read_text()
+            spotlights = json.loads(bootstrap.split("window.LEAGUE_DATA = ", 1)[1].rstrip(";\n"))["__story_spotlights"]
+        self.assertEqual({1, 3, 4}, {entry["ids"][0] for entry in spotlights})
+        ada = next(entry for entry in spotlights if entry["ids"] == [1, 2])
+        self.assertEqual((11, 2), (ada["points"], ada["games"]))
