@@ -9,6 +9,9 @@
  * Both pickers are always visible and apply immediately — no disclosure.
  * Desktop markup is identical; only the compact class changes the layout. */
 
+body.orange .topbar .theme-toggle { width: 44px; }
+body.orange .topbar #season-select { align-self: end; }
+
 @media (max-width: 767px) {
   body.orange .topbar.compact {
     position: static;
@@ -43,8 +46,8 @@
   body.orange .topbar.compact .theme-toggle {
     margin: 0;
     order: 0;
-    min-height: 40px;
-    height: 40px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 12px;
     font-size: 13px;
     background: var(--card);

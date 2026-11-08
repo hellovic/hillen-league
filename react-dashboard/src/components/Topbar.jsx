@@ -1,4 +1,4 @@
-import { groupName, meta, seasonGroups, seasonName, seasonShortName, seasonsForGender } from "../data.js";
+import { groupName, seasonGroups, seasonName, seasonShortName, seasonsForGender } from "../data.js";
 import SearchBox from "./SearchBox.jsx";
 import { useIsPhone } from "../useMediaQuery.js";
 
@@ -24,7 +24,8 @@ function shortGroup(seasonId, groupId) {
 export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, onToggleTheme, onSeasonChange, onGroupChange, onAdoptContext }) {
   const isPhone = useIsPhone();
   const groups = seasonGroups(ctx.season,ctx.gender);
-  const themeLabel = theme === "light" ? "Dark mode" : "Light mode";
+  const isLight = theme === "light";
+  const themeLabel = isLight ? "Switch to dark mode" : "Switch to light mode";
 
   const seasonOptions = seasonsForGender(ctx.gender).map((s) => (
     <option key={s.season_id} value={s.season_id}>
@@ -58,28 +59,33 @@ export default function Topbar({ ctx, theme, allGroups = false, onGenderChange, 
         className="theme-toggle"
         id="theme-toggle"
         type="button"
-        aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-        aria-pressed={theme === "light"}
+        aria-label={themeLabel}
+        aria-pressed={isLight}
+        title={themeLabel}
         onClick={onToggleTheme}
       >
-        {isPhone ? (theme === "light" ? "Dark" : "Light") : themeLabel}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {isLight ? <path d="M20.5 15.2A8.8 8.8 0 0 1 8.8 3.5a9 9 0 1 0 11.7 11.7Z" /> : (
+            <>
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" />
+            </>
+          )}
+        </svg>
       </button>
       </div>
       <div className="controls">
         <SearchBox key={ctx.gender} ctx={ctx} onAdoptContext={onAdoptContext} />
-        <label htmlFor="season-select">
-          Season
-          {/* Short label (“31 · 第31屆驍籃”) so the picker stays narrow and the
-            * Group picker gets the remaining width; the full name is the tooltip. */}
-          <select
-            id="season-select"
-            title={seasonName(ctx.season)}
-            value={ctx.season}
-            onChange={(e) => onSeasonChange(+e.target.value)}
-          >
-            {seasonOptions}
-          </select>
-        </label>
+        <select
+          id="season-select"
+          aria-label="Season"
+          title={seasonName(ctx.season)}
+          value={ctx.season}
+          onChange={(e) => onSeasonChange(+e.target.value)}
+        >
+          {seasonOptions}
+        </select>
         {allGroups ? (
           <span className="all-groups-pill" title="This page shows every group in the season">
             All groups

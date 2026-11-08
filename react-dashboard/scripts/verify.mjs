@@ -311,9 +311,21 @@ await evaluate(`document.querySelector("#global-results a, #global-results [data
 await waitFor(`location.hash.startsWith("#/players/")`, "search result navigation");
 check("search result opens the player page", true, await evaluate("location.hash"));
 
+const lightThemeIcon = await evaluate(`(() => {
+  const toggle = document.querySelector("#theme-toggle");
+  return toggle.getAttribute("aria-label") === "Switch to light mode" &&
+    toggle.querySelector('svg[aria-hidden="true"] circle') !== null && !toggle.textContent.trim();
+})()`);
 await evaluate(`document.querySelector("#theme-toggle").click()`);
 await sleep(250);
 check("theme toggle switches to light", (await evaluate("document.documentElement.dataset.theme")) === "light", await evaluate("getComputedStyle(document.body).backgroundColor"));
+check("theme toggle uses an accessible sun and moon", lightThemeIcon && await evaluate(`(() => {
+  const toggle = document.querySelector("#theme-toggle");
+  return toggle.getAttribute("aria-label") === "Switch to dark mode" &&
+    toggle.querySelector('svg[aria-hidden="true"] path') !== null &&
+    toggle.querySelector("svg circle") === null && !toggle.textContent.trim() &&
+    toggle.offsetWidth >= 44 && toggle.offsetHeight >= 44;
+})()`));
 check("theme is persisted", (await evaluate(`localStorage.getItem("courtside-theme")`)) === "light");
 check("theme-color meta follows the theme", (await evaluate(`document.querySelector("meta[name=theme-color]").content`)) !== "#101112", await evaluate(`document.querySelector("meta[name=theme-color]").content`));
 await evaluate(`document.querySelector("#theme-toggle").click()`);
@@ -548,6 +560,15 @@ check("phone group picker applies on a single change", true, await evaluate(`doc
 // the season. It is not bound to the header's group picker; group pages are.
 await setViewport(390, 844, true);
 await open("/season/33");
+const overviewPicker = await evaluate(`(() => {
+  const season = document.querySelector("#season-select");
+  const search = document.querySelector("#global-search").getBoundingClientRect();
+  const allGroups = document.querySelector(".all-groups-pill").getBoundingClientRect();
+  const rect = season.getBoundingClientRect();
+  return { accessible: season.getAttribute("aria-label") === "Season" && !season.labels.length,
+    gap: rect.top - search.bottom, aligned: Math.abs(rect.top - allGroups.top) <= 1 };
+})()`);
+check("overview season picker saves a line and keeps its accessible name", overviewPicker.accessible && overviewPicker.gap <= 12 && overviewPicker.aligned, `${overviewPicker.gap}px below search`);
 const scope = await evaluate(`(() => ({
   latest: (document.querySelector(".results")?.innerText || "").replace(/\\s+/g, " "),
   latestGroups: [...new Set([...document.querySelectorAll(".results .gr-group")].map((n) => n.innerText.trim()).filter(Boolean))],
