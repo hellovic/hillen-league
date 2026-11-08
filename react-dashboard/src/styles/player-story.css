@@ -1,4 +1,4 @@
-.story-kicker, .story-label, .story-section-title > span {
+.story-kicker, .story-section-title > span {
   color: var(--accent);
   font-size: 10px;
   font-weight: 800;
@@ -6,7 +6,7 @@
   line-height: 1.4;
   text-transform: uppercase;
 }
-.story-label, .story-section-title > span { color: var(--muted); }
+.story-section-title > span { color: var(--muted); }
 
 .story-page {
   --story-gap: 14px;
@@ -68,6 +68,16 @@
   background: var(--accent);
 }
 .story-section-title > span { text-align: right; }
+.story-layout .story-section-title {
+  container-type: inline-size;
+  white-space: nowrap;
+}
+.story-layout .story-section-title h2 { font-size: clamp(13px, 5cqi, 19px); }
+.story-layout .story-section-title > span { font-size: clamp(8px, 2.75cqi, 10px); }
+@container (max-width: 360px) {
+  .story-layout .story-section-title h2 { letter-spacing: 0; }
+  .story-layout .story-section-title > span { letter-spacing: .04em; }
+}
 .story-tag {
   flex: none;
   border: 1px solid var(--line);
@@ -91,16 +101,12 @@
   background: radial-gradient(ellipse at 100% 0, color-mix(in srgb, var(--accent) 13%, var(--card)), transparent 70%), var(--card);
 }
 .story-hero-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--bg) 76%, transparent);
   padding: 9px;
 }
+.story-hero-banner .story-kicker { display: block; }
 .story-hero-banner .story-kicker span { font-size: 8px; margin-right: 3px; }
-.story-hero-banner .story-label { flex: none; }
 .story-identity {
   display: grid;
   grid-template-columns: clamp(75px, 24%, 112px) minmax(0, 1fr);
@@ -422,6 +428,7 @@
 }
 @media (max-width: 350px) {
   .story-card { padding: 10px; }
+  .story-hero-banner .story-kicker { letter-spacing: .04em; }
   .story-squad-grid { grid-template-columns: minmax(0, 1fr); }
   .story-match h3 { font-size: 17px; }
   .story-section-title h2 { font-size: 17px; }

@@ -85,7 +85,6 @@ function Profile({ story }) {
     <section className="story-card story-hero" aria-labelledby="story-player-name">
       <div className="story-hero-banner">
         <span className="story-kicker"><span aria-hidden="true">●</span> {tr("Recorded journey")} · {seasonRange(tr, story.scope)}</span>
-        <span className="story-label">{tr("Career file")}</span>
       </div>
       <div className="story-identity">
         <StoryJersey name={story.name} number={story.jersey} />

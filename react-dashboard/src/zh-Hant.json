@@ -187,7 +187,6 @@
   "{count} game": "{count} 場",
   "{count} games": "{count} 場",
   "Recorded journey": "聯賽歷程",
-  "Career file": "生涯檔案",
   "Dual-ID archival sync": "已合併兩個球員編號",
   "Multi-ID archival sync": "已合併多個球員編號",
   "Matched {count} league IDs by normalized name. Shared names can refer to different players.": "按姓名比對了 {count} 個聯賽編號。同名者可能是不同球員。",
