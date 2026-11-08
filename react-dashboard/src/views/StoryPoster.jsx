@@ -31,10 +31,10 @@ function paintPoster(canvas, story, note) {
   rect(56, 52, 48, 48, orange);
   text("HL", 63, 85, 24, background, 900);
   text("HILLEN LEAGUE  /  PLAYER STORY", 120, 83, 18, orange, 800);
-  text(seasonLine, 56, 161, 19, muted, 800);
-  text(story.name, 56, 236, 62, white, 800, 432);
-  text(story.team, 56, 275, 24, muted, 600, 432);
-  paintStoryJersey(ctx, { name: story.name, number: story.jersey, x: 512, y: 106, width: 152 });
+  paintStoryJersey(ctx, { name: story.name, number: story.jersey, x: 56, y: 106, width: 152 });
+  text(seasonLine, 232, 161, 19, muted, 800);
+  text(story.name, 232, 236, 62, white, 800, 432);
+  text(story.team, 232, 275, 24, muted, 600, 432);
   rect(56, 306, 608, 2, line);
 
   const totals = Object.entries(story.totals);

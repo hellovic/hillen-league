@@ -238,7 +238,7 @@ try {
     const canvas = document.querySelector(".story-poster-dialog[open] canvas");
     return canvas?.width === 720 && canvas.getContext("2d").getImageData(12, 12, 1, 1).data[3] === 255;
   })()`));
-  check("poster canvas includes the jersey, surname and number", await evaluate(`(() => {
+  check("poster canvas includes the jersey and lettering on the left", await evaluate(`(() => {
     const canvas = document.querySelector(".story-poster-dialog canvas");
     const ctx = canvas.getContext("2d");
     const hasColor = ({ data }, red, green, blue) => {
@@ -247,8 +247,8 @@ try {
       }
       return false;
     };
-    const jersey = ctx.getImageData(512, 106, 152, 169);
-    const lettering = ctx.getImageData(550, 155, 76, 73);
+    const jersey = ctx.getImageData(56, 106, 152, 169);
+    const lettering = ctx.getImageData(94, 155, 76, 73);
     return hasColor(jersey, 255, 139, 80) && hasColor(lettering, 255, 173, 112) &&
       hasColor(lettering, 255, 255, 255);
   })()`));
