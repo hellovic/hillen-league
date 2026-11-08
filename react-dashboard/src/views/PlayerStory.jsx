@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, groupName, loadRouteData, routeDataReady, storyCatalog } from "../data.js";
-import { contextHash, contextQuery, copyText, n1, pct1, resultOf, seasonHash, setTitle, signed } from "../utils.js";
+import { contextHash, contextQuery, copyText, n1, pct1, resultOf, setTitle, signed } from "../utils.js";
 import StoryPoster from "./StoryPoster.jsx";
 import "../styles/player-story.css";
 
@@ -19,8 +19,6 @@ const ICONS = {
   share: <><path d="M12 15V3m-4 4 4-4 4 4M5 12v8h14v-8" /></>,
   link: <><path d="m10 14 4-4m-6 6-1 1a3 3 0 0 1-4-4l4-4a3 3 0 0 1 4 0m5-1 1-1a3 3 0 0 1 4 4l-4 4a3 3 0 0 1-4 0" /></>,
   profile: <><circle cx="12" cy="8" r="3" /><path d="M5 20v-1a7 7 0 0 1 14 0v1z" /></>,
-  moon: <path d="M19.5 15A8.2 8.2 0 0 1 9 4.5 8.4 8.4 0 1 0 19.5 15Z" />,
-  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></>,
 };
 
 function Icon({ name }) {
@@ -31,28 +29,6 @@ function Icon({ name }) {
 function statsHref(story, ctx) {
   const p = story?.profile;
   return p ? `#/players/${p.id}${contextQuery(p)}` : contextHash("players", ctx);
-}
-
-export function StoryHeader({ ctx, theme, onToggleTheme, story, posterRef }) {
-  return (
-    <header className="topbar story-topbar">
-      <div className="brand">
-        <a className="logo" href={seasonHash(ctx.season, ctx.gender)} aria-label="Hillen League overview">HL</a>
-        <div>
-          <span className="story-kicker">Hillen League <span>· CourtSide v1.1</span></span>
-          <h1>Player Story</h1>
-        </div>
-      </div>
-      <div className="story-header-tools">
-        {story && <button type="button" aria-label="Share story poster" onClick={() => posterRef.current?.showModal()}><Icon name="share" /></button>}
-        <button type="button" id="theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-          aria-pressed={theme === "light"} onClick={onToggleTheme}>
-          <Icon name={theme === "light" ? "moon" : "sun"} />
-        </button>
-        <a className="story-profile-action" href={statsHref(story, ctx)} aria-label="League stats"><Icon name="profile" /></a>
-      </div>
-    </header>
-  );
 }
 
 export function StoryDirectory() {
@@ -384,12 +360,17 @@ function StoryActions({ story, ctx, posterRef }) {
   );
 }
 
-export default function PlayerStory({ story, ctx, posterRef }) {
+export default function PlayerStory({ story, ctx }) {
+  const posterRef = useRef(null);
   useEffect(() => { setTitle(story?.name || "Story not found", "Player Story"); }, [story]);
   if (!story) return <div className="story-page story-card"><h2>Story not found</h2><a href="#/player-story">Browse player stories</a></div>;
   return (
     <div className="story-page">
-      <a className="story-back" href="#/player-story">← All Player Stories</a>
+      <div className="story-toolbar">
+        <a className="story-back" href="#/player-story">← All Player Stories</a>
+        <button type="button" className="story-button" aria-label="Share story poster" onClick={() => posterRef.current?.showModal()}><Icon name="share" /></button>
+        <a className="story-button" href={statsHref(story, ctx)} aria-label="League stats"><Icon name="profile" /></a>
+      </div>
       <div className="story-layout">
         <div className="story-intro">
           <Profile story={story} />

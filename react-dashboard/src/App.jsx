@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState } from "react";
 import { DEFAULT_GROUP, DEFAULT_SEASON, meta, seasonGroups, groupName, genderForGroup, seasonsForGender, entityScope, routeDataReady, loadRouteData, playerStory } from "./data.js";
 import { contextHash, seasonHash } from "./utils.js";
 import { PALETTES, PaletteContext } from "./theme.jsx";
@@ -13,7 +13,7 @@ import TeamsView from "./views/TeamsView.jsx";
 import TeamDetail from "./views/TeamDetail.jsx";
 import PlayersView from "./views/PlayersView.jsx";
 import PlayerDetail from "./views/PlayerDetail.jsx";
-import PlayerStory, { StoryDirectory, StoryHeader } from "./views/PlayerStory.jsx";
+import PlayerStory, { StoryDirectory } from "./views/PlayerStory.jsx";
 import GamesView from "./views/GamesView.jsx";
 import GameDetail from "./views/GameDetail.jsx";
 import LeadersView from "./views/LeadersView.jsx";
@@ -116,7 +116,6 @@ export default function App() {
   const [route, setRoute] = useState(parseHash);
   const [ctx, setCtx] = useState(initialCtx);
   const [theme, setTheme] = useState(initialTheme);
-  const posterRef = useRef(null);
 
   const [dataVersion, setDataVersion] = useState(0);
   const [dataError, setDataError] = useState(null);
@@ -156,8 +155,8 @@ export default function App() {
   }, []);
 
   /* Keep the URL in step with the selectors, exactly like syncUrl(): the season
-   * view canonicalises to #/season/<id>, list views carry both query params, and
-   * detail views own their URL.
+   * view canonicalises to #/season/<id>. Lists and the career archive carry
+   * the header scope in query params. Other detail views own their URL.
    *
    * replaceState() does not fire hashchange, so the route state must be
    * refreshed by hand. Without this the season view keeps rendering the id that
@@ -169,6 +168,7 @@ export default function App() {
     const view = parts[0] || "season";
     let hash;
     if (view === "season") hash = seasonHash(season,gender);
+    else if (view === "player-story") hash = contextHash(parts.join("/"), { season, group, gender });
     else if (LIST_VIEWS.has(view)) hash = contextHash(view, { season, group, gender });
     else return;
     if (location.hash === hash) return;
@@ -193,9 +193,13 @@ export default function App() {
     const next = resolveCtx([], params, {...ctx,group:undefined,gender});
     const current = parseHash().parts;
     const view = current[0] || "season";
+    setCtx(next);
+    if (view === "player-story") {
+      syncUrl(next.season, next.group, next.gender);
+      return;
+    }
     const isList = LIST_VIEWS.has(view) && !(+current[1]);
     const hash = isList ? contextHash(view,next) : seasonHash(next.season,gender);
-    setCtx(next);
     history.replaceState(null,"",hash);
     setRoute(parseHash());
     window.scrollTo(0,0);
@@ -219,7 +223,7 @@ export default function App() {
   const id = +parts[1] || null;
   const id2 = +parts[2] || null;
   const active = TAB_FOR[view] || view;
-  const story = view === "player-story" && id ? playerStory(id) : null;
+  const viewKey = view === "player-story" ? parts.join("/") : dataKey;
 
   // After the visible page is painted, prepare only the selected group's
   // player list. This keeps a first Players/Compare visit responsive without
@@ -255,7 +259,7 @@ export default function App() {
       case "players":
         return id ? <PlayerDetail ctx={ctx} id={id} /> : <PlayersView ctx={ctx} />;
       case "player-story":
-        return parts[1] ? <PlayerStory story={story} ctx={ctx} posterRef={posterRef} /> : <StoryDirectory />;
+        return parts[1] ? <PlayerStory story={playerStory(id)} ctx={ctx} /> : <StoryDirectory />;
       case "games":
         return id ? <GameDetail ctx={ctx} id={id} onAdoptContext={adoptContext} /> : <GamesView ctx={ctx} />;
       case "compare":
@@ -287,9 +291,7 @@ export default function App() {
   return (
     <PaletteContext.Provider value={palette}>
       <div className="site-layout">
-        {view === "player-story" ? (
-          <StoryHeader ctx={ctx} theme={theme} onToggleTheme={toggleTheme} story={story} posterRef={posterRef} />
-        ) : <Topbar
+        <Topbar
           ctx={ctx}
           theme={theme}
           onGenderChange={changeGender}
@@ -298,10 +300,10 @@ export default function App() {
           onSeasonChange={changeSeason}
           onGroupChange={changeGroup}
           onAdoptContext={adoptContext}
-        />}
+        />
         <Tabs active={active} ctx={ctx} />
         <main id="view">
-          <ViewBoundary key={view + "/" + parts.slice(1).join("/") + "/" + ctx.season + "/" + ctx.group}>
+          <ViewBoundary key={viewKey}>
             {content}
           </ViewBoundary>
         </main>

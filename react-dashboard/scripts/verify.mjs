@@ -205,7 +205,7 @@ await evaluate(`delete navigator.clipboard.writeText`);
 const posterDir = mkdtempSync(join(tmpdir(), "hl-story-poster-"));
 try {
   await send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: posterDir });
-  await evaluate(`document.querySelector(".story-header-tools button").click()`);
+  await evaluate(`document.querySelector(".story-toolbar button").click()`);
   check("share opens a painted poster", await evaluate(`(() => {
     const canvas = document.querySelector(".story-poster-dialog[open] canvas");
     return canvas?.width === 720 && canvas.getContext("2d").getImageData(12, 12, 1, 1).data[3] === 255;
@@ -356,12 +356,27 @@ for (const viewport of [{ w: 1440, h: 1000, m: false, name: "desktop" }, { w: 39
     await open(route);
     const overflow = await evaluate(`document.documentElement.scrollWidth - document.documentElement.clientWidth`);
     if (overflow > 1) overflows.push(`${viewport.name} ${route} +${overflow}px`);
-    if (viewport.m && route === "/player-story/15165") {
-      check("story header keeps its actions alongside the title on mobile", await evaluate(`Math.abs(document.querySelector(".story-topbar .brand").getBoundingClientRect().top - document.querySelector(".story-header-tools").getBoundingClientRect().top) < 8`));
-    }
   }
 }
 check("no horizontal overflow on any route", overflows.length === 0, overflows.join(", ") || "all " + ROUTES.length + " routes clean");
+
+await setViewport(503, 725, true);
+const headerGeometry = `(() => {
+  const header = document.querySelector(".site-layout > header");
+  return [header.className, header.querySelector("h1").textContent,
+    ...[".brand", ".header-tools", ".gsearch", "#season-select", "#group-select"].map((selector) => {
+      const { x, y, width, height } = header.querySelector(selector).getBoundingClientRect();
+      return [x, y, width, height];
+    })];
+})()`;
+await open("/standings?season=33&group=16");
+const standingsHeader = await evaluate(headerGeometry);
+await open("/player-story/15165?season=33&group=16");
+check("Story uses the same mobile header as Standings", JSON.stringify(await evaluate(headerGeometry)) === JSON.stringify(standingsHeader));
+await evaluate(`document.querySelector(".story-log > summary").click(); document.querySelector("#gender-boys").click()`);
+await waitFor(`location.hash.startsWith("#/player-story/15165?") && location.hash.includes("gender=boys")`, "story league scope change");
+check("league scope changes keep the same career and open game log", await evaluate(`document.querySelector("#story-player-name").textContent === "楊沁柔" && document.querySelector(".story-log").open`));
+await open("/standings?season=33&group=16");
 
 // Sticky header: the players table fits its card on a desktop, so the card must
 // stop being a scroll box and the header must follow the window while scrolling.

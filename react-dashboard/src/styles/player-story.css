@@ -1,17 +1,3 @@
-body.orange .story-topbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding-block: 12px;
-}
-.story-topbar .brand { align-items: center; }
-.story-topbar .logo { text-decoration: none; }
-body.orange .story-topbar .brand h1 {
-  font: 650 clamp(18px, 4.8vw, 24px)/1.05 var(--display);
-  letter-spacing: .025em;
-  text-transform: uppercase;
-}
 .story-kicker, .story-label, .story-section-title > span {
   color: var(--accent);
   font-size: 10px;
@@ -20,22 +6,7 @@ body.orange .story-topbar .brand h1 {
   line-height: 1.4;
   text-transform: uppercase;
 }
-.story-topbar .story-kicker { display: block; margin-bottom: 3px; }
-.story-topbar .story-kicker span, .story-label, .story-section-title > span { color: var(--muted); }
-.story-header-tools { display: flex; align-items: center; gap: 4px; }
-.story-header-tools > * {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 11px;
-}
-.story-header-tools > :hover { background: var(--card2); }
-.story-header-tools .story-profile-action { background: var(--card2); color: var(--accent); border-color: var(--line); }
+.story-label, .story-section-title > span { color: var(--muted); }
 
 .story-page {
   --story-gap: 14px;
@@ -50,11 +21,13 @@ body.orange .story-topbar .brand h1 {
 .story-page :is(a, h2, h3, strong, small) { overflow-wrap: anywhere; }
 .story-page a { color: inherit; text-decoration: none; }
 .story-page a:hover { color: var(--accent); }
+.story-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.story-toolbar .story-button { flex: 0 0 44px; }
 .story-back {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
-  margin-bottom: 8px;
+  margin-right: auto;
   font-size: 12px;
   font-weight: 700;
 }
@@ -454,17 +427,7 @@ body.orange .story-topbar .brand h1 {
   .story-card { padding: 16px; }
   .story-directory-link { padding: 8px 10px; }
 }
-@media (max-width: 767px) {
-  body.orange .story-topbar { padding-inline: 12px; }
-  body.orange .story-topbar .brand { gap: 8px; }
-  .story-header-tools { gap: 1px; }
-}
-@media (max-width: 420px) {
-  .story-topbar .story-kicker span { display: none; }
-}
 @media (max-width: 350px) {
-  body.orange .story-topbar .brand h1 { font-size: 17px; }
-  body.orange .story-topbar .logo { width: 34px; height: 34px; }
   .story-card { padding: 10px; }
   .story-squad-grid { grid-template-columns: minmax(0, 1fr); }
   .story-match h3 { font-size: 17px; }
