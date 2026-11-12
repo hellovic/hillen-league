@@ -4,6 +4,7 @@ All notable changes to the Hillen League database, scraper, and dashboard.
 Format follows deployed versions; each entry lists the user-visible changes.
 
 ## [v5.7] — 2026-11-06 — Boys divisions and lighter frontend
+- Data refresh 2026-11-12: 293 games, 6254 box-score rows (seasons 31, 32, 33). 0 new, 1 updated, 0 removed, 292 unchanged.
 - Data refresh 2026-11-11: 293 games, 6254 box-score rows (seasons 31, 32, 33). 34 new, 1 updated, 0 removed, 258 unchanged.
 - Data refresh 2026-11-10: 259 games, 6254 box-score rows (seasons 31, 32, 33). 0 new, 0 updated, 0 removed, 259 unchanged.
 - Data refresh 2026-11-09: 259 games, 6254 box-score rows (seasons 31, 32, 33). 0 new, 0 updated, 0 removed, 259 unchanged.
