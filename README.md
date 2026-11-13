@@ -267,12 +267,13 @@ new database replaces the original; failed refreshes leave it untouched.
 
 `./start.sh` runs `scraper.py --active --incremental` in one process. Fresh
 season pages are shared across divisions. Listings and leaderboards are checked
-every run. Team profiles/rosters can be reused for six hours; new registrations,
-changed fixtures, missing pending fixtures and changed leaderboards force fresh
-checks. Normal fixtures are discovered from the fresh season listing; a fixture
-published only on a team page can take up to six hours to appear. Unchanged
-completed/forfeit/void score pages have a 15-minute cache limit for games in the
-last 14 days, and seven days for older results still in the active listings.
+every run. Team profiles and rosters can be reused for up to 24 hours. New
+registrations, changed fixtures, missing pending fixtures and changed
+leaderboards force fresh checks. Normal fixtures come from the fresh season
+listing. A fixture published only on a team page can wait until the cache
+expires and another run starts. Unchanged completed, forfeited or void score
+pages have a 15-minute cache limit for games in the last 14 days and seven days
+for older results still in the active listings.
 Changed scores, times, venues or leaderboard totals bypass those limits. Use
 `python3 scraper.py --active --refresh` for an immediate full recheck. The cloud
 workflow persists the HTML cache between runs.
@@ -280,9 +281,11 @@ workflow persists the HTML cache between runs.
 A canonical digest covers all public records and view definitions, including
 fixture times, venues, minutes and individual statistics. Refresh timestamps do
 not count as data changes. An unchanged run preserves the database bytes and
-skips building, committing and deployment. The footer timestamp describes the
-last published dataset update; successful unchanged checks are recorded in the
-workflow logs and summary.
+skips building, committing and deployment. Teams with zero games played are
+shown in a stable order, so changes to their source listing order alone do not
+trigger publication. The footer displays **Data last changed**. The Actions
+summary records the last successful source check for that run, including when
+the source was unchanged.
 
 **Measured scrape improvement (5 November 2026):** an unchanged scheduled check
 with a two-hour-old cache needed 42 source requests, down from 102. The observed
@@ -293,9 +296,9 @@ and downloaded 8.17 MB of HTML rather than the baseline's 16.94 MB response-body
 workload. Gzip and conditional validators are supported when the source offers
 them; neither contributed a measured saving in this test.
 
-`--result-file FILE` writes timings, bytes, cache hits, retries and per-request
-observations. `scripts/benchmark_scraper.py` replays two versions against a saved
-source snapshot without network access; it also tests correction invalidation.
+`--result-file FILE` writes timings, bytes, cache hits, retries, request counts
+by page type and per-request observations. `scripts/benchmark_scraper.py` replays
+two versions against a saved source snapshot and tests correction invalidation.
 `scripts/compare_production.py --production-bundle FILE --source-cache CACHE
 --report FILE` compares a downloaded production snapshot with the local database
 and audits changed metadata against captured source pages. Keep comparisons
@@ -320,14 +323,18 @@ on `main`, so a local `./start.sh` push goes live the same way.
   stubs + the built app) never enter git — the repo is source + the database only.
 * Default (Hong Kong time): **weekdays 08:05 plus a 10:35 catch-up; weekends
   09:05, 11:05, 13:05, 15:05, 18:05, 21:05 and 23:05**. These are requested
-  slots, not guaranteed start times: GitHub can delay scheduled events by hours.
-  The workflow warns about starts at least 45 minutes late and records successful
-  source checks in its summary. Edit the `cron` lines in the
-  file (cron is UTC; must be pushed to `main` to take effect).
+  slots. GitHub can delay scheduled events by hours. The workflow summary shows
+  which slots had an automatic start within 30 minutes over the past seven days.
+  A slot without a start in that window may have run later. Run
+  `python3 scripts/check_refresh_schedule.py --audit` to check even if a run
+  has not started. The workflow file stores the schedule in UTC on `main`.
 * Runs in GitHub's cloud on **Hong Kong time** (the cron entries are converted
   from HK to UTC).
-* Also triggerable **manually** from the repo's **Actions** tab → *Scheduled data
-  refresh* → *Run workflow*.
+* For a time-sensitive update when the scheduled run is more than 30 minutes
+  late, open **Actions → Scheduled data refresh → Run workflow** and select
+  `main`. If the refresh pushed its database and Pages publication failed,
+  run **Actions → Deploy site → Run workflow** on `main` to publish the
+  committed database without scraping again.
 * The commit is authored by "Hillen League Bot" (`actions@users.noreply.github.com`).
 * If validation fails, the workflow aborts before committing — it will not push
   broken data.

@@ -55,15 +55,23 @@ def record_hash(rows):
 
 
 def dataset_digest(conn):
-    """All public records and schema, excluding operational refresh timestamps."""
+    """Public records and schema, ignoring timestamps and zero-game rank churn."""
     tables = conn.execute("SELECT name, sql FROM sqlite_master WHERE type='table' "
                           "AND name NOT LIKE 'sqlite_%' AND name != 'refresh_meta' ORDER BY name").fetchall()
     data = []
     for name, sql in tables:
         quoted = '"' + name.replace('"', '""') + '"'
-        cols = len(conn.execute(f"PRAGMA table_info({quoted})").fetchall())
+        columns = conn.execute(f"PRAGMA table_info({quoted})").fetchall()
+        select = "*"
+        if name == "standings":
+            # The export orders unplayed teams by team ID, independently of
+            # the source's changing entry order.
+            select = ", ".join(
+                "CASE WHEN gp = 0 THEN NULL ELSE rank END" if col[1] == "rank" else col[1]
+                for col in columns
+            )
         rows = [tuple(r) for r in conn.execute(
-            f"SELECT * FROM {quoted} ORDER BY " + ",".join(str(i + 1) for i in range(cols)))]
+            f"SELECT {select} FROM {quoted} ORDER BY " + ",".join(str(i + 1) for i in range(len(columns))))]
         data.append((name, sql, rows))
     data.append([tuple(r) for r in conn.execute(
         "SELECT name, sql FROM sqlite_master WHERE type='view' ORDER BY name")])

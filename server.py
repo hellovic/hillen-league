@@ -260,13 +260,18 @@ def standings_rows(conn, season, group):
     the points once games are played: season 33 group 11 opens with a team that
     has not played at all (0 GP, 0 pts) ahead of the 3-point leader. So sort by
     points and keep the official listing order as the tiebreak — that order is
-    the league's own tiebreak once teams are level. `rank` stays as scraped;
-    `pos` is the display position the UI and the share card show.
+    the league's own tiebreak once teams are level. Teams with zero games
+    played follow teams tied on points that have played and are ordered by
+    team ID, including in database snapshots from before rank stabilization.
+    `pos` is the display position the UI and share card show.
     """
     rows = query(conn, "standings", (season, group))
-    rows.sort(key=lambda r: (-(r["points"] or 0), r["rank"]))
+    rows.sort(key=lambda r: (-(r["points"] or 0), r["gp"] == 0,
+                             r["team_id"] if r["gp"] == 0 else r["rank"]))
     for i, r in enumerate(rows, 1):
         r["pos"] = i
+        if r["gp"] == 0:
+            r["rank"] = i
     return rows
 
 

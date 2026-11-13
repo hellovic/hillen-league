@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import refresh_diff
 import scraper
+import server
 
 
 class RefreshTests(unittest.TestCase):
@@ -108,6 +109,17 @@ class RefreshTests(unittest.TestCase):
         self.assertEqual(before, refresh_diff.dataset_digest(c))
         c.execute("DELETE FROM rosters WHERE rowid=(SELECT MIN(rowid) FROM rosters)")
         self.assertNotEqual(before, refresh_diff.dataset_digest(c))
+
+    def test_unplayed_rank_changes_leave_digest_and_export_unchanged(self):
+        c = self.store.conn
+        scope = c.execute("SELECT season_id,group_id FROM standings WHERE gp=0 LIMIT 1").fetchone()
+        digest = refresh_diff.dataset_digest(c)
+        standings = server.standings_rows(c, *scope)
+        c.execute("UPDATE standings SET rank=rank+100 WHERE gp=0")
+        self.assertEqual(digest, refresh_diff.dataset_digest(c))
+        self.assertEqual(standings, server.standings_rows(c, *scope))
+        c.execute("UPDATE standings SET rank=rank+100 WHERE gp>0")
+        self.assertNotEqual(digest, refresh_diff.dataset_digest(c))
 
     def test_request_memoization_reuses_fresh_season_page(self):
         fetcher = scraper.Fetcher.__new__(scraper.Fetcher)
