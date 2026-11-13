@@ -72,6 +72,7 @@ class FetcherTests(unittest.TestCase):
         factory.assert_called_once()
         self.assertEqual(2, self.fetcher.requests)
         self.assertEqual(1, self.fetcher.handshakes)
+        self.assertEqual({"division.php": 2}, self.fetcher.metrics()["requests_by_page"])
 
     def test_eviction_reuses_fetched_html_without_another_source_request(self):
         self.fetcher._request = Mock(return_value=(200, headers(), PAGE.encode()))
@@ -79,6 +80,7 @@ class FetcherTests(unittest.TestCase):
         for url in urls:
             self.fetcher.get(url)
         self.assertEqual(32, len(self.fetcher.responses))
+        self.assertEqual(33, self.fetcher.metrics()["unique_pages"])
         self.assertNotIn(urls[0], self.fetcher.responses)
         self.assertEqual(PAGE, self.fetcher.get(urls[0], max_age=0))
         self.assertEqual(33, self.fetcher._request.call_count)

@@ -18,7 +18,7 @@ Stdlib only (urllib, sqlite3, re). Pages are cached under ./cache/ to make
 re-runs cheap and idempotent.
 """
 
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 import argparse
 from contextlib import closing
 import datetime
@@ -45,6 +45,7 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 # G2 intermediate completes the chain (curl succeeds via the macOS keychain,
 # plain Python ssl needs the intermediate added explicitly).
 GODADDY_G2_URL = "https://certs.godaddy.com/repository/gdig2.crt.pem"
+TEAM_PAGE_MAX_AGE = 24 * 3600
 
 CATEGORY_CN = {
     "MVP": "mvp", "得分王": "pts", "三分王": "fg3", "助攻王": "ast",
@@ -73,6 +74,7 @@ class Fetcher:
         self.responses = OrderedDict()
         self.seen_urls = set()
         self.requests = 0
+        self.requests_by_page = Counter()
         self.connections = {}
         self.network_bytes = 0
         self.handshakes = 0
@@ -128,6 +130,7 @@ class Fetcher:
         if connection.sock is None:
             self.handshakes += 1
         self.requests += 1
+        self.requests_by_page[parsed.path.rsplit("/", 1)[-1]] += 1
         started = time.perf_counter()
         try:
             connection.request("GET", urllib.parse.urlunsplit(("", "", parsed.path, parsed.query, "")), headers=headers)
@@ -238,6 +241,7 @@ class Fetcher:
                 "handshakes": self.handshakes, "cache_hits": self.cache_hits,
                 "memory_hits": self.memory_hits, "revalidations": self.revalidations,
                 "retries": self.retries, "unique_pages": len(self.seen_urls),
+                "requests_by_page": dict(sorted(self.requests_by_page.items())),
                 "responses": self.observations}
 
 
@@ -925,17 +929,17 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
             # Freshly check both secondary schedules before withdrawing a fixture.
             dirty_teams.update((home, away))
     for event in season_events:
-        old = store.conn.execute("SELECT home_score,away_score,game_date,start_time,end_time,home_team_id,away_team_id FROM games WHERE event_id=?", (event["event_id"],)).fetchone()
+        old = store.conn.execute("SELECT home_score,away_score,game_date,start_time,end_time,home_team_id,away_team_id,venue FROM games WHERE event_id=?", (event["event_id"],)).fetchone()
         advertised_scores = (None, None) if event["home_score"] == event["away_score"] == 0 else (event["home_score"], event["away_score"])
         signature = (*advertised_scores, event["date"], event["start"], event["end"], event["home_team_id"], event["away_team_id"])
-        if old is None or tuple(old) != signature:
+        if old is None or tuple(old[:7]) != signature or (event.get("venue") and old[7] != event["venue"]):
             dirty_teams.update((event["home_team_id"], event["away_team_id"]))
     for row in boards:
         if not store.conn.execute("SELECT 1 FROM rosters WHERE season_id=? AND team_id=? AND player_id=?", (season_id, row["team_id"], row["player_id"])).fetchone():
             dirty_teams.add(row["team_id"])
     for tid, name in teams:
         html = cache.get(f"{BASE}teams_detail_info.php?season_id={season_id}&team_id={tid}",
-                         max_age=6 * 3600 if incremental and tid not in dirty_teams else None)
+                         max_age=TEAM_PAGE_MAX_AGE if incremental and tid not in dirty_teams else None)
         require_page(html, f"team {tid}", r'<div class="player-profile">')
         if widget_block_before(html, "隊員名單") is None or widget_block_before(html, "賽程") is None:
             raise ScrapeError(f"Missing roster or schedule for team {tid}")
@@ -1062,7 +1066,7 @@ def main():
     ap.add_argument("--db", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "hillen_league.db"))
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--refresh", action="store_true", help="revalidate all pages, ignoring disk freshness")
-    mode.add_argument("--incremental", action="store_true", help="fresh listings; cache profiles six hours, recent scores 15 minutes, old results seven days")
+    mode.add_argument("--incremental", action="store_true", help="fresh listings; cache unchanged team pages 24 hours, recent scores 15 minutes, old results seven days")
     ap.add_argument("--result-file", help="write machine-readable changed/request counts")
     args = ap.parse_args()
     started = time.perf_counter()
@@ -1076,8 +1080,11 @@ def main():
     if args.result_file:
         with open(args.result_file, "w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)
-    print(f"Network requests: {cache.requests}; unique pages: {len(cache.responses)}; "
+    print(f"Network requests: {metrics['requests']}; unique pages: {metrics['unique_pages']}; "
           f"bytes: {cache.network_bytes}; seconds: {metrics['seconds']:.3f}")
+    print("Network requests by page: " + ", ".join(
+        f"{name}={count}" for name, count in metrics["requests_by_page"].items()
+    ))
 
 
 if __name__ == "__main__":
