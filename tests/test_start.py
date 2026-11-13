@@ -34,7 +34,7 @@ elif args[0] not in ("refresh_diff.py", "validate.py"):
                    "GITHUB_OUTPUT": str(output)}
             result = subprocess.run(["bash", str(path / "start.sh")], env=env, capture_output=True, text=True)
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-            self.assertEqual("changed=false\n", output.read_text())
+            self.assertRegex(output.read_text(), r"^checked_at=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} HKT\nchanged=false\n$")
             self.assertIn("skipping build, commit and deployment", result.stdout)
 
 

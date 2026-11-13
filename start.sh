@@ -62,6 +62,9 @@ fi
 # 2. validation gate
 echo "==> validating database"
 python3 validate.py || { echo "!! validation failed — not committing"; exit 1; }
+if [ "$REFRESH" = "1" ] && [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "checked_at=$(TZ=Asia/Hong_Kong date '+%Y-%m-%d %H:%M:%S HKT')" >> "$GITHUB_OUTPUT"
+fi
 
 # 4. compute the change summary (used both to decide whether to log/commit and
 #    printed again at the very end so it's the last thing you see)

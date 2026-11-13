@@ -33,7 +33,7 @@
   "No such season. Available:": "找不到此屆別。可查閱以下屆別：",
   "{gender} data snapshot": "{gender}組數據快照",
   "{teams} teams · {players} players · {games} games · {boxScores} box-score rows": "{teams} 支球隊 · {players} 名球員 · {games} 場賽事 · {boxScores} 筆技術統計",
-  "data refresh {date}": "數據更新 {date}",
+  "Data last changed {date}": "數據上次更新於 {date}",
   "Search the league": "搜尋聯賽",
   "Search players, teams and games": "搜尋球員、球隊及賽事",
   "Players, teams, games…": "球員、球隊、賽事…",

@@ -40,6 +40,7 @@ on:
         type: string
 
 permissions:
+  actions: read               # audit scheduled start times
   contents: write              # commit + push the refreshed data
   pages: write                 # publish the built site
   id-token: write              # required by actions/deploy-pages
@@ -94,6 +95,12 @@ jobs:
           REFRESH_CRON: ${{ github.event.schedule }}
         run: python3 scripts/check_refresh_schedule.py
 
+      - name: Audit the last seven days of scheduled starts
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check_refresh_schedule.py --audit
+
       - name: Test refresh and export regressions
         run: |
           python3 -m unittest discover -s tests
@@ -104,9 +111,17 @@ jobs:
         run: ./start.sh
 
       - name: Record successful source check
+        if: ${{ !cancelled() && steps.refresh.outputs.checked_at != '' }}
         run: |
-          echo "Successful source check: $(TZ=Asia/Hong_Kong date '+%Y-%m-%d %H:%M:%S HKT')" >> "$GITHUB_STEP_SUMMARY"
-          echo "Data changed: ${{ steps.refresh.outputs.changed }}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Successful source check: ${{ steps.refresh.outputs.checked_at }}"
+            echo "Data changed: ${{ steps.refresh.outputs.changed }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record Pages recovery instructions
+        if: steps.refresh.outcome == 'success' && steps.refresh.outputs.changed == 'true'
+        run: |
+          echo 'If Pages publication fails, run **Deploy site** on `main` to publish the committed database.' >> "$GITHUB_STEP_SUMMARY"
 
       # start.sh rebuilt docs/ in the step above; publish exactly that. There is
       # nothing to commit for it — docs/ is generated, not source.

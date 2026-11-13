@@ -17,6 +17,22 @@ class ScheduleTests(unittest.TestCase):
         now = datetime.datetime(2026, 11, 7, 3, 20, tzinfo=datetime.timezone.utc)
         self.assertEqual(datetime.timedelta(minutes=15), schedule.schedule_delay("5 1,3,5,7,10,13,15 * * 0,6", now))
 
+    def test_audit_distinguishes_late_starts_and_missed_windows(self):
+        crons = ["5 0 * * 1-5", "35 2 * * 1-5", "5 1,3,5,7,10,13,15 * * 0,6"]
+        now = datetime.datetime.fromisoformat("2026-11-07T04:40:00+00:00")
+        base = {"event": "schedule", "head_branch": "main", "status": "completed", "conclusion": "success"}
+        runs = [
+            {**base, "run_started_at": "2026-11-07T01:20:00Z"},
+            {**base, "run_started_at": "2026-11-07T03:50:00Z"},
+            {**base, "run_started_at": "2026-11-07T03:10:00Z", "status": "queued", "conclusion": None},
+            {**base, "run_started_at": "2026-11-07T03:15:00Z", "event": "workflow_dispatch"},
+        ]
+        rows, outside = schedule.audit_schedule(crons, runs, now)
+        self.assertEqual(24, len(rows))
+        self.assertEqual(1, outside)
+        self.assertEqual(datetime.datetime.fromisoformat("2026-11-07T01:20:00Z"), rows[-2][1])
+        self.assertIsNone(rows[-1][1])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,7 @@ export default function Footer({gender = "girls"}) {
       <span id="foot-counts">
         {tr("{teams} teams · {players} players · {games} games · {boxScores} box-score rows", { ...c, boxScores: c.box_scores })}
       </span>
-      <span id="foot-fresh">{meta.refreshed_at ? ` · ${tr("data refresh {date}", { date: meta.refreshed_at })}` : ""}</span>
+      <span id="foot-fresh">{meta.refreshed_at ? ` · ${tr("Data last changed {date}", { date: meta.refreshed_at })}` : ""}</span>
     </footer>
   );
 }
