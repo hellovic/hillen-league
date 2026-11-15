@@ -1016,7 +1016,31 @@ def scrape_group(cache, store, season_id, group_id, incremental=False):
 ACTIVE_GROUPS = [(32, g) for g in (26, 27, 28, 30, 31)] + [(33, g) for g in (25, 26, 27, 11, 16, 28, 29)] + [(33, g) for g in (14, 34, 35, 2, 15, 17, 18, 19, 37, 38, 3, 12, 20, 21, 32, 36, 4, 5, 6, 9, 22, 23, 31, 33, 7, 8, 13, 24, 30, 10)]
 
 
-def refresh_database(db_path, selections, cache, incremental=False):
+def refresh_database(db_path, selections, cache, incremental=False, *, allow_group_fallback=False):
+    if not allow_group_fallback:
+        return _refresh_database(db_path, selections, cache, incremental)
+
+    with tempfile.TemporaryDirectory() as directory:
+        report = os.path.join(directory, "validation.json")
+        try:
+            return _refresh_database(db_path, selections, cache, incremental, report)
+        except subprocess.CalledProcessError as error:
+            if error.returncode != 1 or not os.path.isfile(report):
+                raise
+            with open(report, encoding="utf-8") as file:
+                failures = json.load(file)
+            if not failures or any(group is None for group in failures):
+                raise
+            failed_groups = {tuple(group) for group in failures}
+            remaining = [group for group in selections if group not in failed_groups]
+            if not remaining or not failed_groups.issubset(selections):
+                raise
+            for season, group in sorted(failed_groups):
+                print(f"Keeping previously validated data for season {season}, group {group}", flush=True)
+            return _refresh_database(db_path, remaining, cache, incremental)
+
+
+def _refresh_database(db_path, selections, cache, incremental, failure_report=None):
     """Validate a complete staged refresh; leave the original byte-identical on failure/no-op."""
     from refresh_diff import dataset_digest
     db_path = os.path.abspath(db_path)
@@ -1037,8 +1061,10 @@ def refresh_database(db_path, selections, cache, incremental=False):
                                "(SELECT 1 FROM season_teams st WHERE st.season_id=rosters.season_id "
                                "AND st.team_id=rosters.team_id)", (season,))
         store.commit()
-        subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "validate.py"),
-                        "--db", staged, "--quiet"], check=True)
+        command = [sys.executable, os.path.join(os.path.dirname(__file__), "validate.py"), "--db", staged, "--quiet"]
+        if failure_report:
+            command.extend(["--failure-report", failure_report])
+        subprocess.run(command, check=True)
         changed = before != dataset_digest(store.conn)
         if changed:
             now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
@@ -1073,7 +1099,8 @@ def main():
     here = os.path.dirname(os.path.abspath(__file__))
     cache = Fetcher(os.path.join(here, "cache"), refresh=args.refresh or args.incremental)
     try:
-        changed = refresh_database(args.db, ACTIVE_GROUPS if args.active else [(args.season, args.group)], cache, args.incremental)
+        changed = refresh_database(args.db, ACTIVE_GROUPS if args.active else [(args.season, args.group)],
+                                   cache, args.incremental, allow_group_fallback=args.active)
     finally:
         cache.close()
     metrics = {"changed": changed, "seconds": time.perf_counter() - started, **cache.metrics()}

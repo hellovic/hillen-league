@@ -19,6 +19,7 @@ Usage:
 """
 
 import argparse
+import json
 import sqlite3
 import sys
 
@@ -36,16 +37,19 @@ def main():
     ap = argparse.ArgumentParser(description="Hillen League data validation")
     ap.add_argument("--db", default="hillen_league.db")
     ap.add_argument("--quiet", action="store_true", help="only print failures")
+    ap.add_argument("--failure-report", help="write validation failures and their group, when known, as JSON")
     args = ap.parse_args()
 
     conn = sqlite3.connect(args.db)
     conn.row_factory = sqlite3.Row
     failures, warnings = [], []
 
-    def fail(msg):
-        failures.append(msg)
-        if not args.quiet:
-            print("FAIL:", msg)
+    def fail(msg, group=None):
+        failures.append(group)
+        print("FAIL:", msg)
+
+    def game_failure(game, msg):
+        fail(msg, (game["season_id"], game["group_id"]))
 
     def warn(msg):
         warnings.append(msg)
@@ -64,7 +68,7 @@ def main():
                     "WHERE event_id=? AND team_id=?", (g["event_id"], team_id)).fetchone()[0]
                 if total != official:
                     bad += 1
-                    fail(f"event {g['event_id']}: box PTS {total} != official {official} (team {team_id})")
+                    game_failure(g, f"event {g['event_id']}: box PTS {total} != official {official} (team {team_id})")
         return bad
 
     # ---- 2. quarter sums vs final ----
@@ -81,7 +85,7 @@ def main():
             official = g["home_score"] if q["team_id"] == g["home_team_id"] else g["away_score"]
             if total != official:
                 bad += 1
-                fail(f"event {q['event_id']} team {q['team_id']}: quarters {total} != final {official}")
+                game_failure(g, f"event {q['event_id']} team {q['team_id']}: quarters {total} != final {official}")
         return bad
 
     # ---- 3. standings vs computed ----
@@ -123,7 +127,7 @@ def main():
                        f"{r['vgp']}-{r['vwins']}-{r['vlosses']}-{r['vforfeits']}")
                 if key in strict:
                     bad += 1
-                    fail(msg)
+                    fail(msg, key)
                 elif vol[key][0] == vol[key][1]:
                     warn(msg + " [past season: official table no longer kept in sync]")
                 else:
@@ -143,7 +147,7 @@ def main():
         for g in c.execute("SELECT * FROM games WHERE status='forfeit'"):
             if g["home_score"] is None or g["away_score"] is None:
                 bad += 1
-                fail(f"forfeit event {g['event_id']} has NULL scores")
+                game_failure(g, f"forfeit event {g['event_id']} has NULL scores")
             rows = c.execute("SELECT * FROM player_game_stats WHERE event_id=?",
                              (g["event_id"],)).fetchall()
             if not rows:
@@ -151,7 +155,7 @@ def main():
             for r in rows:
                 if r["minutes"] not in ("0:00", None, ""):
                     bad += 1
-                    fail(f"forfeit event {g['event_id']}: player {r['player_id']} has minutes {r['minutes']!r}")
+                    game_failure(g, f"forfeit event {g['event_id']}: player {r['player_id']} has minutes {r['minutes']!r}")
         return bad
 
     # ---- 5. not-played games ----
@@ -161,15 +165,15 @@ def main():
         for g in c.execute("SELECT * FROM games WHERE status='not_played'"):
             if g["home_score"] is not None or g["away_score"] is not None:
                 bad += 1
-                fail(f"not_played event {g['event_id']} has non-NULL scores")
+                game_failure(g, f"not_played event {g['event_id']} has non-NULL scores")
             # the site may still list the bench with 0:00 DNP rows, but nobody
             # may have logged any real minutes
             for r in c.execute("SELECT * FROM player_game_stats WHERE event_id=?",
                                (g["event_id"],)):
                 if r["minutes"] not in ("0:00", None, ""):
                     bad += 1
-                    fail(f"not_played event {g['event_id']}: player {r['player_id']} "
-                         f"has minutes {r['minutes']!r}")
+                    game_failure(g, f"not_played event {g['event_id']}: player {r['player_id']} "
+                                    f"has minutes {r['minutes']!r}")
         return bad
 
     @check("scheduled games have no results or played statistics")
@@ -181,7 +185,7 @@ def main():
                                (g["event_id"],)).fetchone()[0]
             if g["home_score"] is not None or g["away_score"] is not None or played:
                 bad += 1
-                fail(f"scheduled event {g['event_id']} has scores or played statistics")
+                game_failure(g, f"scheduled event {g['event_id']} has scores or played statistics")
         return bad
 
     # ---- 6. DNP rule: view counts exactly played games ----
@@ -267,6 +271,9 @@ def main():
         total_failures += fn(conn)
     conn.close()
 
+    if args.failure_report:
+        with open(args.failure_report, "w", encoding="utf-8") as report:
+            json.dump(failures, report)
     print(f"validate: {len(CHECKS)} checks · {total_failures} failure(s) · {len(warnings)} warning(s)")
     return 1 if total_failures else 0
 

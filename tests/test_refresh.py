@@ -68,6 +68,34 @@ class RefreshTests(unittest.TestCase):
         self.assertFalse(changed)
         self.assertEqual(before, self.bytes_digest())
 
+    def test_active_refresh_keeps_invalid_group_and_promotes_valid_group(self):
+        c = self.store.conn
+        before = c.execute(
+            "SELECT event_id, home_score FROM games WHERE season_id=33 AND group_id=4 ORDER BY event_id"
+        ).fetchall()
+        self.assertTrue(before)
+
+        def scrape(cache, store, season, group, incremental):
+            if group == 4:
+                store.conn.execute("UPDATE games SET home_score=999 WHERE season_id=? AND group_id=? AND status='completed'",
+                                   (season, group))
+            else:
+                store.conn.execute("UPDATE groups SET name='Updated group' WHERE season_id=? AND group_id=?",
+                                   (season, group))
+            store.commit()
+
+        with patch.object(scraper, "scrape_group", scrape):
+            self.assertTrue(scraper.refresh_database(str(self.db), [(33, 4), (33, 16)], None,
+                                                    allow_group_fallback=True))
+        # The old connection still points at the pre-refresh file after os.replace.
+        with contextlib.closing(sqlite3.connect(self.db)) as refreshed:
+            games = refreshed.execute(
+                "SELECT event_id, home_score FROM games WHERE season_id=33 AND group_id=4 ORDER BY event_id"
+            ).fetchall()
+            self.assertEqual([tuple(row) for row in before], games)
+            self.assertEqual("Updated group", refreshed.execute(
+                "SELECT name FROM groups WHERE season_id=33 AND group_id=16").fetchone()[0])
+
     def test_result_withdrawal_removes_details_and_player_totals(self):
         c = self.store.conn
         row = dict(c.execute("SELECT * FROM games WHERE status='completed' LIMIT 1").fetchone())
