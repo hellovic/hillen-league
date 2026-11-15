@@ -198,7 +198,7 @@ function Masterclass({ game }) {
       <GameHeadline game={game} badge={<span className="story-tag story-tag-accent">EFF {signed(game.eff)}</span>} />
       <div className="story-masterclass-grid">
         <ShotMix game={game} />
-        <Metrics items={[["Points", game.pts], ["Rebounds", game.tot_reb], ["Blocks", game.blk], ["Steals", game.stl]]} />
+        <Metrics items={[["Points", game.pts], ["Rebounds", game.tot_reb], ["Assists", game.ast], ["Steals", game.stl]]} />
       </div>
       <div className="story-moment-foot"><span>{tr("Best in collected games")}</span>{doubleDouble && <strong>{tr("Double-double")}</strong>}</div>
     </article>
@@ -223,7 +223,7 @@ function Moments({ first, best }) {
             ))}
           </div>
           <Moment title={tr("First recorded game")} caveat="First recorded appearance" game={first}
-            metrics={[["PTS", first.pts], ["REB", first.tot_reb], ["STL", first.stl]]} />
+            metrics={[["PTS", first.pts], ["REB", first.tot_reb], ["AST", first.ast], ["STL", first.stl]]} />
           {key !== "eff" && record && <Moment title={title} caveat="Best in collected games" game={record} showEff
             metrics={key === "pts"
               ? [["PTS", record.pts], ["REB", record.tot_reb], ["AST", record.ast], ["FG%", pct1(record.fga && record.fgm != null ? record.fgm / record.fga * 100 : null)]]
