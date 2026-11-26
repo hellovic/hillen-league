@@ -437,6 +437,21 @@ await open("/games/20863");
 await open("/players/17864");
 await waitFor(`document.querySelectorAll("#view svg").length > 0`, "player charts");
 check("charts render inline SVG", true, (await evaluate(`document.querySelectorAll("#view svg").length`)) + " svg on the player page");
+check("player season highs link to their box scores and mark the game log", await evaluate(`(() => {
+  const highs = [...document.querySelectorAll(".player-season-high-grid a")];
+  const rows = [...document.querySelectorAll("#t-gamelog tbody tr[data-href]")];
+  return highs.length === 3 && [4, 8, 9].every((column, index) => {
+    const link = highs[index];
+    const max = Math.max(...rows.map(row => parseInt(row.cells[column].textContent, 10)).filter(Number.isFinite));
+    const best = rows.find(row => row.dataset.href === link.getAttribute("href"));
+    return Number(link.querySelector("b").textContent) === max &&
+      parseInt(best?.cells[column].textContent, 10) === max &&
+      rows.every(row => {
+        const cell = row.cells[column];
+        return cell.classList.contains("season-high-cell") === (max > 0 && parseInt(cell.textContent, 10) === max);
+      });
+  });
+})()`));
 
 await open("/compare/p/17864/15202");
 await waitFor(`document.querySelectorAll("#view table").length > 0`, "compare tables");

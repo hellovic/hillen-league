@@ -30,6 +30,12 @@ const GAMELOG_COLS = [
   { key: "plus_minus", label: "+/−", num: true, sortable: false },
 ];
 
+const SEASON_HIGH_STATS = [
+  { key: "pts", label: "Points" },
+  { key: "tot_reb", label: "Rebounds" },
+  { key: "ast", label: "Assists" },
+];
+
 export default function PlayerDetail({ ctx, id }) {
   const { t: tr, group } = useLocale();
   const palette = usePalette();
@@ -78,6 +84,26 @@ export default function PlayerDetail({ ctx, id }) {
   ) : (
     <div className="chart-empty">{tr("No games played.")}</div>
   );
+  const seasonHighs = SEASON_HIGH_STATS.map(({ key, label }) => {
+    const game = p.games.reduce((best, entry) => {
+      if (!Number.isFinite(entry[key])) return best;
+      if (!best || entry[key] > best[key]) return entry;
+      if (entry[key] !== best[key]) return best;
+      const dateOrder = (entry.game_date || "").localeCompare(best.game_date || "");
+      return dateOrder > 0 || (dateOrder === 0 && entry.event_id > best.event_id) ? entry : best;
+    }, null);
+    return { key, label, game };
+  });
+  const highCell = (game, stat) => {
+    const best = seasonHighs.find(({ key }) => key === stat)?.game;
+    const isHigh = best && game[stat] > 0 && game[stat] === best[stat];
+    return (
+      <td className={`num${stat === "pts" ? " mono" : ""}${isHigh ? " season-high-cell" : ""}`} key={stat}>
+        {game[stat]}
+        {isHigh && <span className="sr-only"> {tr("Season high")}</span>}
+      </td>
+    );
+  };
 
   const downloadCsv = () =>
     csvDownload(
@@ -179,6 +205,21 @@ export default function PlayerDetail({ ctx, id }) {
         <div className="chart-fit">{ptsBars}</div>
       </div>
 
+      {seasonHighs.some(({ game }) => game) && (
+        <div className="card player-season-highs">
+          <h3>{tr("Season highs")}</h3>
+          <div className="player-season-high-grid">
+            {seasonHighs.filter(({ game }) => game).map(({ key, label, game }) => (
+              <a className="row-link" key={key} href={`#/games/${game.event_id}`}>
+                <b className="mono">{game[key]}</b>
+                <span>{tr(label)}</span>
+                {game.game_date && <CompactDate date={game.game_date} />}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <h3>{tr("Game log")} <span className="cn">比賽表現</span></h3>
         <CsvButton id="gamelog-csv" onDownload={downloadCsv} />
@@ -209,12 +250,12 @@ export default function PlayerDetail({ ctx, id }) {
               </td>,
               <td className={r.cls} key="result">{r.text}</td>,
               <td className="num mono" key="min">{x.minutes}</td>,
-              <td className="num mono" key="pts">{x.pts}</td>,
+              highCell(x, "pts"),
               <td className="num mono" key="2pt">{x.fgm - x.fg3m}-{x.fga - x.fg3a}</td>,
               <td className="num mono" key="3pt">{x.fg3m}-{x.fg3a}</td>,
               <td className="num mono" key="ft">{x.ftm}-{x.fta}</td>,
-              <td className="num" key="reb">{x.tot_reb}</td>,
-              <td className="num" key="ast">{x.ast}</td>,
+              highCell(x, "tot_reb"),
+              highCell(x, "ast"),
               <td className="num" key="stl">{x.stl}</td>,
               <td className="num" key="blk">{x.blk}</td>,
               <td className="num" key="tov">{x.tov}</td>,

@@ -55,6 +55,34 @@ body.orange .card table.data.best-table td.bst {
   stroke-linejoin: round;
 }
 
+.player-season-high-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.player-season-high-grid a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  text-align: center;
+}
+.player-season-high-grid a + a {
+  border-inline-start: 1px solid var(--line);
+}
+.player-season-high-grid b {
+  color: var(--accent);
+  font-size: 22px;
+}
+.player-season-high-grid time {
+  color: var(--muted);
+  font-size: 12px;
+}
+.season-high-cell {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Sticky stat-table headers (game box scores, players list, leaders, standings).
  *
  * base.css already declares `table.data th { position: sticky; top: 0 }`, but
