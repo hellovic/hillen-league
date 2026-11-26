@@ -138,12 +138,12 @@ export function LineChart({ series, h = H, pad }) {
 
 export function ScoreMarginChart({ points, label, tieLabel }) {
   const w = 320;
-  const h = 140;
+  const h = 102;
   const margins = points.map(({ margin }) => margin);
   const min = Math.min(-1, ...margins);
   const max = Math.max(1, ...margins);
   const x = (index) => 52 + (index * (w - 76)) / (points.length - 1);
-  const y = (margin) => 25 + ((max - margin) * 82) / (max - min);
+  const y = (margin) => 22 + ((max - margin) * 54) / (max - min);
   const formatMargin = (margin) => margin > 0 ? `+${margin}` : margin < 0 ? `−${-margin}` : "0";
   const description = points.map((point) => `${point.label}: ${formatMargin(point.margin)}`).join(", ");
   return (
@@ -157,7 +157,7 @@ export function ScoreMarginChart({ points, label, tieLabel }) {
         <g key={label} textAnchor="middle">
           <circle cx={x(index)} cy={y(margin)} r="3.5" fill="var(--accent)" />
           <text x={x(index)} y={y(margin) - 8} className="chart-val">{formatMargin(margin)}</text>
-          <text x={x(index)} y="133" className="chart-label">{label}</text>
+          <text x={x(index)} y={h - 5} className="chart-label">{label}</text>
         </g>
       ))}
     </svg>
