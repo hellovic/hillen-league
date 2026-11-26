@@ -82,12 +82,15 @@ body.orange .card table.data.best-table td.bst {
   color: var(--accent);
   font-weight: 700;
 }
+.player-game-log {
+  position: relative;
+}
 
-.player-season-totals .qstrip {
+body.orange .player-season-totals .qstrip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
-.player-season-totals .season-totals-secondary {
+body.orange .player-season-totals .season-totals-secondary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .player-season-totals .qstrip .q {
@@ -343,9 +346,16 @@ body.orange .cmp-mini b {
   margin-right: 2px;
 }
 
-/* Player page: the radar moved under Per game, so the side column is a stack. */
-body.orange .player-side .card:last-child {
-  margin-bottom: 0;
+/* Stacked player cards already supply the vertical spacing with their margins. */
+@media (max-width: 767px) {
+  body.orange .player-stats-grid {
+    row-gap: 0;
+  }
+}
+@media (min-width: 768px) {
+  body.orange .player-side .card:last-child {
+    margin-bottom: 0;
+  }
 }
 
 /* Phone table density: 12 px side padding pushed the standings table 41 px past

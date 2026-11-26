@@ -186,17 +186,6 @@ body.orange table.data[data-compact="results"]:not(.cols-expanded) thead th:nth-
 body.orange table.data[data-compact="results"]:not(.cols-expanded) tbody td:nth-child(n+4) {
   display: none;
 }
-
-/* Player game log: Date, Opponent, MIN, PTS, REB, AST — hide Result, 2PT, 3PT,
-   FT, ST, BS, TO, PF, EFF, +/- */
-body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) thead th:nth-child(3),
-body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-child(3),
-body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) thead th:nth-child(n+6):nth-child(-n+8),
-body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-child(n+6):nth-child(-n+8),
-body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) thead th:nth-child(n+11),
-body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-child(n+11) {
-  display: none;
-}
 }
 
 /* Desktop roster keeps the two-column (# + Player) list it had before this
@@ -232,14 +221,6 @@ body.orange table.data[data-compact="gamelog"]:not(.cols-expanded) tbody td:nth-
   body.orange .card table.data[data-compact="players"]:not(.cols-expanded) thead th:nth-child(3),
   body.orange .card table.data[data-compact="players"]:not(.cols-expanded) tbody td:nth-child(3) {
     display: none;
-  }
-  body.orange .card table.data[data-compact="gamelog"] a:not(.nm) {
-    display: inline-block;
-    max-width: 4.2em;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: bottom;
   }
 }
 

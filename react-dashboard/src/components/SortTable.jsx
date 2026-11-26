@@ -35,7 +35,7 @@ export default function SortTable({
   footer,
   emptyText = "No data",
   /* Mobile column budget: `compact` is a data attribute picked up by
-   * ux-tables.css ("players", "box", "roster", "gamelog"). Columns are hidden
+   * ux-tables.css ("players", "box", "roster", "results"). Columns are hidden
    * with CSS rather than by changing `columns`, so desktop keeps every column
    * and the caller's sort state stays untouched; `compactExpanded` reveals the
    * full set again. */

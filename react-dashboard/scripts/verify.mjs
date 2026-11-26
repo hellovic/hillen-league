@@ -1099,7 +1099,24 @@ check("stat guide is an expandable disclosure", guideBefore.exists && guideBefor
 check("stat guide defines eFG%, TS% and the per-game convention", /eFG%/.test(guideAfter.text) && /TS%/.test(guideAfter.text) && /per game/i.test(guideAfter.text), guideAfter.text.slice(0, 120));
 
 // UX-08: the same measure uses STL/BLK for totals, SPG/BPG for averages.
+await setViewport(357, 774, true);
 await open("/players/17864");
+check("stacked player cards use consistent gaps and four totals in one row", await evaluate(`(() => {
+  const cards = [...document.querySelectorAll(".player-stats-grid .card")];
+  cards.push(document.querySelector("#t-gamelog").closest(".card"));
+  const gaps = cards.slice(1).map((card, i) => card.getBoundingClientRect().top - cards[i].getBoundingClientRect().bottom);
+  const chips = [...document.querySelectorAll(".season-totals-summary .q")];
+  return gaps.every(gap => gap > 0 && Math.abs(gap - gaps[0]) < 1) &&
+    chips.every(chip => chip.offsetTop === chips[0].offsetTop);
+})()`));
+check("phone game log shows all columns immediately and scrolls inside its card", await evaluate(`(() => {
+  const table = document.querySelector("#t-gamelog");
+  const card = table.closest(".card");
+  const headers = [...table.tHead.rows[0].cells];
+  return headers.length === 16 && headers.every(header => header.getBoundingClientRect().width > 0) &&
+    !card.querySelector(".table-cols-toggle") && card.scrollWidth > card.clientWidth &&
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1;
+})()`));
 check("player season totals start with four primary stats", await evaluate(`(() => {
   const totals = document.querySelector(".player-season-totals");
   const labels = [...totals.querySelectorAll(".season-totals-summary .q span")].map(label => label.textContent);

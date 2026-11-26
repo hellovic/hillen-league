@@ -1,11 +1,10 @@
 import { useLocale } from "../locale.jsx";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { api, groupName } from "../data.js";
 import { contextQuery, csvDownload, efgPct, n1, pctStr, resultOf, setTitle, signed, tsPct } from "../utils.js";
 import { RadarChart } from "../charts.jsx";
 import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
-import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import StatGuide from "../components/StatGuide.jsx";
 import { GUIDE_GROUPS } from "../glossary.js";
 import SortTable from "../components/SortTable.jsx";
@@ -39,7 +38,6 @@ const SEASON_HIGH_STATS = [
 export default function PlayerDetail({ ctx, id }) {
   const { t: tr, group } = useLocale();
   const palette = usePalette();
-  const [allCols, setAllCols] = useState(false);
   let p = null;
   let err = null;
   try {
@@ -145,7 +143,7 @@ export default function PlayerDetail({ ctx, id }) {
         </div>
       )}
 
-      <div className="grid-2">
+      <div className="grid-2 player-stats-grid">
         <div className="card player-season-totals">
           <div className="card-head">
             <h3>{tr("Season totals")}</h3>
@@ -212,23 +210,15 @@ export default function PlayerDetail({ ctx, id }) {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card player-game-log">
         <h3>{tr("Game log")} <span className="cn">比賽表現</span></h3>
         <CsvButton id="gamelog-csv" onDownload={downloadCsv} />
-        <MobileColumnsToggle
-          controls="t-gamelog"
-          expanded={allCols}
-          onToggle={() => setAllCols((v) => !v)}
-          label="Full game log"
-        />
         <SortTable
           columns={GAMELOG_COLS}
           rows={p.games}
           tableId="t-gamelog"
           pin={1}
           sortable={false}
-          compact="gamelog"
-          compactExpanded={allCols}
           rowKey={(x) => x.event_id}
           rowHref={(x) => `#/games/${x.event_id}`}
           renderRow={(x) => {
