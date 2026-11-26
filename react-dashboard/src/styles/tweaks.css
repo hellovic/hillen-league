@@ -33,35 +33,6 @@ body.orange .card table.data.best-table td.bst {
 
 .game-swing {
   margin-top: 8px;
-  border-top: 1px solid var(--line);
-}
-.game-swing summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  color: var(--accent);
-  font-size: 14px;
-  font-weight: 600;
-  list-style: none;
-  cursor: pointer;
-}
-.game-swing summary::-webkit-details-marker {
-  display: none;
-}
-.game-swing summary::after {
-  content: "";
-  width: 7px;
-  height: 7px;
-  flex: none;
-  margin-right: 4px;
-  border: solid currentColor;
-  border-width: 0 1.5px 1.5px 0;
-  transform: rotate(45deg);
-}
-.game-swing[open] summary::after {
-  transform: rotate(225deg);
 }
 .game-swing p {
   margin: 0;

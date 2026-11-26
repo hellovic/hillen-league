@@ -340,11 +340,10 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
           <>
             {quarterTable}
             {margins.length > 0 && (
-              <details className="game-swing" key={g.event_id}>
-                <summary>{tr("How the game swung")}</summary>
+              <div className="game-swing">
                 <p>{marginLabel}</p>
                 <ScoreMarginChart points={margins} label={marginLabel} tieLabel={tr("Tied")} />
-              </details>
+              </div>
             )}
           </>
         ) : g.status === "forfeit" ? (

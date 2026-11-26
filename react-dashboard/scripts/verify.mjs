@@ -370,24 +370,14 @@ const boxAfter = await evaluate(`[...document.querySelector('table[id^="t-box-"]
 check("box-score columns sort independently", boxBefore !== boxAfter);
 
 await setViewport(320, 700, true);
-await sess("Emulation.setTouchEmulationEnabled", { enabled: true });
 await open("/games/20708");
 const swing = 'document.querySelector(".game-swing")';
 const swingChart = 'document.querySelector(".game-swing-chart")';
-check("score margin starts collapsed beneath the quarter table", await evaluate(`(() => {
-  const disclosure = ${swing};
-  return !disclosure.open && disclosure.previousElementSibling.matches(".quarter-table") &&
-    getComputedStyle(disclosure, "::details-content").contentVisibility === "hidden";
+check("score margin is visible directly beneath the quarter table without a toggle", await evaluate(`(() => {
+  const section = ${swing};
+  return section.previousElementSibling.matches(".quarter-table") &&
+    !section.querySelector("summary") && ${swingChart}.getBoundingClientRect().height > 0;
 })()`));
-const swingTap = await evaluate(`(() => {
-  const summary = ${swing}.querySelector("summary");
-  summary.scrollIntoView({ block: "center" });
-  const rect = summary.getBoundingClientRect();
-  return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
-})()`);
-await sess("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [swingTap] });
-await sess("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-await waitFor(`${swing}.open`, "score margin opened by touch");
 check("score margin charts a real comeback across the tie line", await evaluate(`(() => {
   const chart = ${swingChart};
   const tieY = Number(chart.querySelector("line").getAttribute("y1"));
@@ -406,27 +396,16 @@ for (const language of ["en", "zh-Hant"]) {
     await evaluate(`if (document.documentElement.dataset.theme !== "${theme}") document.querySelector("#theme-toggle").click()`);
     await waitFor(`document.documentElement.dataset.theme === "${theme}"`, theme);
     const fit = await evaluate(`(() => {
-      const disclosure = ${swing};
-      const card = disclosure.parentElement;
+      const card = ${swing}.parentElement;
       const chart = ${swingChart};
-      const summary = disclosure.querySelector("summary");
-      return disclosure.open && summary.textContent === ${JSON.stringify(language === "en" ? "How the game swung" : "賽事走勢")} &&
-        chart.getAttribute("aria-label").includes(${JSON.stringify(language === "en" ? "Halftime" : "半場")}) &&
-        summary.offsetHeight >= 44 && chart.clientWidth > 0 && card.scrollWidth <= card.clientWidth + 1 &&
+      return chart.getAttribute("aria-label").includes(${JSON.stringify(language === "en" ? "Halftime" : "半場")}) &&
+        chart.clientWidth > 0 && card.scrollWidth <= card.clientWidth + 1 &&
         document.documentElement.scrollWidth <= 321;
     })()`);
     if (!fit) swingLayouts.push(`${language}/${theme}`);
   }
 }
-check("expanded score margin fits at 320 px in both themes and languages", !swingLayouts.length, swingLayouts.join(", "));
-await sess("Emulation.setTouchEmulationEnabled", { enabled: false });
-await evaluate(`${swing}.querySelector("summary").focus()`);
-const space = { key: " ", code: "Space", windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 };
-await sess("Input.dispatchKeyEvent", { ...space, type: "keyDown", text: " " });
-await sess("Input.dispatchKeyEvent", { ...space, type: "keyUp" });
-await waitFor(`!${swing}.open`, "score margin closed by keyboard");
-check("score margin responds to touch and keyboard", true);
-
+check("score margin fits at 320 px in both themes and languages", !swingLayouts.length, swingLayouts.join(", "));
 await evaluate('document.querySelector("#language-toggle").click(); document.querySelector("#theme-toggle").click()');
 await waitFor('document.documentElement.lang === "en"', "English restored");
 await setViewport(1440, 1000, false);
@@ -435,7 +414,7 @@ check("score margin includes overtime after a tied Q4", await evaluate(
   `${swingChart}.getAttribute("aria-label").endsWith("Q4: 0, OT: −1")`
 ));
 await open("/games/17965");
-check("forfeit omits the score margin disclosure", await evaluate(`!${swing}`));
+check("forfeit omits the score margin chart", await evaluate(`!${swing}`));
 
 await open("/games/20708");
 const invalidSwing = await evaluate(`(() => {
