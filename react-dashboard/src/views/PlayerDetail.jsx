@@ -1,8 +1,8 @@
 import { useLocale } from "../locale.jsx";
 import { useEffect, useState } from "react";
 import { api, groupName } from "../data.js";
-import { contextQuery, csvDownload, efgPct, fmtDate, n1, pctStr, resultOf, setTitle, signed, tsPct } from "../utils.js";
-import { GroupedBars, RadarChart } from "../charts.jsx";
+import { contextQuery, csvDownload, efgPct, n1, pctStr, resultOf, setTitle, signed, tsPct } from "../utils.js";
+import { RadarChart } from "../charts.jsx";
 import { ShareButton, CsvButton } from "../components/Buttons.jsx";
 import CompactDate from "../components/CompactDate.jsx";
 import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
@@ -76,14 +76,6 @@ export default function PlayerDetail({ ctx, id }) {
     label,
     max: Math.max(pv[i], av[i], 0.1) * 1.25,
   }));
-  const ptsBars = p.games.length ? (
-    <GroupedBars
-      rows={p.games.map((x) => ({ label: fmtDate(x.game_date), values: [x.pts] }))}
-      series={[{ name: "PTS", color: palette[0] }]}
-    />
-  ) : (
-    <div className="chart-empty">{tr("No games played.")}</div>
-  );
   const seasonHighs = SEASON_HIGH_STATS.map(({ key, label }) => {
     const game = p.games.reduce((best, entry) => {
       if (!Number.isFinite(entry[key])) return best;
@@ -138,42 +130,62 @@ export default function PlayerDetail({ ctx, id }) {
         </div>
       </div>
 
+      {seasonHighs.some(({ game }) => game) && (
+        <div className="card player-season-highs">
+          <h3>{tr("Season highs")}</h3>
+          <div className="player-season-high-grid">
+            {seasonHighs.filter(({ game }) => game).map(({ key, label, game }) => (
+              <a className="row-link" key={key} href={`#/games/${game.event_id}`}>
+                <b className="mono">{game[key]}</b>
+                <span>{tr(label)}</span>
+                {game.game_date && <CompactDate date={game.game_date} />}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid-2">
-        <div className="card">
+        <div className="card player-season-totals">
           <div className="card-head">
             <h3>{tr("Season totals")}</h3>
             <StatGuide items={GUIDE_GROUPS.player} />
           </div>
-          <div className="qstrip">
+          <div className="qstrip season-totals-summary">
             <div className="q"><b>{p.gp}</b><span>GP</span></div>
             <div className="q"><b>{p.pts}</b><span>PTS</span></div>
             <div className="q"><b>{p.reb}</b><span>REB</span></div>
             <div className="q"><b>{p.ast}</b><span>AST</span></div>
-            <div className="q"><b>{p.stl}</b><span>STL</span></div>
-            <div className="q"><b>{p.blk}</b><span>BLK</span></div>
-            <div className="q"><b>{p.eff}</b><span>EFF</span></div>
           </div>
-          <dl className="kv" style={{ marginTop: 12 }}>
-            <dt>{tr("Minutes")}</dt>
-            <dd className="mono">{n1(p.minutes)} ({n1(p.gp ? p.minutes / p.gp : null)}/g)</dd>
-            <dt>{tr("Shooting")}</dt>
-            <dd className="mono sstats">
-              <span>{p.fgm}/{p.fga} FG</span>
-              <span>{p.fg2m}/{p.fg2a} 2P</span>
-              <span>{p.fg3m}/{p.fg3a} 3P</span>
-              <span>{p.ftm}/{p.fta} FT</span>
-            </dd>
-            <dt>{tr("Efficiency")}</dt>
-            <dd className="mono sstats">
-              <span>eFG% {pctStr(efgPct(p.fgm, p.fga, p.fg3m))}</span>
-              <span>FT% {pctStr(p.fta ? (p.ftm / p.fta) * 100 : null)}</span>
-              <span>TS% {pctStr(tsPct(p.pts, p.fga, p.fta))}</span>
-            </dd>
-            <dt>{tr("Off / Def reb")}</dt><dd className="mono">{p.off_reb} / {p.def_reb}</dd>
-            <dt>{tr("Turnovers / fouls")}</dt><dd className="mono">{p.tov} / {p.pf}</dd>
-            <dt>{tr("Fast-break / blk-against")}</dt><dd className="mono">{p.fb} / {p.ba}</dd>
-            <dt>+/-</dt><dd className="mono">{signed(p.plus_minus)}</dd>
-          </dl>
+          <details className="season-totals-details" key={`${id}/${ctx.season}/${ctx.group}`}>
+            <summary>{tr("Full stats")}</summary>
+            <div className="qstrip season-totals-secondary">
+              <div className="q"><b>{p.stl}</b><span>STL</span></div>
+              <div className="q"><b>{p.blk}</b><span>BLK</span></div>
+              <div className="q"><b>{p.eff}</b><span>EFF</span></div>
+            </div>
+            <dl className="kv">
+              <dt>{tr("Minutes")}</dt>
+              <dd className="mono">{n1(p.minutes)} ({n1(p.gp ? p.minutes / p.gp : null)}/g)</dd>
+              <dt>{tr("Shooting")}</dt>
+              <dd className="mono sstats">
+                <span>{p.fgm}/{p.fga} FG</span>
+                <span>{p.fg2m}/{p.fg2a} 2P</span>
+                <span>{p.fg3m}/{p.fg3a} 3P</span>
+                <span>{p.ftm}/{p.fta} FT</span>
+              </dd>
+              <dt>{tr("Efficiency")}</dt>
+              <dd className="mono sstats">
+                <span>eFG% {pctStr(efgPct(p.fgm, p.fga, p.fg3m))}</span>
+                <span>FT% {pctStr(p.fta ? (p.ftm / p.fta) * 100 : null)}</span>
+                <span>TS% {pctStr(tsPct(p.pts, p.fga, p.fta))}</span>
+              </dd>
+              <dt>{tr("Off / Def reb")}</dt><dd className="mono">{p.off_reb} / {p.def_reb}</dd>
+              <dt>{tr("Turnovers / fouls")}</dt><dd className="mono">{p.tov} / {p.pf}</dd>
+              <dt>{tr("Fast-break / blk-against")}</dt><dd className="mono">{p.fb} / {p.ba}</dd>
+              <dt>+/-</dt><dd className="mono">{signed(p.plus_minus)}</dd>
+            </dl>
+          </details>
         </div>
         <div className="player-side">
         <div className="card">
@@ -199,26 +211,6 @@ export default function PlayerDetail({ ctx, id }) {
         </div>
         </div>
       </div>
-
-      <div className="card">
-        <h3>{tr("Points per game")}</h3>
-        <div className="chart-fit">{ptsBars}</div>
-      </div>
-
-      {seasonHighs.some(({ game }) => game) && (
-        <div className="card player-season-highs">
-          <h3>{tr("Season highs")}</h3>
-          <div className="player-season-high-grid">
-            {seasonHighs.filter(({ game }) => game).map(({ key, label, game }) => (
-              <a className="row-link" key={key} href={`#/games/${game.event_id}`}>
-                <b className="mono">{game[key]}</b>
-                <span>{tr(label)}</span>
-                {game.game_date && <CompactDate date={game.game_date} />}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="card">
         <h3>{tr("Game log")} <span className="cn">比賽表現</span></h3>

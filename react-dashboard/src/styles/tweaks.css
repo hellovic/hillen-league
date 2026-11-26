@@ -83,6 +83,43 @@ body.orange .card table.data.best-table td.bst {
   font-weight: 700;
 }
 
+.player-season-totals .qstrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.player-season-totals .season-totals-secondary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.player-season-totals .qstrip .q {
+  min-width: 0;
+}
+.season-totals-details {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+}
+.season-totals-details summary {
+  align-content: center;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.season-totals-details .kv {
+  margin: 12px 0 0;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 8px 12px;
+  font-size: 13px;
+}
+.season-totals-details .kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.season-totals-details .sstats {
+  flex-direction: row;
+  gap: 4px 10px;
+}
+
 /* Sticky stat-table headers (game box scores, players list, leaders, standings).
  *
  * base.css already declares `table.data th { position: sticky; top: 0 }`, but

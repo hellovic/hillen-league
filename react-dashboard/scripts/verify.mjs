@@ -435,8 +435,12 @@ for (const id of invalidSwing) {
 
 await open("/games/20863");
 await open("/players/17864");
-await waitFor(`document.querySelectorAll("#view svg").length > 0`, "player charts");
-check("charts render inline SVG", true, (await evaluate(`document.querySelectorAll("#view svg").length`)) + " svg on the player page");
+await waitFor(`!!document.querySelector("#view svg.radar")`, "player comparison radar");
+check("player profile leads with season highs and shows only the comparison chart", await evaluate(`(() => {
+  const highs = document.querySelector(".view-head + .player-season-highs");
+  return !!highs && !document.querySelector("#view .chart-fit") &&
+    !!document.querySelector("#view svg.radar");
+})()`));
 check("player season highs link to their box scores and mark the game log", await evaluate(`(() => {
   const highs = [...document.querySelectorAll(".player-season-high-grid a")];
   const rows = [...document.querySelectorAll("#t-gamelog tbody tr[data-href]")];
@@ -1096,8 +1100,15 @@ check("stat guide defines eFG%, TS% and the per-game convention", /eFG%/.test(gu
 
 // UX-08: the same measure uses STL/BLK for totals, SPG/BPG for averages.
 await open("/players/17864");
+check("player season totals start with four primary stats", await evaluate(`(() => {
+  const totals = document.querySelector(".player-season-totals");
+  const labels = [...totals.querySelectorAll(".season-totals-summary .q span")].map(label => label.textContent);
+  return labels.join(",") === "GP,PTS,REB,AST" && !totals.querySelector("details.season-totals-details").open;
+})()`));
+await evaluate(`document.querySelector(".season-totals-details summary").click()`);
 const detailLabels = await evaluate(`(() => {
-  const chips = [...document.querySelectorAll("#view .qstrip .q span")].map((s) => s.textContent.trim());
+  const fullStats = document.querySelector(".season-totals-details");
+  const chips = fullStats.open ? [...fullStats.querySelectorAll(".qstrip .q span")].map((s) => s.textContent.trim()) : [];
   const tableHeaders = [...document.querySelectorAll("#view table.data thead th")].map((th) => th.textContent.replace(/[▲▼]/g, "").trim());
   return { chips, tableHeaders };
 })()`);
