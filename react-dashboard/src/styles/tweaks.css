@@ -31,6 +31,59 @@ body.orange .card table.data.best-table td.bst {
   letter-spacing: 0.6px;
 }
 
+.game-swing {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.game-swing summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.game-swing summary::-webkit-details-marker {
+  display: none;
+}
+.game-swing summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-right: 4px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.game-swing[open] summary::after {
+  transform: rotate(225deg);
+}
+.game-swing p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.game-swing-chart {
+  max-width: 420px;
+  margin-inline: auto;
+}
+.game-swing-chart .chart-label,
+.game-swing-chart .chart-val {
+  font-size: 13px;
+}
+.game-swing-chart .chart-val {
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
 /* Sticky stat-table headers (game box scores, players list, leaders, standings).
  *
  * base.css already declares `table.data th { position: sticky; top: 0 }`, but

@@ -369,6 +369,92 @@ await sleep(120);
 const boxAfter = await evaluate(`[...document.querySelector('table[id^="t-box-"]').querySelectorAll("tbody tr")].map((tr) => tr.children[0].innerText).join(",")`);
 check("box-score columns sort independently", boxBefore !== boxAfter);
 
+await setViewport(320, 700, true);
+await sess("Emulation.setTouchEmulationEnabled", { enabled: true });
+await open("/games/20708");
+const swing = 'document.querySelector(".game-swing")';
+const swingChart = 'document.querySelector(".game-swing-chart")';
+check("score margin starts collapsed beneath the quarter table", await evaluate(`(() => {
+  const disclosure = ${swing};
+  return !disclosure.open && disclosure.previousElementSibling.matches(".quarter-table") &&
+    getComputedStyle(disclosure, "::details-content").contentVisibility === "hidden";
+})()`));
+const swingTap = await evaluate(`(() => {
+  const summary = ${swing}.querySelector("summary");
+  summary.scrollIntoView({ block: "center" });
+  const rect = summary.getBoundingClientRect();
+  return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+})()`);
+await sess("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [swingTap] });
+await sess("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+await waitFor(`${swing}.open`, "score margin opened by touch");
+check("score margin charts a real comeback across the tie line", await evaluate(`(() => {
+  const chart = ${swingChart};
+  const tieY = Number(chart.querySelector("line").getAttribute("y1"));
+  const positions = [...chart.querySelectorAll("circle")].map(point => Number(point.getAttribute("cy")));
+  return chart.getAttribute("aria-label").endsWith("Q1: −15, Halftime: −4, Q3: +3, Final: +6") &&
+    positions[0] > tieY && positions[3] < tieY;
+})()`));
+
+const swingLayouts = [];
+for (const language of ["en", "zh-Hant"]) {
+  if (language === "zh-Hant") {
+    await evaluate('document.querySelector("#language-toggle").click()');
+    await waitFor('document.documentElement.lang === "zh-Hant"', "Traditional Chinese");
+  }
+  for (const theme of ["dark", "light"]) {
+    await evaluate(`if (document.documentElement.dataset.theme !== "${theme}") document.querySelector("#theme-toggle").click()`);
+    await waitFor(`document.documentElement.dataset.theme === "${theme}"`, theme);
+    const fit = await evaluate(`(() => {
+      const disclosure = ${swing};
+      const card = disclosure.parentElement;
+      const chart = ${swingChart};
+      const summary = disclosure.querySelector("summary");
+      return disclosure.open && summary.textContent === ${JSON.stringify(language === "en" ? "How the game swung" : "賽事走勢")} &&
+        chart.getAttribute("aria-label").includes(${JSON.stringify(language === "en" ? "Halftime" : "半場")}) &&
+        summary.offsetHeight >= 44 && chart.clientWidth > 0 && card.scrollWidth <= card.clientWidth + 1 &&
+        document.documentElement.scrollWidth <= 321;
+    })()`);
+    if (!fit) swingLayouts.push(`${language}/${theme}`);
+  }
+}
+check("expanded score margin fits at 320 px in both themes and languages", !swingLayouts.length, swingLayouts.join(", "));
+await sess("Emulation.setTouchEmulationEnabled", { enabled: false });
+await evaluate(`${swing}.querySelector("summary").focus()`);
+const space = { key: " ", code: "Space", windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 };
+await sess("Input.dispatchKeyEvent", { ...space, type: "keyDown", text: " " });
+await sess("Input.dispatchKeyEvent", { ...space, type: "keyUp" });
+await waitFor(`!${swing}.open`, "score margin closed by keyboard");
+check("score margin responds to touch and keyboard", true);
+
+await evaluate('document.querySelector("#language-toggle").click(); document.querySelector("#theme-toggle").click()');
+await waitFor('document.documentElement.lang === "en"', "English restored");
+await setViewport(1440, 1000, false);
+await open("/games/20910");
+check("score margin includes overtime after a tied Q4", await evaluate(
+  `${swingChart}.getAttribute("aria-label").endsWith("Q4: 0, OT: −1")`
+));
+await open("/games/17965");
+check("forfeit omits the score margin disclosure", await evaluate(`!${swing}`));
+
+await open("/games/20708");
+const invalidSwing = await evaluate(`(() => {
+  const raw = window.LEAGUE_DATA;
+  const [key, game] = Object.entries(raw).find(([key]) => key.endsWith("/games/20708"));
+  const withQuarter = (event_id, q1) => ({
+    ...game, event_id, quarters: [{ ...game.quarters[0], q1 }, game.quarters[1]],
+  });
+  raw[key.replace(/20708$/, "920708")] = withQuarter(920708, null);
+  raw[key.replace(/20708$/, "920709")] = withQuarter(920709, game.quarters[0].q1 + 1);
+  return [920708, 920709];
+})()`);
+for (const id of invalidSwing) {
+  await open(`/games/${id}`);
+  check(`score margin omits ${id === 920708 ? "missing" : "inconsistent"} quarter scores`,
+    await evaluate(`!!document.querySelector(".quarter-table") && !${swing}`));
+}
+
+await open("/games/20863");
 await open("/players/17864");
 await waitFor(`document.querySelectorAll("#view svg").length > 0`, "player charts");
 check("charts render inline SVG", true, (await evaluate(`document.querySelectorAll("#view svg").length`)) + " svg on the player page");

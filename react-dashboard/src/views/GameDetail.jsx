@@ -7,6 +7,7 @@ import MobileColumnsToggle from "../components/MobileColumnsToggle.jsx";
 import SortTable from "../components/SortTable.jsx";
 import StatGuide from "../components/StatGuide.jsx";
 import { GUIDE_GROUPS } from "../glossary.js";
+import { ScoreMarginChart } from "../charts.jsx";
 
 const BOX_COLS = [
   { kh: "MIN", key: "minutes", num: true },
@@ -29,6 +30,30 @@ const BEST_STATS = [
   ["pts", "PTS"], ["fg2m", "2PT"], ["fg3m", "3PT"], ["ftm", "FT"],
   ["tot_reb", "REB"], ["ast", "AST"], ["stl", "STL"], ["blk", "BLK"], ["eff", "EFF"],
 ];
+
+function gameMargins(game, home, away, tr) {
+  if (game.status !== "completed") return [];
+  const hasOvertime = home.ot > 0 || away.ot > 0;
+  const periods = [
+    ["q1", "Q1"],
+    ["q2", tr("Halftime")],
+    ["q3", "Q3"],
+    ["q4", hasOvertime ? "Q4" : tr("Final")],
+  ];
+  if (hasOvertime) periods.push(["ot", "OT"]);
+
+  let homeTotal = 0;
+  let awayTotal = 0;
+  const points = [];
+  for (const [key, label] of periods) {
+    const scores = [home[key], away[key]];
+    if (!scores.every((score) => Number.isInteger(score) && score >= 0)) return [];
+    homeTotal += scores[0];
+    awayTotal += scores[1];
+    points.push({ label, margin: homeTotal - awayTotal });
+  }
+  return homeTotal === game.home_score && awayTotal === game.away_score ? points : [];
+}
 
 function teamTotals(rows) {
   const a = rows.reduce((acc, b) => {
@@ -88,6 +113,10 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
   const hw = g.home_score > g.away_score;
   const aw = g.away_score > g.home_score;
   const qOf = (tid) => (g.quarters || []).find((q) => q.team_id === tid) || {};
+  const homeQuarters = qOf(g.home_team_id);
+  const awayQuarters = qOf(g.away_team_id);
+  const margins = gameMargins(g, homeQuarters, awayQuarters, tr);
+  const marginLabel = tr("{team} score margin", { team: g.home_name });
   const tsOf = (tid) => (g.team_stats || []).find((s) => s.team_id === tid) || {};
   const boxOf = (tid) => g.box.filter((b) => b.team_id === tid);
   const boxRows = (tid) => {
@@ -214,8 +243,8 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
   };
 
   const quarterTable = (() => {
-    const h = qOf(g.home_team_id);
-    const a = qOf(g.away_team_id);
+    const h = homeQuarters;
+    const a = awayQuarters;
     const qs = ["q1", "q2", "q3", "q4"];
     if ((h.ot || 0) !== 0 || (a.ot || 0) !== 0) qs.push("ot");
     const labels = qs.map((_, i) => (i < 4 ? "Q" + (i + 1) : "OT"));
@@ -308,7 +337,16 @@ export default function GameDetail({ ctx, id, onAdoptContext }) {
           </div>
         </div>
         {g.status === "completed" ? (
-          quarterTable
+          <>
+            {quarterTable}
+            {margins.length > 0 && (
+              <details className="game-swing" key={g.event_id}>
+                <summary>{tr("How the game swung")}</summary>
+                <p>{marginLabel}</p>
+                <ScoreMarginChart points={margins} label={marginLabel} tieLabel={tr("Tied")} />
+              </details>
+            )}
+          </>
         ) : g.status === "forfeit" ? (
           <div className="empty">
             <b>{tr("Forfeit")}</b> — {tr("{team} awarded the win ({score} default).", { team: hw ? g.home_name : g.away_name, score: `${g.home_score ?? "—"}–${g.away_score ?? "—"}` })}
