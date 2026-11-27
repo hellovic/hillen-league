@@ -587,10 +587,7 @@ body.orange .chart-fit {
   margin: 0 auto;
 }
 
-/* Season overview — "Next on court" names the court under each fixture. The
- * court is only published on the league's schedule listing (a game page has it
- * after the game is played), so a fixture the league has not assigned yet reads
- * "Venue TBC". Full-width row: the venue sits under both team names. */
+/* Match metadata takes its own line under the teams. */
 .gr-venue {
   grid-column: 1 / -1;
   margin-top: 2px;

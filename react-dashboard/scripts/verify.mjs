@@ -589,6 +589,7 @@ check("long-name group keeps the page width", longNameDesktop.overflow <= 1, `${
 await setViewport(390, 844, true);
 await open("/players?season=33&group=11");
 await waitFor(`document.querySelector("#group-select")?.value === "11"`, "group 11 picked on mobile");
+await waitFor(`!!document.querySelector(".table-cols-toggle")`, "group 11 players loaded");
 const longNameMobile = await evaluate(
   `(() => { const t = document.querySelector("#t-players"); return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, clamped: [...t.querySelectorAll("a.nm")].filter(a => a.scrollWidth > a.clientWidth + 1).length }; })()`
 );
@@ -766,26 +767,7 @@ const kickoffOrder = (latestKickoffs || []).every((cur, i, all) => {
 });
 check("latest results run newest first by the clock", (latestKickoffs || []).length > 1 && kickoffOrder, (latestKickoffs || []).map(([d, t]) => `${d} ${t}`).join(" / "));
 
-// Venue: a family planning a trip needs the court on the fixture list itself,
-// not one tap deeper. A live fixture has no court on the league page yet, so it
-// must say so rather than leave a silent gap. Late in a season there can be no
-// upcoming fixtures at all; the empty state must say so instead.
-const upcoming = await evaluate(`(() => {
-  const section = document.querySelector(".upcoming");
-  const rows = [...document.querySelectorAll(".upcoming .game-row")];
-  return {
-    rows: rows.length,
-    venues: rows.map((r) => r.querySelector(".gr-venue")?.innerText.trim() || ""),
-    arrows: rows.filter((r) => r.querySelector(".row-arrow")).length,
-    empty: section ? section.innerText.replace(/\\s+/g, " ").trim() : "",
-  };
-})()`);
-const upcomingOk = upcoming.rows
-  ? upcoming.venues.every((v) => v.length > 0) &&
-    upcoming.venues.some((v) => /體育館|venue tbc/i.test(v)) &&
-    upcoming.arrows === upcoming.rows
-  : /no upcoming games scheduled/i.test(upcoming.empty);
-check("every upcoming fixture names its court", upcomingOk, upcoming.rows ? `${upcoming.rows} rows · ${upcoming.venues.join(" / ")}` : upcoming.empty);
+check("overview omits the duplicate upcoming fixtures list", await evaluate('!document.querySelector(".results-column .upcoming")'));
 
 // Desktop: the group picker is replaced by a static marker, so the control can
 // never suggest that the overview is filtered.
@@ -1642,7 +1624,7 @@ await evaluate(`(() => {
   const fixture = { ...games[0], status: "scheduled", home_score: null, away_score: null };
   games.push(
     { ...fixture, event_id: 920801, game_date: saturday.toISOString().slice(0, 10) },
-    { ...fixture, event_id: 920802, game_date: sunday.toISOString().slice(0, 10) }
+    { ...fixture, event_id: 920802, game_date: sunday.toISOString().slice(0, 10), venue: null }
   );
 })()`);
 await open("/season/33");
@@ -1652,7 +1634,9 @@ check("weekend fixtures switch dates and keep game links", saturdayFixture && aw
   const card = document.querySelector(".weekend-fixtures");
   return card.querySelector("button:nth-child(2)").getAttribute("aria-pressed") === "true" &&
     !!card.querySelector('a[href="#/games/920802"]') && !card.querySelector('a[href="#/games/920801"]') &&
-    card.scrollWidth <= card.clientWidth + 1;
+    card.scrollWidth <= card.clientWidth + 1 &&
+    card.querySelector('a[href="#/games/920802"] .gr-venue').textContent === "Venue TBC" &&
+    [...card.querySelectorAll(".weekend-fixture")].every(row => row.querySelector(".gr-venue").textContent.trim());
 })()`));
 
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));

@@ -29,8 +29,22 @@ export default function SeasonView({ ctx, seasonId }) {
   try {
     const all = api("season", { season });
     const groups = all.groups.filter((g) => groupGender(g.name) === ctx.gender);
-    const games = groups.flatMap((g) => (api("games",{season,group:g.group_id}) || []).map((game) => ({...game,group_id:g.group_id,group_name:g.name,group_short:shortGroupName(g.name).replace(/ Group /i, " ")})));
-    sp = {...all,groups,latest_games:sortByKickoff(games.filter(hasResult),"desc").slice(0,8),upcoming_games:sortByKickoff(games.filter((g)=>g.status==="scheduled"))};
+    const games = groups.flatMap((g) => {
+      const name = shortGroupName(g.name).replace(/ Group /i, " ");
+      const groupShort = ctx.gender === "boys" && !/^Boys\b/.test(name) ? `Boys ${name}` : name;
+      return (api("games", { season, group: g.group_id }) || []).map((game) => ({
+        ...game,
+        group_id: g.group_id,
+        group_name: g.name,
+        group_short: groupShort,
+      }));
+    });
+    sp = {
+      ...all,
+      groups,
+      latest_games: sortByKickoff(games.filter(hasResult), "desc").slice(0, 8),
+      upcoming_games: sortByKickoff(games.filter((game) => game.status === "scheduled")),
+    };
   } catch (e) {
     error = e;
   }
@@ -66,21 +80,8 @@ export default function SeasonView({ ctx, seasonId }) {
     }
   };
 
-  // The small line under a row. A result names when it tipped off and the court
-  // it was played on (the court is on the game page too, but a parent scanning
-  // the list wants both without a tap). An upcoming fixture already shows its
-  // time in the middle of the row, so it only needs the court — or "Venue TBC"
-  // while the league has not assigned one.
-  const detailLine = (g, kind) => {
-    const bits = [];
-    if (kind === "result" && g.start_time) bits.push(g.start_time);
-    if (kind === "result" && g.venue) bits.push(g.venue);
-    if (kind === "fixture") bits.push(g.venue || tr("Venue TBC"));
-    return bits.length ? bits.join(" · ") : "";
-  };
-
-  const row = (g, kind) => {
-    const detail = detailLine(g, kind);
+  const resultRow = (g) => {
+    const detail = [g.start_time, g.venue].filter(Boolean).join(" · ");
     return (
       <a className="game-row" href={`#/games/${g.event_id}`} key={g.event_id}>
         <div className="gr-top">
@@ -91,7 +92,7 @@ export default function SeasonView({ ctx, seasonId }) {
         <div className="gr-match">
           <span className="gr-team home">{g.home_name}</span>
           <strong className="gr-score od-nowrap">
-            {hasResult(g) ? scoreText(g) : g.start_time || "vs"}
+            {scoreText(g)}
           </strong>
           <span className="gr-team away">{g.away_name}</span>
         </div>
@@ -120,21 +121,9 @@ export default function SeasonView({ ctx, seasonId }) {
               </div>
             </div>
             {latest.length ? (
-              latest.map((g) => row(g, "result"))
+              latest.map(resultRow)
             ) : (
               <p className="scope-note">{tr("No completed games yet in this season.")}</p>
-            )}
-          </section>
-
-          <section className={`upcoming card${upcoming.length ? "" : " upcoming-empty"}`}>
-            <div className="section-head">
-              <h3>{tr("Next on court")}</h3>
-              <span className="small-dot" aria-hidden="true" />
-            </div>
-            {upcoming.length ? (
-              upcoming.slice(0, 5).map((g) => row(g, "fixture"))
-            ) : (
-              <p>{tr("No upcoming games scheduled.")}</p>
             )}
           </section>
         </aside>

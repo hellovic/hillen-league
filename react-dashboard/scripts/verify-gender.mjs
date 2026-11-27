@@ -158,7 +158,7 @@ const results=[];
 const check=(name,ok,detail='')=>{results.push({name,ok,detail});console.log(`${ok?'PASS':'FAIL'} ${name} ${detail}`);};
 const click=async(gender)=>{await evaluate(`document.querySelector('#gender-${gender}').click()`);await waitFor(`document.querySelector('#gender-${gender}').getAttribute('aria-pressed')==='true'`,'gender '+gender);await sleep(200);};
 const scoped=async(gender,n)=>{
- const info=await evaluate(`({cards:[...document.querySelectorAll('.season-card h3')].map(x=>x.textContent),latest:[...document.querySelectorAll('.results .gr-group')].map(x=>x.textContent),upcoming:[...document.querySelectorAll('.upcoming .gr-group')].map(x=>x.textContent),search:document.querySelector('#global-search').value,foot:document.querySelector('#foot-counts').textContent,hash:location.hash})`);
+ const info=await evaluate(`({cards:[...document.querySelectorAll('.season-card h3')].map(x=>x.textContent),latest:[...document.querySelectorAll('.results .gr-group')].map(x=>x.textContent),upcoming:[...document.querySelectorAll('.weekend-fixtures .gr-group')].map(x=>x.textContent),search:document.querySelector('#global-search').value,foot:document.querySelector('#foot-counts').textContent,hash:location.hash})`);
  check(gender+' overview card count',info.cards.length===n,String(info.cards.length));check(gender+' cards do not mix',info.cards.every(x=>gender==='girls'?/Girls?/i.test(x):!/Girl/i.test(x)));
  check(gender+' results do not mix',info.latest.every(x=>x.startsWith(gender==='girls'?'Girls':'Boys')));
  check(gender+' fixtures do not mix',info.upcoming.every(x=>x.startsWith(gender==='girls'?'Girls':'Boys')));
