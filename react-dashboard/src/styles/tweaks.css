@@ -122,6 +122,45 @@ body.orange .player-season-totals .season-totals-secondary {
   flex-direction: row;
   gap: 4px 10px;
 }
+.shooting-breakdown {
+  margin-top: 14px;
+  padding-block: 12px;
+  border-block: 1px solid var(--line);
+}
+.shooting-breakdown h4 {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 15px;
+}
+.shooting-breakdown ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.shooting-breakdown-label {
+  display: grid;
+  grid-template-columns: 1fr auto minmax(6ch, auto);
+  gap: 8px;
+  font-size: 13px;
+}
+.shooting-breakdown-label span:not(:first-child) {
+  text-align: right;
+}
+.shooting-breakdown-track {
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: var(--line);
+}
+.shooting-breakdown-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
 .dashboard-options {
   display: flex;
   gap: 3px;

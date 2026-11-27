@@ -35,6 +35,12 @@ const SEASON_HIGH_STATS = [
   { key: "ast", label: "Assists" },
 ];
 
+const SHOT_TYPES = [
+  ["2-pointers", "fg2m", "fg2a"],
+  ["3-pointers", "fg3m", "fg3a"],
+  ["Free throws", "ftm", "fta"],
+];
+
 export default function PlayerDetail({ ctx, id }) {
   const { t: tr, group } = useLocale();
   const palette = usePalette();
@@ -162,20 +168,37 @@ export default function PlayerDetail({ ctx, id }) {
               <div className="q"><b>{p.blk}</b><span>BLK</span></div>
               <div className="q"><b>{p.eff}</b><span>EFF</span></div>
             </div>
+            <section className="shooting-breakdown" aria-labelledby="shooting-breakdown-heading">
+              <h4 id="shooting-breakdown-heading">{tr("Shooting breakdown")}</h4>
+              <ul>
+                {SHOT_TYPES.map(([label, madeKey, attemptsKey]) => {
+                  const made = p[madeKey];
+                  const attempts = p[attemptsKey];
+                  const hasCounts = Number.isFinite(made) && Number.isFinite(attempts);
+                  const pct = hasCounts && attempts > 0 ? (made / attempts) * 100 : null;
+                  return (
+                    <li key={label}>
+                      <div className="shooting-breakdown-label">
+                        <span>{tr(label)}</span>
+                        <span className="mono">{hasCounts ? `${made}/${attempts}` : "—"}</span>
+                        <span className="mono muted">{pctStr(pct)}</span>
+                      </div>
+                      <div className="shooting-breakdown-track" aria-hidden="true">
+                        <span style={{ width: `${Math.max(0, Math.min(100, pct ?? 0))}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
             <dl className="kv">
               <dt>{tr("Minutes")}</dt>
               <dd className="mono">{n1(p.minutes)} ({n1(p.gp ? p.minutes / p.gp : null)}/g)</dd>
-              <dt>{tr("Shooting")}</dt>
-              <dd className="mono sstats">
-                <span>{p.fgm}/{p.fga} FG</span>
-                <span>{p.fg2m}/{p.fg2a} 2P</span>
-                <span>{p.fg3m}/{p.fg3a} 3P</span>
-                <span>{p.ftm}/{p.fta} FT</span>
-              </dd>
+              <dt>{tr("Field goals")}</dt>
+              <dd className="mono">{p.fgm}/{p.fga}</dd>
               <dt>{tr("Efficiency")}</dt>
               <dd className="mono sstats">
                 <span>eFG% {pctStr(efgPct(p.fgm, p.fga, p.fg3m))}</span>
-                <span>FT% {pctStr(p.fta ? (p.ftm / p.fta) * 100 : null)}</span>
                 <span>TS% {pctStr(tsPct(p.pts, p.fga, p.fta))}</span>
               </dd>
               <dt>{tr("Off / Def reb")}</dt><dd className="mono">{p.off_reb} / {p.def_reb}</dd>

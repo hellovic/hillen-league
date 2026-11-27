@@ -1601,6 +1601,15 @@ check("recent form fits on a narrow phone and links to game results",
 await evaluate('document.querySelector(".standings-table-card .dashboard-options button").click()');
 check("switching back restores the official standings table", await evaluate('!!document.querySelector("#t-standings")'));
 
+await open("/players/15202?season=33&group=16");
+await evaluate('document.querySelector(".season-totals-details summary").click()');
+check("shooting breakdown shows three rates and counts at 320 px", await evaluate(`(() => {
+  const stats = document.querySelector(".shooting-breakdown");
+  return stats.querySelectorAll("li").length === 3 &&
+    [...stats.querySelectorAll("li")].every(row => /\\d+\\/\\d+/.test(row.textContent) && /%|—/.test(row.textContent)) &&
+    stats.scrollWidth <= stats.clientWidth + 1;
+})()`));
+
 await evaluate(`(() => {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Hong_Kong", year: "numeric", month: "2-digit", day: "2-digit",
