@@ -21,7 +21,7 @@ export default function RecentFormTable({ standings, results }) {
             return (
               <tr key={team.team_id}>
                 <td className="num">{team.pos ?? team.rank}</td>
-                <td><a className="row-link" href={`#/teams/${team.team_id}`}>{team.team_name}</a></td>
+                <td><a className="row-link" href={`#/teams/${team.team_id}`} title={team.team_name}>{team.team_name}</a></td>
                 <td className="num od-nowrap">{team.wins}–{team.losses}</td>
                 <td>
                   <div className="recent-form-results">

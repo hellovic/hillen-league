@@ -1590,14 +1590,20 @@ await evaluate('document.querySelector(".standings-table-card button:nth-child(2
 const form = await evaluate(`(() => {
   const table = document.querySelector(".recent-form-table");
   const links = [...table.querySelectorAll(".recent-form-result")];
+  const heights = [...table.tBodies[0].rows].map(row => row.getBoundingClientRect().height);
   return {
     fits: table.closest(".card").scrollWidth <= table.closest(".card").clientWidth + 1,
     links: links.map(link => [link.textContent, link.getAttribute("href")]),
+    heights,
   };
 })()`);
 check("recent form fits on a narrow phone and links to game results",
   form.fits && form.links.some(([letter, href]) => letter === "W" && href === "#/games/20863") &&
   form.links.some(([letter, href]) => letter === "L" && href === "#/games/20863"));
+check("recent form rows stay compact and equal with or without results",
+  form.heights.length > 1 && Math.max(...form.heights) <= 42 &&
+  Math.max(...form.heights) - Math.min(...form.heights) < 1,
+  form.heights.map(height => height.toFixed(1)).join(", ") + " px");
 await evaluate('document.querySelector(".standings-table-card .dashboard-options button").click()');
 check("switching back restores the official standings table", await evaluate('!!document.querySelector("#t-standings")'));
 

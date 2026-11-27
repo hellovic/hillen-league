@@ -217,23 +217,39 @@ body.orange .weekend-fixture .row-arrow {
 .standings-table-card .dashboard-options {
   margin-bottom: 10px;
 }
+body.orange .card table.recent-form-table {
+  table-layout: fixed;
+}
+body.orange .recent-form-table th:first-child {
+  width: 22px;
+}
+body.orange .recent-form-table th:nth-child(3) {
+  width: 48px;
+}
+body.orange .recent-form-table th:last-child {
+  width: 124px;
+}
 body.orange .card table.recent-form-table th,
 body.orange .card table.recent-form-table td {
   padding: 4px 3px;
   font-size: 12px;
-  white-space: normal;
+  white-space: nowrap;
 }
-body.orange .card table.recent-form-table td:nth-child(2) {
-  overflow-wrap: anywhere;
+.recent-form-table .row-link {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .recent-form-results {
   display: flex;
+  align-items: center;
+  min-height: 32px;
   gap: 3px;
 }
 .recent-form-result {
   display: grid;
-  min-width: 20px;
-  min-height: 44px;
+  min-width: 21px;
+  min-height: 32px;
   place-items: center;
   font-size: 12px;
   font-weight: 700;
