@@ -1585,6 +1585,22 @@ check("Story directory headings fit beside the count at 320 px in both languages
 
 await evaluate('document.querySelector("#language-toggle").click()');
 await waitFor('document.documentElement.lang === "en"', "English restored for feature checks");
+await open("/standings?season=33&group=16");
+await evaluate('document.querySelector(".standings-table-card button:nth-child(2)").click()');
+const form = await evaluate(`(() => {
+  const table = document.querySelector(".recent-form-table");
+  const links = [...table.querySelectorAll(".recent-form-result")];
+  return {
+    fits: table.closest(".card").scrollWidth <= table.closest(".card").clientWidth + 1,
+    links: links.map(link => [link.textContent, link.getAttribute("href")]),
+  };
+})()`);
+check("recent form fits on a narrow phone and links to game results",
+  form.fits && form.links.some(([letter, href]) => letter === "W" && href === "#/games/20863") &&
+  form.links.some(([letter, href]) => letter === "L" && href === "#/games/20863"));
+await evaluate('document.querySelector(".standings-table-card .dashboard-options button").click()');
+check("switching back restores the official standings table", await evaluate('!!document.querySelector("#t-standings")'));
+
 await evaluate(`(() => {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Hong_Kong", year: "numeric", month: "2-digit", day: "2-digit",

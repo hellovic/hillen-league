@@ -17,6 +17,7 @@ import SortTable from "../components/SortTable.jsx";
 import GameStatus from "../components/GameStatus.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
 import StatGuide from "../components/StatGuide.jsx";
+import RecentFormTable from "../components/RecentFormTable.jsx";
 import { GUIDE_GROUPS } from "../glossary.js";
 
 const KEYS = [
@@ -44,6 +45,7 @@ const KEYS = [
 export default function StandingsView({ ctx }) {
   const { t: tr, group, scope } = useLocale();
   const [sort, setSort] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [standings, teams, games] = [api("standings", ctx), api("teams", ctx), api("games", ctx)];
 
   useEffect(() => {
@@ -102,10 +104,18 @@ export default function StandingsView({ ctx }) {
         </div>
       </div>
       <div className="grid-2">
-        <div className="card">
+        <div className="card standings-table-card">
           <h3>{tr("Group Table")}</h3>
+          {standings.length > 0 && (
+            <div className="dashboard-options" role="group" aria-label={tr("Standings view")}>
+              <button type="button" aria-pressed={!showForm} onClick={() => setShowForm(false)}>{tr("Table")}</button>
+              <button type="button" aria-pressed={showForm} onClick={() => setShowForm(true)}>{tr("Recent form")}</button>
+            </div>
+          )}
           {standings.length ? (
-            <SortTable
+            showForm ? <RecentFormTable standings={standings} results={resolved.filter((game) =>
+              Number.isFinite(game.home_score) && Number.isFinite(game.away_score)
+            )} /> : <SortTable
               columns={KEYS}
               rows={rows}
               tableId="t-standings"

@@ -175,6 +175,43 @@ body.orange .weekend-fixture .row-arrow {
 .weekend-fixture .gr-venue {
   font-size: 13px;
 }
+.standings-table-card .dashboard-options {
+  margin-bottom: 10px;
+}
+body.orange .card table.recent-form-table th,
+body.orange .card table.recent-form-table td {
+  padding: 4px 3px;
+  font-size: 12px;
+  white-space: normal;
+}
+body.orange .card table.recent-form-table td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+.recent-form-results {
+  display: flex;
+  gap: 3px;
+}
+.recent-form-result {
+  display: grid;
+  min-width: 20px;
+  min-height: 44px;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.recent-form-result span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 22px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 12%, var(--bg2));
+}
+.recent-form-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
 
 /* Sticky stat-table headers (game box scores, players list, leaders, standings).
  *
