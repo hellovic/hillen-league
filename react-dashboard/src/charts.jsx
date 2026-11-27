@@ -8,9 +8,9 @@ const W = 560;
 const H = 220;
 const BASE_PAD = { t: 22, r: 12, b: 28, l: 34 };
 
-function ChartSvg({ className = "chart", w = W, h = H, children }) {
+function ChartSvg({ className = "chart", w = W, h = H, label, children }) {
   return (
-    <svg className={className} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" role="img">
+    <svg className={className} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}>
       {children}
     </svg>
   );
@@ -165,19 +165,19 @@ export function ScoreMarginChart({ points, label, tieLabel }) {
 }
 
 /* Radar chart. axes: [{label, max}], series: [{name, color, values}] (0..max). */
-export function RadarChart({ axes, series, className = "chart radar" }) {
-  const w = W;
-  const h = H;
+export function RadarChart({ axes, series, className = "chart radar", focused = false, label }) {
+  const w = focused ? 300 : W;
+  const h = focused ? 222 : H;
   const cx = w / 2;
-  const cy = h / 2 + 4;
-  const R = Math.min(w, h) / 2 - 46;
+  const cy = h / 2 + (focused ? 0 : 4);
+  const R = focused ? 82 : Math.min(w, h) / 2 - 46;
   const n = axes.length;
   const pt = (i, r) => {
     const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
   };
   return (
-    <ChartSvg className={className}>
+    <ChartSvg className={className} w={w} h={h} label={label}>
       {[1, 2, 3, 4].map((ring) => (
         <polygon
           key={ring}
@@ -206,9 +206,12 @@ export function RadarChart({ axes, series, className = "chart radar" }) {
             return pt(i, R * v).map((v2) => v2.toFixed(1)).join(",");
           })
           .join(" ");
-        return <polygon key={si} points={pts} fill={color} fillOpacity="0.22" stroke={color} strokeWidth="2" />;
+        return (
+          <polygon key={si} points={pts} fill={color} fillOpacity="0.22" stroke={color} strokeWidth="2"
+            strokeDasharray={focused && si === 1 ? "4 3" : undefined} />
+        );
       })}
-      <Legend series={series} x0={20} />
+      {!focused && <Legend series={series} x0={20} />}
     </ChartSvg>
   );
 }

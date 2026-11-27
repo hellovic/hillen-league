@@ -1336,7 +1336,7 @@ const playerToolbar = `(() => {
     contextBesideActions: context.right <= positions[0].left && context.top >= positions[0].top && context.bottom <= positions[0].bottom,
     consistent: actions.every((el) => {
       const style = getComputedStyle(el);
-      return style.textDecorationLine === "none" && style.fontSize === "12px";
+      return style.textDecorationLine === "none" && style.fontSize === "13px";
     }),
     fits: toolbar.scrollWidth <= toolbar.clientWidth && positions.every((rect) => rect.height >= 44),
   };
@@ -1608,6 +1608,21 @@ await evaluate('document.querySelector(".standings-table-card .dashboard-options
 check("switching back restores the official standings table", await evaluate('!!document.querySelector("#t-standings")'));
 
 await open("/players/15202?season=33&group=16");
+check("player profile uses a consistent heading and action scale", await evaluate(`(() => {
+  const fontSize = selector => getComputedStyle(document.querySelector(selector)).fontSize;
+  const headings = [...document.querySelectorAll("#view .card h3")];
+  return headings.every(heading => getComputedStyle(heading).fontSize === "18px") &&
+    fontSize(".player-profile-heading h2") === "24px" &&
+    fontSize(".player-profile-back") === fontSize(".player-detail-actions .csv-btn");
+})()`));
+check("player radar uses the larger plot and readable legend at 320 px", await evaluate(`(() => {
+  const radar = document.querySelector(".player-radar .radar");
+  const label = radar.querySelector(".chart-label");
+  const ratio = radar.getBoundingClientRect().width / radar.viewBox.baseVal.width;
+  return radar.viewBox.baseVal.width === 300 && parseFloat(getComputedStyle(label).fontSize) * ratio >= 11 &&
+    radar.getAttribute("aria-label").includes("Group average: PTS") &&
+    document.querySelectorAll(".player-radar-legend li").length === 2;
+})()`));
 await evaluate('document.querySelector(".season-totals-details summary").click()');
 check("shooting breakdown shows three rates and counts at 320 px", await evaluate(`(() => {
   const stats = document.querySelector(".shooting-breakdown");

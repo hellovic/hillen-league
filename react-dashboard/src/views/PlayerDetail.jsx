@@ -80,6 +80,13 @@ export default function PlayerDetail({ ctx, id }) {
     label,
     max: Math.max(pv[i], av[i], 0.1) * 1.25,
   }));
+  const radarSeries = [
+    { name: p.player_name, color: palette[0], values: pv },
+    { name: tr("Group average"), color: palette[4], values: av },
+  ];
+  const radarLabel = radarSeries.map(({ name, values }) =>
+    `${name}: ${axes.map(({ label }, i) => `${label} ${n1(values[i])}`).join(", ")}`
+  ).join(". ");
   const seasonHighs = SEASON_HIGH_STATS.map(({ key, label }) => {
     const game = p.games.reduce((best, entry) => {
       if (!Number.isFinite(entry[key])) return best;
@@ -118,8 +125,8 @@ export default function PlayerDetail({ ctx, id }) {
 
   return (
     <>
-      <a className="back" href="#/players">{tr("← Players")}</a>
-      <div className="view-head">
+      <a className="back player-profile-back" href="#/players">{tr("← Players")}</a>
+      <div className="view-head player-profile-heading">
         <h2>{p.player_name}</h2>
         <div className="toolbar player-detail-toolbar">
           <div className="sub">
@@ -220,15 +227,14 @@ export default function PlayerDetail({ ctx, id }) {
             <div className="q"><b>{(p.eff / Math.max(p.gp, 1)).toFixed(1)}</b><span>EFF</span></div>
           </div>
         </div>
-        <div className="card">
+        <div className="card player-radar">
           <h3>{tr("vs group average")} <span className="cn">{tr("per game")}</span></h3>
-          <RadarChart
-            axes={axes}
-            series={[
-              { name: p.player_name, color: palette[0], values: pv },
-              { name: "Group avg", color: palette[4], values: av },
-            ]}
-          />
+          <ul className="player-radar-legend" aria-hidden="true">
+            {radarSeries.map(({ name, color }) => (
+              <li key={color}><span style={{ borderColor: color }} />{name}</li>
+            ))}
+          </ul>
+          <RadarChart axes={axes} series={radarSeries} focused label={radarLabel} />
         </div>
         </div>
       </div>
