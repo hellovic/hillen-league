@@ -934,7 +934,7 @@ await evaluate(`document.querySelector('[aria-controls^="t-box-"]').click()`);
 await sleep(150);
 check("collapsing restores the eight-column box score", await evaluate(`[...document.querySelector('#view table[data-compact="box"]').tHead.rows[0].cells].filter((c) => c.getClientRects().length > 0).length === 8`));
 
-// Standings keep every column visible even with long team names.
+// All standings columns stay available, with scrolling confined to the card.
 for (const w of [320, 375, 390, 527]) {
   await setViewport(w, 700, true);
   await open(`/standings?season=33&group=${w === 527 ? 16 : 11}`);
@@ -943,15 +943,17 @@ for (const w of [320, 375, 390, 527]) {
     const card = table.closest(".card");
     return {
       headers: [...table.tHead.rows[0].cells].filter((cell) => cell.getClientRects().length).map((cell) => cell.textContent.trim()).join(","),
-      fullRows: [...table.tBodies[0].rows].every((row) => [...row.cells].filter((cell) => cell.getClientRects().length).length === 8),
-      toggle: !!document.querySelector("#view .table-cols-toggle"),
+      fullRows: [...table.tBodies[0].rows].every((row) => [...row.cells].filter((cell) => cell.getClientRects().length).length === 9),
+      toggle: !!card.querySelector(".dashboard-options, .table-cols-toggle"),
       cardOverflow: card.scrollWidth - card.clientWidth,
       pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      localScroll: getComputedStyle(card).overflowX === "auto",
+      rowFont: parseFloat(getComputedStyle(table.tBodies[0].rows[0].cells[1]).fontSize),
     };
   })()`);
-  check(`full standings fit a ${w} px phone without a toggle`,
-    standings.headers === "#,Team,GP,W,L,F,±,Pts" && standings.fullRows && !standings.toggle &&
-    standings.cardOverflow <= 1 && standings.pageOverflow <= 1,
+  check(`full standings are available at ${w} px without a toggle`,
+    standings.headers === "#,Team,GP,W,L,F,±,Pts,Recent form" && standings.fullRows && !standings.toggle &&
+    standings.rowFont >= 15 && standings.localScroll && standings.cardOverflow > 1 && standings.pageOverflow <= 1,
     `${standings.headers} / card ${standings.cardOverflow}px / page ${standings.pageOverflow}px`);
 }
 
@@ -1568,26 +1570,32 @@ check("Story directory headings fit beside the count at 320 px in both languages
 await evaluate('document.querySelector("#language-toggle").click()');
 await waitFor('document.documentElement.lang === "en"', "English restored for feature checks");
 await open("/standings?season=33&group=16");
-await evaluate('document.querySelector(".standings-table-card button:nth-child(2)").click()');
 const form = await evaluate(`(() => {
-  const table = document.querySelector(".recent-form-table");
+  const table = document.querySelector("#t-standings");
+  const card = table.closest(".card");
   const links = [...table.querySelectorAll(".recent-form-result")];
   const heights = [...table.tBodies[0].rows].map(row => row.getBoundingClientRect().height);
+  const [rank, team] = table.tBodies[0].rows[0].cells;
+  const last = table.tBodies[0].rows[0].cells[8];
+  const rankStart = rank.getBoundingClientRect().left;
+  const teamStart = team.getBoundingClientRect().left;
+  card.scrollLeft = card.scrollWidth;
   return {
-    fits: table.closest(".card").scrollWidth <= table.closest(".card").clientWidth + 1,
+    pinned: card.scrollLeft > 0 && Math.abs(rank.getBoundingClientRect().left - rankStart) < 1 &&
+      Math.abs(team.getBoundingClientRect().left - teamStart) < 1,
+    formVisible: last.getBoundingClientRect().right <= card.getBoundingClientRect().right + 1,
     links: links.map(link => [link.textContent, link.getAttribute("href")]),
     heights,
   };
 })()`);
-check("recent form fits on a narrow phone and links to game results",
-  form.fits && form.links.some(([letter, href]) => letter === "W" && href === "#/games/20863") &&
+check("recent form scrolls into view with rank and team pinned", form.pinned && form.formVisible);
+check("recent form links to game results",
+  form.links.some(([letter, href]) => letter === "W" && href === "#/games/20863") &&
   form.links.some(([letter, href]) => letter === "L" && href === "#/games/20863"));
 check("recent form rows stay compact and equal with or without results",
   form.heights.length > 1 && Math.max(...form.heights) <= 42 &&
   Math.max(...form.heights) - Math.min(...form.heights) < 1,
   form.heights.map(height => height.toFixed(1)).join(", ") + " px");
-await evaluate('document.querySelector(".standings-table-card .dashboard-options button").click()');
-check("switching back restores the official standings table", await evaluate('!!document.querySelector("#t-standings")'));
 
 await open("/players/15202?season=33&group=16");
 check("player profile uses a consistent heading and action scale", await evaluate(`(() => {

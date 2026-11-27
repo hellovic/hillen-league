@@ -17,7 +17,7 @@ import SortTable from "../components/SortTable.jsx";
 import GameStatus from "../components/GameStatus.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
 import StatGuide from "../components/StatGuide.jsx";
-import RecentFormTable from "../components/RecentFormTable.jsx";
+import RecentForm from "../components/RecentForm.jsx";
 import { GUIDE_GROUPS } from "../glossary.js";
 
 const KEYS = [
@@ -29,6 +29,7 @@ const KEYS = [
   { key: "forfeits", label: "F", num: true },
   { key: "diff", label: "±", num: true },
   { key: "points", label: "Pts", num: true },
+  { key: "form", label: "Recent form", sortable: false },
 ];
 
 /* Group standings for the selected season/group. Empty-state rules (UX-03 /
@@ -45,7 +46,6 @@ const KEYS = [
 export default function StandingsView({ ctx }) {
   const { t: tr, group, scope } = useLocale();
   const [sort, setSort] = useState(null);
-  const [showForm, setShowForm] = useState(false);
   const [standings, teams, games] = [api("standings", ctx), api("teams", ctx), api("games", ctx)];
 
   useEffect(() => {
@@ -54,6 +54,9 @@ export default function StandingsView({ ctx }) {
 
   const resolved = sortByKickoff(games.filter(hasResult), "desc");
   const latest = resolved.slice(0, 5);
+  const scoredResults = resolved.filter((game) =>
+    Number.isFinite(game.home_score) && Number.isFinite(game.away_score)
+  );
   const rows = sort ? sortRows(standings, sort.key, sort.dir) : standings;
 
   /* PF/PA chart (UX-06): both series share one scale so a team's scored and
@@ -106,42 +109,38 @@ export default function StandingsView({ ctx }) {
       <div className="grid-2">
         <div className="card standings-table-card">
           <h3>{tr("Group Table")}</h3>
-          {standings.length > 0 && (
-            <div className="dashboard-options" role="group" aria-label={tr("Standings view")}>
-              <button type="button" aria-pressed={!showForm} onClick={() => setShowForm(false)}>{tr("Table")}</button>
-              <button type="button" aria-pressed={showForm} onClick={() => setShowForm(true)}>{tr("Recent form")}</button>
-            </div>
-          )}
           {standings.length ? (
-            showForm ? <RecentFormTable standings={standings} results={resolved.filter((game) =>
-              Number.isFinite(game.home_score) && Number.isFinite(game.away_score)
-            )} /> : <SortTable
-              columns={KEYS}
-              rows={rows}
-              tableId="t-standings"
-              pin={2}
-              compact="standings"
-              sort={sort}
-              onSort={setSort}
-              rowKey={(s) => s.team_id}
-              rowHref={(s) => `#/teams/${s.team_id}`}
-              renderRow={(s) => [
-                <td className="num" key="pos">{s.pos ?? s.rank}</td>,
-                <td key="team">
-                  <a className="row-link nm" title={s.team_name} href={`#/teams/${s.team_id}`}>
-                    {s.team_name}
-                  </a>
-                </td>,
-                <td className="num" key="gp">{s.gp}</td>,
-                <td className="num" key="w">{s.wins}</td>,
-                <td className="num" key="l">{s.losses}</td>,
-                <td className="num" key="f">{s.forfeits}</td>,
-                <td className={`num ${s.diff === null ? "" : s.diff >= 0 ? "winner" : "loser"}`} key="diff">
-                  {s.diff === null ? "—" : s.diff > 0 ? "+" + s.diff : s.diff}
-                </td>,
-                <td className="num" key="pts">{s.points}</td>,
-              ]}
-            />
+            <>
+              <SortTable
+                columns={KEYS}
+                rows={rows}
+                tableId="t-standings"
+                pin={2}
+                compact="standings"
+                sort={sort}
+                onSort={setSort}
+                rowKey={(s) => s.team_id}
+                rowHref={(s) => `#/teams/${s.team_id}`}
+                renderRow={(s) => [
+                  <td className="num" key="pos">{s.pos ?? s.rank}</td>,
+                  <td key="team">
+                    <a className="row-link nm" title={s.team_name} href={`#/teams/${s.team_id}`}>
+                      {s.team_name}
+                    </a>
+                  </td>,
+                  <td className="num" key="gp">{s.gp}</td>,
+                  <td className="num" key="w">{s.wins}</td>,
+                  <td className="num" key="l">{s.losses}</td>,
+                  <td className="num" key="f">{s.forfeits}</td>,
+                  <td className={`num ${s.diff === null ? "" : s.diff >= 0 ? "winner" : "loser"}`} key="diff">
+                    {s.diff === null ? "—" : s.diff > 0 ? "+" + s.diff : s.diff}
+                  </td>,
+                  <td className="num" key="pts">{s.points}</td>,
+                  <td key="form"><RecentForm teamId={s.team_id} results={scoredResults} /></td>,
+                ]}
+              />
+              <p className="muted recent-form-note">{tr("Last 5 results · Latest on the right")}</p>
+            </>
           ) : (
             <ScopeEmpty
               title={tr("No teams in this group yet")}

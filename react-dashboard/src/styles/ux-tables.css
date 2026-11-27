@@ -333,16 +333,60 @@ body.orange .compare-card .h2h-tag { display: none; }
   body.orange .card.compare-radar-card { display: none; }
 }
 
-/* Standings keep all eight columns on phones. Wrap long team names to give
- * the numeric columns room at narrow widths. */
+/* Rank and team pin together in the table and its mirrored sticky header. */
+body.orange table.data[data-compact="standings"] {
+  --standings-rank-width: 28px;
+}
+body.orange table.data[data-compact="standings"] :is(th, td):first-child {
+  box-sizing: border-box;
+  width: var(--standings-rank-width);
+  min-width: var(--standings-rank-width);
+  max-width: var(--standings-rank-width);
+  padding-inline: 4px;
+  left: 0;
+}
+body.orange table.data[data-compact="standings"] :is(th, td):nth-child(2) {
+  left: var(--standings-rank-width);
+}
+body.orange table.data[data-compact="standings"] :is(th, td):nth-child(-n+2) {
+  position: sticky;
+  background: var(--card);
+}
+body.orange table.data[data-compact="standings"] td:nth-child(-n+2) {
+  z-index: 1;
+}
+body.orange table.data[data-compact="standings"] th:nth-child(-n+2) {
+  z-index: 4;
+}
+body.orange .standings-table-card table.data a.nm {
+  display: block;
+  max-width: clamp(88px, 25vw, 160px);
+}
+body.orange .standings-table-card #t-standings td {
+  padding-block: 4px;
+}
 @media (max-width: 767px) {
-  body.orange .card table.data[data-compact="standings"] td:nth-child(2) {
-    white-space: normal;
+  body.orange table.data[data-compact="standings"] {
+    --standings-rank-width: 32px;
+    min-width: 520px;
   }
-  body.orange .card table.data[data-compact="standings"] a.nm {
-    display: inline;
-    white-space: normal;
-    overflow-wrap: anywhere;
+  body.orange table.data[data-compact="standings"] th {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  body.orange .standings-table-card #t-standings td {
+    padding-inline: 10px;
+    font-size: 15px;
+  }
+  body.orange table.data[data-compact="standings"] th:first-child,
+  body.orange .standings-table-card #t-standings td:first-child {
+    padding-inline: 5px;
+  }
+  body.orange .standings-table-card table.data a.nm {
+    max-width: clamp(112px, 32vw, 160px);
+  }
+  body.orange .standings-table-card .recent-form-result {
+    font-size: 14px;
   }
 }
 

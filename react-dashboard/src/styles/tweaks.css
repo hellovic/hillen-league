@@ -279,32 +279,6 @@ body.orange .weekend-fixture .row-arrow {
 .weekend-fixture .gr-venue {
   font-size: 13px;
 }
-.standings-table-card .dashboard-options {
-  margin-bottom: 10px;
-}
-body.orange .card table.recent-form-table {
-  table-layout: fixed;
-}
-body.orange .recent-form-table th:first-child {
-  width: 22px;
-}
-body.orange .recent-form-table th:nth-child(3) {
-  width: 48px;
-}
-body.orange .recent-form-table th:last-child {
-  width: 124px;
-}
-body.orange .card table.recent-form-table th,
-body.orange .card table.recent-form-table td {
-  padding: 4px 3px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.recent-form-table .row-link {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 .recent-form-results {
   display: flex;
   align-items: center;
@@ -329,6 +303,10 @@ body.orange .card table.recent-form-table td {
   background: color-mix(in srgb, currentColor 12%, var(--bg2));
 }
 .recent-form-note {
+  position: sticky;
+  left: 0;
+  width: fit-content;
+  max-width: 100%;
   margin: 8px 0 0;
   font-size: 12px;
 }

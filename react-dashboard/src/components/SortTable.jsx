@@ -95,7 +95,9 @@ export default function SortTable({
 
     const measure = () => {
       card.classList.remove("fit", "scrollable");
-      fitRef.current = table.scrollWidth <= card.clientWidth + 1;
+      const { paddingLeft, paddingRight } = getComputedStyle(card);
+      const contentWidth = card.clientWidth - parseFloat(paddingLeft) - parseFloat(paddingRight);
+      fitRef.current = table.scrollWidth <= contentWidth + 1;
       card.classList.add(fitRef.current ? "fit" : "scrollable");
       /* Column geometry for the pinned copy. Measured here (not in an effect on
        * `rows`) because the widths also depend on the viewport: a table that is
