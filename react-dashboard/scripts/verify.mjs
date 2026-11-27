@@ -1583,6 +1583,32 @@ for (const language of ["en", "zh-Hant"]) {
 check("Story directory headings fit beside the count at 320 px in both languages", !wrappedDirectoryTitles.length,
   wrappedDirectoryTitles.join(", "));
 
+await evaluate('document.querySelector("#language-toggle").click()');
+await waitFor('document.documentElement.lang === "en"', "English restored for feature checks");
+await evaluate(`(() => {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Hong_Kong", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const saturday = new Date(today + "T00:00:00Z");
+  saturday.setUTCDate(saturday.getUTCDate() + (saturday.getUTCDay() ? 6 - saturday.getUTCDay() : -1));
+  const sunday = new Date(saturday.getTime() + 86400000);
+  const games = window.LEAGUE_DATA["33/16/games"];
+  const fixture = { ...games[0], status: "scheduled", home_score: null, away_score: null };
+  games.push(
+    { ...fixture, event_id: 920801, game_date: saturday.toISOString().slice(0, 10) },
+    { ...fixture, event_id: 920802, game_date: sunday.toISOString().slice(0, 10) }
+  );
+})()`);
+await open("/season/33");
+const saturdayFixture = await evaluate('!!document.querySelector(\'.weekend-fixtures a[href="#/games/920801"]\')');
+await evaluate('document.querySelector(".weekend-fixtures button:nth-child(2)").click()');
+check("weekend fixtures switch dates and keep game links", saturdayFixture && await evaluate(`(() => {
+  const card = document.querySelector(".weekend-fixtures");
+  return card.querySelector("button:nth-child(2)").getAttribute("aria-pressed") === "true" &&
+    !!card.querySelector('a[href="#/games/920802"]') && !card.querySelector('a[href="#/games/920801"]') &&
+    card.scrollWidth <= card.clientWidth + 1;
+})()`));
+
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 
 const failed = results.filter((r) => !r.ok);

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { api, groupAgeSort, groupGender } from "../data.js";
 import { fmtDate, hasResult, scoreText, seasonHash, setTitle, sortByKickoff } from "../utils.js";
 import GameStatus from "../components/GameStatus.jsx";
+import WeekendFixtures from "../components/WeekendFixtures.jsx";
 
 /* Season overview: the whole league at a glance.
  *
@@ -17,7 +18,8 @@ const shortGroupName = (name) =>
   String(name || "")
     .replace(/^YOUTH\s+/i, "")
     .replace(/GROUP /g, "Group ")
-    .replace(/^GIRLS/i, "Girls");
+    .replace(/^GIRLS?/i, "Girls")
+    .replace(/^BOYS?/i, "Boys");
 
 export default function SeasonView({ ctx, seasonId }) {
   const { t: tr, group, language } = useLocale();
@@ -27,8 +29,8 @@ export default function SeasonView({ ctx, seasonId }) {
   try {
     const all = api("season", { season });
     const groups = all.groups.filter((g) => groupGender(g.name) === ctx.gender);
-    const games = groups.flatMap((g) => (api("games",{season,group:g.group_id}) || []).map((game) => ({...game,group_id:g.group_id,group_name:g.name,group_short:`${ctx.gender === "boys" ? "Boys" : "Girls"} ${g.name.replace(/^YOUTH GIRLS? /, "").replace(" GROUP ", " ")}`})));
-    sp = {...all,groups,latest_games:sortByKickoff(games.filter(hasResult),"desc").slice(0,8),upcoming_games:sortByKickoff(games.filter((g)=>g.status==="scheduled")).slice(0,5)};
+    const games = groups.flatMap((g) => (api("games",{season,group:g.group_id}) || []).map((game) => ({...game,group_id:g.group_id,group_name:g.name,group_short:shortGroupName(g.name).replace(/ Group /i, " ")})));
+    sp = {...all,groups,latest_games:sortByKickoff(games.filter(hasResult),"desc").slice(0,8),upcoming_games:sortByKickoff(games.filter((g)=>g.status==="scheduled"))};
   } catch (e) {
     error = e;
   }
@@ -110,6 +112,7 @@ export default function SeasonView({ ctx, seasonId }) {
 
       <div className="dashboard-grid">
         <aside className="results-column">
+          <WeekendFixtures key={`${season}/${ctx.gender}`} games={upcoming} />
           <section className="card results">
             <div className="section-head">
               <div>

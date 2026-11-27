@@ -122,6 +122,59 @@ body.orange .player-season-totals .season-totals-secondary {
   flex-direction: row;
   gap: 4px 10px;
 }
+.dashboard-options {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.dashboard-options button {
+  flex: 1;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+.dashboard-options button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #101112;
+}
+.weekend-fixture {
+  display: grid;
+  gap: 4px;
+  padding-block: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.weekend-fixture + .weekend-fixture {
+  border-top: 1px solid var(--line);
+}
+.weekend-fixture:last-child {
+  padding-bottom: 0;
+}
+.weekend-fixture-meta,
+.weekend-fixture-match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.weekend-fixture-match {
+  justify-content: space-between;
+  overflow-wrap: anywhere;
+}
+body.orange .weekend-fixture .row-arrow {
+  display: block;
+  flex: none;
+  color: var(--accent);
+}
+.weekend-fixture .gr-venue {
+  font-size: 13px;
+}
 
 /* Sticky stat-table headers (game box scores, players list, leaders, standings).
  *
