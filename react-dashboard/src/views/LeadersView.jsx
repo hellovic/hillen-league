@@ -5,9 +5,9 @@ import { contextHash, csvDownload, go, hasResult, setTitle } from "../utils.js";
 import { CsvButton } from "../components/Buttons.jsx";
 import ScopeEmpty from "../components/ScopeEmpty.jsx";
 import StatGuide from "../components/StatGuide.jsx";
+import SingleGameRecords, { LEADER_ORDER } from "./SingleGameRecords.jsx";
 import { GUIDE_GROUPS } from "../glossary.js";
 
-const ORDER = ["mvp", "pts", "ast", "reb", "fg3", "blk", "ft", "stl"];
 
 /* Group leaderboards. A group with no final/forfeit game has nothing to rank
  * (the bundle would otherwise serve eight all-zero tables), so it gets one
@@ -19,6 +19,34 @@ const ORDER = ["mvp", "pts", "ast", "reb", "fg3", "blk", "ft", "stl"];
  * the strip scrolls horizontally instead of wrapping long bilingual labels.
  * Ranking rows, order and CSV output are untouched. */
 export default function LeadersView({ ctx }) {
+  const { t: tr } = useLocale();
+  const [records, setRecords] = useState(false);
+  const controls = (downloadCsv) => (
+    <div className="leader-view-controls">
+      <div className="dashboard-options leaders-mode" role="group" aria-label={tr("Leaderboard view")}>
+        <button type="button" aria-pressed={!records} onClick={() => setRecords(false)}>{tr("Season leaders")}</button>
+        <button type="button" aria-pressed={records} onClick={() => setRecords(true)}>{tr("Single-game records")}</button>
+      </div>
+      <StatGuide items={GUIDE_GROUPS.leaders} />
+      {downloadCsv && <CsvButton onDownload={downloadCsv} />}
+    </div>
+  );
+  if (!records) return <SeasonLeaders ctx={ctx} controls={controls} />;
+  const categories = new Map();
+  try {
+    for (const { category, category_cn } of api("leaders", ctx) || []) {
+      categories.set(category, category_cn);
+    }
+  } catch {
+    // The records view can use translated labels when season leaders are unavailable.
+  }
+  return (
+    <SingleGameRecords key={`${ctx.season}/${ctx.group}`} ctx={ctx}
+      switcher={controls()} categoryNames={categories} />
+  );
+}
+
+function SeasonLeaders({ ctx, controls }) {
   const { t: tr, group, scope } = useLocale();
   const [selected, setSelected] = useState(null);
   const [jumpH, setJumpH] = useState(0);
@@ -54,8 +82,8 @@ export default function LeadersView({ ctx }) {
   }, [ctx.season, ctx.group, tr, group]);
 
   const prio = (c) => {
-    const i = ORDER.indexOf(c);
-    return i === -1 ? ORDER.length + c : i;
+    const i = LEADER_ORDER.indexOf(c);
+    return i === -1 ? LEADER_ORDER.length + c : i;
   };
   const sorted = [...leaders].sort((a, b) => prio(a.category) - prio(b.category) || a.rank - b.rank);
   const cats = [];
@@ -154,6 +182,7 @@ export default function LeadersView({ ctx }) {
             <h2>{tr("Leaders")}</h2>
           </div>
         </div>
+        {controls()}
         <div className="card">
           <ScopeEmpty
             title={tr("No teams in this group yet")}
@@ -175,6 +204,7 @@ export default function LeadersView({ ctx }) {
             <h2>{tr("Leaders")}</h2>
           </div>
         </div>
+        {controls()}
         <div className="card">
           <ScopeEmpty
             title={resolved.length ? "No leaderboards yet" : "No games played yet"}
@@ -205,17 +235,10 @@ export default function LeadersView({ ctx }) {
           <p className="eyebrow">{scope(ctx.season, ctx.group)}</p>
           <h2>{tr("Leaders")}</h2>
         </div>
-        <div className="toolbar">
-          <div className="sub">
-            {tr("{categories} categories · {games} played", { categories: cats.length, games: resolved.length })} · {group(groupName(ctx.season, ctx.group))}
-          </div>
-          <StatGuide items={GUIDE_GROUPS.leaders} />
-          <CsvButton onDownload={downloadCsv} />
-        </div>
       </div>
 
+      {controls(downloadCsv)}
       <nav className="leader-jump" aria-label={tr("Leaderboard categories")} ref={navRef}>
-        <p className="leader-jump-label">{tr("Leaderboard categories")}</p>
         <div className="leader-jump-strip" ref={stripRef} role="group" aria-label={tr("Jump to a category")}>
           {cats.map((cat) => {
             const en = cat.key.toUpperCase();

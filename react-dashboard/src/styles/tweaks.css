@@ -248,6 +248,52 @@ body.orange .player-season-totals .season-totals-secondary {
   background: var(--accent);
   color: #101112;
 }
+.leader-view-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  margin-bottom: 8px;
+}
+.leader-view-controls .stat-guide[open] {
+  flex-basis: 100%;
+}
+.leaders-mode {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+}
+.leaders-mode button {
+  flex: none;
+  padding-inline: 9px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  font-size: 12px;
+}
+.leaders-mode button[aria-pressed="true"] {
+  background: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+@media (max-width: 374px) {
+  .leaders-mode button {
+    padding-inline: 4px;
+  }
+}
+body.orange table.leaderboard-table.records-table th:nth-child(2),
+body.orange table.leaderboard-table.records-table th:nth-child(3) {
+  width: 32%;
+}
+body.orange table.leaderboard-table.records-table th:nth-child(4) {
+  width: 18%;
+}
+body.orange table.leaderboard-table.records-table th:nth-child(5) {
+  width: 12%;
+}
+.records-table td:nth-child(4) {
+  white-space: nowrap;
+}
 .weekend-fixture {
   display: grid;
   gap: 4px;

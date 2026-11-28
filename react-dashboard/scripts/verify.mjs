@@ -1647,6 +1647,25 @@ check("weekend fixtures switch dates and keep game links", saturdayFixture && aw
     [...card.querySelectorAll(".weekend-fixture")].every(row => row.querySelector(".gr-venue").textContent.trim());
 })()`));
 
+await setViewport(320, 725, true);
+await open("/leaders?season=33&group=16");
+await evaluate('document.querySelector(".leaders-mode button:nth-child(2)").click()');
+await waitFor('!!document.querySelector(".records-table a")', "single-game records load");
+check("record categories match the season leader order", await evaluate(`[...document.querySelectorAll(".single-game-records .leader-chip")].map(button => button.dataset.category).join(",") === "mvp,pts,ast,reb,fg3,blk,ft,stl"`));
+check("single-game records rank individual games and link to box scores", await evaluate(`(() => {
+  const links = [...document.querySelectorAll(".records-table a")];
+  const values = links.map(a => Number(a.closest("tr").cells[4].textContent));
+  const names = links.map(a => a.textContent);
+  return new Set(names).size === names.length && links.length > 1 &&
+    values.every((value, i) => value > 0 && (!i || value <= values[i - 1])) &&
+    links.every(a => a.getAttribute("href").startsWith("#/games/")) &&
+    document.documentElement.scrollWidth <= 321;
+})()`));
+await evaluate('document.querySelector(".single-game-records .leader-chip:nth-child(3)").click()');
+check("records can switch to assists", await evaluate('document.querySelector(".single-game-records h3").textContent === "Assists in one game"'));
+await evaluate('document.querySelector(".leaders-mode button").click()');
+check("records can return to the season leaderboards", await evaluate('!!document.querySelector(".leader-jump")'));
+
 check("no uncaught page exceptions", pageErrors.length === 0, pageErrors.join(" | ").slice(0, 400));
 
 const failed = results.filter((r) => !r.ok);

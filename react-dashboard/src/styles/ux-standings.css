@@ -159,15 +159,6 @@ body.orange .leader-jump {
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
-body.orange .leader-jump-label {
-  margin: 0;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  line-height: 1.4;
-  text-transform: uppercase;
-}
 body.orange .leader-jump-strip {
   display: flex;
   align-items: stretch;
