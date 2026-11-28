@@ -206,15 +206,17 @@ def main():
         for key, n in raw_map.items():
             if view_map.get(key) != n:
                 bad += 1
-                fail(f"player {key[0]} (s{key[1]}): raw played games {n} but view gp {view_map.get(key)}")
+                fail(f"player {key[0]} (s{key[1]}): raw played games {n} but view gp {view_map.get(key)}",
+                     (key[1], key[3]))
         for key, gp in view_map.items():
             if key not in raw_map:
                 bad += 1
-                fail(f"player {key[0]} (s{key[1]}): view gp {gp} but no played games in raw data")
+                fail(f"player {key[0]} (s{key[1]}): view gp {gp} but no played games in raw data",
+                     (key[1], key[3]))
         # no view row may have zero/negative minutes
-        for r in c.execute("SELECT player_id FROM v_player_season_totals WHERE minutes <= 0"):
+        for r in c.execute("SELECT player_id, season_id, group_id FROM v_player_season_totals WHERE minutes <= 0"):
             bad += 1
-            fail(f"player {r['player_id']}: view minutes <= 0")
+            fail(f"player {r['player_id']}: view minutes <= 0", (r["season_id"], r["group_id"]))
         return bad
 
     # ---- 7. referential integrity ----

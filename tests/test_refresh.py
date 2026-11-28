@@ -79,13 +79,20 @@ class RefreshTests(unittest.TestCase):
             if group == 4:
                 store.conn.execute("UPDATE games SET home_score=999 WHERE season_id=? AND group_id=? AND status='completed'",
                                    (season, group))
+            elif group == 16:
+                store.conn.execute("""
+                    UPDATE player_game_stats SET minutes='-2:57'
+                    WHERE event_id IN (
+                        SELECT event_id FROM games WHERE season_id=? AND group_id=? AND status='completed'
+                    ) AND minutes NOT IN ('', '0:00')
+                """, (season, group))
             else:
                 store.conn.execute("UPDATE groups SET name='Updated group' WHERE season_id=? AND group_id=?",
                                    (season, group))
             store.commit()
 
         with patch.object(scraper, "scrape_group", scrape):
-            self.assertTrue(scraper.refresh_database(str(self.db), [(33, 4), (33, 16)], None,
+            self.assertTrue(scraper.refresh_database(str(self.db), [(33, 4), (33, 16), (33, 21)], None,
                                                     allow_group_fallback=True))
         # The old connection still points at the pre-refresh file after os.replace.
         with contextlib.closing(sqlite3.connect(self.db)) as refreshed:
@@ -93,8 +100,11 @@ class RefreshTests(unittest.TestCase):
                 "SELECT event_id, home_score FROM games WHERE season_id=33 AND group_id=4 ORDER BY event_id"
             ).fetchall()
             self.assertEqual([tuple(row) for row in before], games)
+            self.assertEqual(0, refreshed.execute(
+                "SELECT COUNT(*) FROM player_game_stats WHERE minutes='-2:57'"
+            ).fetchone()[0])
             self.assertEqual("Updated group", refreshed.execute(
-                "SELECT name FROM groups WHERE season_id=33 AND group_id=16").fetchone()[0])
+                "SELECT name FROM groups WHERE season_id=33 AND group_id=21").fetchone()[0])
 
     def test_result_withdrawal_removes_details_and_player_totals(self):
         c = self.store.conn
